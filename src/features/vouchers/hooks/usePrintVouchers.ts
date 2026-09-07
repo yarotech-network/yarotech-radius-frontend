@@ -1,3 +1,5 @@
+import { vouchersApi } from '../api';
+import { errorMessage } from '@/services/api/errors';
 import { useCallback, useRef, useState } from 'react';
 import { useToast } from '@/components/feedback';
 import { printHtml } from '@/lib/utilities/download';
@@ -23,6 +25,8 @@ export function usePrintVouchers() {
       abortRef.current = controller;
       setProgress({ done: 0, total: ids.length });
       try {
+        await vouchersApi.authorizePrint(ids);
+        if (controller.signal.aborted) return;
         const { ok, failed } = await fetchCredentials(ids, setProgress, controller.signal);
         if (controller.signal.aborted) return;
         if (ok.length === 0) {
@@ -43,6 +47,9 @@ export function usePrintVouchers() {
             `${failed.length} of ${ids.length} vouchers skipped`,
             'They could not be loaded — try printing them individually.',
           );
+      } catch (error) {
+        if (!controller.signal.aborted)
+          toast.error('Could not prepare vouchers', errorMessage(error));
       } finally {
         if (abortRef.current === controller) {
           abortRef.current = null;

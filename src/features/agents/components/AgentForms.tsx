@@ -103,56 +103,65 @@ function CreateAgentForm({
   return (
     <form onSubmit={(e) => void submit(e)} noValidate className="flex flex-col gap-4">
       {message && <Alert tone="danger">{message}</Alert>}
-      <FormField
-        label="Username"
-        required
-        hint="The agent signs in with this."
-        error={errors.username?.message}
-      >
-        <Input
-          autoFocus
-          autoComplete="off"
-          autoCapitalize="none"
-          spellCheck={false}
-          {...form.register('username')}
-        />
-      </FormField>
-      <FormField label="Email" required error={errors.email?.message}>
-        <Input type="email" autoComplete="off" inputMode="email" {...form.register('email')} />
-      </FormField>
-      <FormField
-        label="Temporary password"
-        required
-        hint="At least 8 characters, not all digits. Share it with the agent securely."
-        error={errors.password?.message}
-      >
-        <PasswordInput autoComplete="new-password" {...form.register('password')} />
-      </FormField>
-      <FormField label="Phone" required error={errors.phone?.message}>
-        <Input
-          type="tel"
-          inputMode="tel"
-          placeholder="+234 803 000 0000"
-          {...form.register('phone')}
-        />
-      </FormField>
-      <FormField label="Shop name" optionalLabel error={errors.shop_name?.message}>
-        <Input placeholder="e.g. Chidi Phones" {...form.register('shop_name')} />
-      </FormField>
-      <FormField
-        label="Commission rate"
-        optionalLabel
-        hint="Percent of each sale credited as commission. Defaults to 10%."
-        error={errors.commission_rate?.message}
-      >
-        <Input
-          inputMode="decimal"
-          placeholder="10"
-          className="max-w-32"
-          trailingSlot={<span className="pr-2 text-sm text-ink-500">%</span>}
-          {...form.register('commission_rate')}
-        />
-      </FormField>
+      <fieldset className="space-y-4 rounded-xl border border-border p-4">
+        <legend className="px-1 text-sm font-semibold text-brand-950">Sign-in details</legend>
+        <FormField
+          label="Username"
+          required
+          hint="The agent signs in with this."
+          error={errors.username?.message}
+        >
+          <Input
+            autoFocus
+            autoComplete="off"
+            autoCapitalize="none"
+            spellCheck={false}
+            {...form.register('username')}
+          />
+        </FormField>
+        <FormField label="Email" required error={errors.email?.message}>
+          <Input type="email" autoComplete="off" inputMode="email" {...form.register('email')} />
+        </FormField>
+        <FormField
+          label="Temporary password"
+          required
+          hint="At least 8 characters, not all digits. Share it with the agent securely."
+          error={errors.password?.message}
+        >
+          <PasswordInput autoComplete="new-password" {...form.register('password')} />
+        </FormField>
+      </fieldset>
+      <fieldset className="space-y-4 rounded-xl border border-border p-4">
+        <legend className="px-1 text-sm font-semibold text-brand-950">Shop and contact</legend>
+        <FormField label="Phone" required error={errors.phone?.message}>
+          <Input
+            type="tel"
+            inputMode="tel"
+            placeholder="+234 803 000 0000"
+            {...form.register('phone')}
+          />
+        </FormField>
+        <FormField label="Shop name" optionalLabel error={errors.shop_name?.message}>
+          <Input placeholder="e.g. Chidi Phones" {...form.register('shop_name')} />
+        </FormField>
+      </fieldset>
+      <fieldset className="space-y-4 rounded-xl border border-border p-4">
+        <legend className="px-1 text-sm font-semibold text-brand-950">Commission</legend>
+        <FormField
+          label="Commission rate"
+          optionalLabel
+          hint="Percent of each sale credited as commission. Defaults to 10%."
+          error={errors.commission_rate?.message}
+        >
+          <Input
+            inputMode="decimal"
+            placeholder="10"
+            className="max-w-32"
+            trailingSlot={<span className="pr-2 text-sm text-ink-500">%</span>}
+            {...form.register('commission_rate')}
+          />
+        </FormField>
+      </fieldset>
       <FormActions
         submitting={form.formState.isSubmitting}
         submitLabel="Add agent"
@@ -182,7 +191,7 @@ export function EditAgentDialog({
       title={`Edit ${agent.username}`}
       description="Username and email cannot be changed here."
     >
-      {open && <EditAgentForm agent={agent} onCancel={onClose} onSaved={onSaved} />}
+      {open && <EditAgentForm key={agent.id} agent={agent} onCancel={onClose} onSaved={onSaved} />}
     </Dialog>
   );
 }
@@ -222,25 +231,31 @@ function EditAgentForm({
   return (
     <form onSubmit={(e) => void submit(e)} noValidate className="flex flex-col gap-4">
       {message && <Alert tone="danger">{message}</Alert>}
-      <FormField label="Phone" required error={errors.phone?.message}>
-        <Input type="tel" inputMode="tel" autoFocus {...form.register('phone')} />
-      </FormField>
-      <FormField label="Shop name" optionalLabel error={errors.shop_name?.message}>
-        <Input {...form.register('shop_name')} />
-      </FormField>
-      <FormField
-        label="Commission rate"
-        required
-        hint="Applies to future sales only."
-        error={errors.commission_rate?.message}
-      >
-        <Input
-          inputMode="decimal"
-          className="max-w-32"
-          trailingSlot={<span className="pr-2 text-sm text-ink-500">%</span>}
-          {...form.register('commission_rate')}
-        />
-      </FormField>
+      <fieldset className="space-y-4 rounded-xl border border-border p-4">
+        <legend className="px-1 text-sm font-semibold text-brand-950">Shop and contact</legend>
+        <FormField label="Phone" required error={errors.phone?.message}>
+          <Input type="tel" inputMode="tel" autoFocus {...form.register('phone')} />
+        </FormField>
+        <FormField label="Shop name" optionalLabel error={errors.shop_name?.message}>
+          <Input {...form.register('shop_name')} />
+        </FormField>
+      </fieldset>
+      <fieldset className="space-y-4 rounded-xl border border-border p-4">
+        <legend className="px-1 text-sm font-semibold text-brand-950">Commission</legend>
+        <FormField
+          label="Commission rate"
+          required
+          hint="Applies to future sales only."
+          error={errors.commission_rate?.message}
+        >
+          <Input
+            inputMode="decimal"
+            className="max-w-32"
+            trailingSlot={<span className="pr-2 text-sm text-ink-500">%</span>}
+            {...form.register('commission_rate')}
+          />
+        </FormField>
+      </fieldset>
       <FormActions
         submitting={form.formState.isSubmitting}
         submitLabel="Save changes"

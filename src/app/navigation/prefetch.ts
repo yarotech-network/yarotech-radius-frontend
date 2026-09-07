@@ -19,6 +19,7 @@ import type { QueryClient } from '@tanstack/react-query';
 const routeChunks: Record<string, () => Promise<unknown>> = {
   /* workspace */
   '/dashboard': () => import('@/features/dashboard/pages/DashboardPage'),
+  '/storefront': () => import('@/features/storefront/pages/StorefrontManagementPage'),
   '/sessions': () => import('@/features/sessions/pages/SessionsPage'),
   '/plans': () => import('@/features/plans/pages/PlansPage'),
   '/vouchers': () => import('@/features/vouchers/pages/VouchersPage'),

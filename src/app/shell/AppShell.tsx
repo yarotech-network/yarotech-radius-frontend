@@ -1,7 +1,15 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router';
 import { useQueryClient } from '@tanstack/react-query';
-import { MoreHorizontal, PanelLeftClose, PanelLeftOpen, X } from 'lucide-react';
+import {
+  Building2,
+  Menu,
+  MoreHorizontal,
+  PanelLeftClose,
+  PanelLeftOpen,
+  ShieldCheck,
+  X,
+} from 'lucide-react';
 import { STORAGE_KEYS } from '@/app/config/constants';
 import type { NavGroup } from '@/app/navigation/navConfig';
 import { mobilePrimaryItems, visibleGroups } from '@/app/navigation/navConfig';
@@ -22,7 +30,7 @@ export interface AppShellProps {
   topBarStart?: ReactNode;
   /** Extra items shown under the workspace name in the sidebar. */
   sidebarBadge?: ReactNode;
-  /** Platform console uses a dark-blue top bar accent. */
+  /** Distinguishes platform administration from a tenant workspace. */
   accent?: 'default' | 'platform';
 }
 
@@ -60,9 +68,26 @@ export function AppShell({
   const drawerOpen = drawerState.open && drawerState.path === location.pathname;
   const setDrawerOpen = (open: boolean) => setDrawerState({ open, path: location.pathname });
   const moreButtonRef = useRef<HTMLButtonElement>(null);
+  const drawerTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const drawerPanelRef = useRef<HTMLDivElement>(null);
   const drawerCloseRef = useRef<HTMLButtonElement>(null);
   const visible = visibleGroups(groups, principal);
   const primary = mobilePrimaryItems(groups, principal);
+  const activeItem = visible
+    .flatMap((group) => group.items)
+    .filter(
+      (item) =>
+        location.pathname === item.to || (!item.end && location.pathname.startsWith(`${item.to}/`)),
+    )
+    .sort((a, b) => b.to.length - a.to.length)[0];
+  const workspaceLabel = accent === 'platform' ? 'Platform administration' : 'Tenant workspace';
+  const workspaceName =
+    principal?.kind === 'member'
+      ? principal.tenantName
+      : accent === 'platform'
+        ? 'Platform console'
+        : 'Assigned workspace';
+  const WorkspaceIcon = accent === 'platform' ? ShieldCheck : Building2;
 
   // Focus management (phase 10): focus lands inside the drawer when it opens
   // and returns to its trigger when the user closes it. Navigation closes the
@@ -73,7 +98,7 @@ export function AppShell({
 
   function closeDrawer(restoreFocus: boolean) {
     setDrawerOpen(false);
-    if (restoreFocus) moreButtonRef.current?.focus();
+    if (restoreFocus) (drawerTriggerRef.current ?? moreButtonRef.current)?.focus();
   }
 
   useEffect(() => {
@@ -89,7 +114,21 @@ export function AppShell({
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         setDrawerState((s) => ({ ...s, open: false }));
-        moreButtonRef.current?.focus();
+        (drawerTriggerRef.current ?? moreButtonRef.current)?.focus();
+      }
+      if (e.key === 'Tab') {
+        const controls = drawerPanelRef.current?.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled])',
+        );
+        const first = controls?.[0];
+        const last = controls?.[controls.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault();
+          last?.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault();
+          first?.focus();
+        }
       }
     };
     document.addEventListener('keydown', onKey);
@@ -115,13 +154,13 @@ export function AppShell({
       {/* Desktop / tablet sidebar */}
       <aside
         className={cn(
-          'fixed inset-y-0 left-0 z-30 hidden w-[72px] flex-col bg-brand-950 text-white transition-[width] duration-200 md:flex',
+          'dashboard-sidebar fixed inset-y-0 left-0 z-30 hidden w-[72px] flex-col border-r border-white/5 bg-brand-950 text-white shadow-xl shadow-brand-950/10 transition-[width] duration-200 motion-reduce:transition-none md:flex',
           sidebarWidth,
         )}
       >
         <div
           className={cn(
-            'flex h-16 items-center',
+            'flex h-20 shrink-0 items-center border-b border-white/8',
             collapsed ? 'justify-center' : 'justify-center px-4 lg:justify-start',
           )}
         >
@@ -131,21 +170,36 @@ export function AppShell({
             {!collapsed && <BrandMark inverse className="hidden lg:inline-flex" />}
           </Link>
         </div>
-        {sidebarBadge && !collapsed && <div className="px-4 pb-2">{sidebarBadge}</div>}
+        {!collapsed && (
+          <div className="mx-3 mt-5 mb-2 hidden items-center gap-3 rounded-xl border border-white/10 bg-white/5 p-3 lg:flex">
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-brand-400/15 text-brand-200">
+              <WorkspaceIcon className="size-5" aria-hidden />
+            </span>
+            <div className="min-w-0">
+              <p className="text-[10px] font-semibold tracking-wider text-brand-300 uppercase">
+                {workspaceLabel}
+              </p>
+              <p className="mt-1 truncate text-sm font-medium" title={workspaceName}>
+                {workspaceName}
+              </p>
+              {sidebarBadge && <div className="mt-2">{sidebarBadge}</div>}
+            </div>
+          </div>
+        )}
         <SidebarNav groups={visible} collapsed={collapsed} />
-        <div className="hidden p-2 lg:block">
+        <div className="hidden border-t border-white/10 p-3 lg:block">
           <button
             type="button"
             onClick={() => setCollapsed((v) => !v)}
             aria-pressed={collapsed}
-            className="flex h-10 w-full items-center justify-center gap-2 rounded-control text-xs font-medium text-brand-200 hover:bg-white/8 hover:text-white"
+            className="flex h-11 w-full items-center justify-center gap-2 rounded-xl text-xs font-medium text-brand-200 transition-colors hover:bg-white/8 hover:text-white focus-visible:outline-2 focus-visible:outline-brand-300"
           >
             {collapsed ? (
               <PanelLeftOpen className="size-4" aria-hidden />
             ) : (
               <PanelLeftClose className="size-4" aria-hidden />
             )}
-            {!collapsed && 'Collapse'}
+            {!collapsed && 'Collapse sidebar'}
             <span className="sr-only">
               {collapsed ? 'Expand navigation' : 'Collapse navigation'}
             </span>
@@ -156,24 +210,44 @@ export function AppShell({
       {/* Top bar */}
       <header
         className={cn(
-          'sticky top-0 z-20 flex h-14 items-center gap-2 border-b px-3 sm:h-16 sm:px-5 md:pl-[calc(72px+1.25rem)]',
+          'sticky top-0 z-20 flex h-18 items-center gap-3 border-b border-border bg-white/95 px-3 shadow-sm shadow-slate-900/3 backdrop-blur-sm sm:h-20 sm:gap-5 sm:px-5 md:pl-[calc(72px+1.25rem)]',
           collapsed ? 'lg:pl-[calc(72px+1.5rem)]' : 'lg:pl-[calc(16rem+1.5rem)]',
-          accent === 'platform'
-            ? 'border-brand-900 bg-brand-950 text-white'
-            : 'border-border bg-surface',
         )}
       >
-        <Link to={homePath} className="md:hidden" aria-label="Home">
-          <BrandMark size="sm" inverse={accent === 'platform'} />
-        </Link>
-        <div className="flex min-w-0 flex-1 items-center gap-2 md:justify-start">{topBarStart}</div>
-        <div
-          className={cn(
-            accent === 'platform' &&
-              '[&_.text-ink-500]:text-brand-200 [&_button:hover]:bg-white/10 [&_span]:text-white',
-          )}
+        <button
+          type="button"
+          aria-label="Open navigation"
+          aria-expanded={drawerOpen}
+          aria-controls="mobile-drawer"
+          onClick={(event) => {
+            drawerTriggerRef.current = event.currentTarget;
+            setDrawerOpen(true);
+          }}
+          className="flex size-11 shrink-0 items-center justify-center rounded-xl border border-border bg-white text-ink-600 hover:bg-brand-50 focus-visible:outline-2 focus-visible:outline-brand-600 md:hidden"
         >
-          <UserMenu profilePath={profilePath} />
+          <Menu className="size-5" aria-hidden />
+        </button>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-[10px] font-semibold tracking-wider text-ink-500 uppercase sm:text-[11px]">
+            {workspaceLabel}
+          </p>
+          <p className="mt-0.5 truncate text-base font-semibold tracking-tight text-brand-950 sm:text-lg">
+            {activeItem?.label ?? 'Dashboard'}
+          </p>
+        </div>
+        {topBarStart && (
+          <div
+            className={cn(
+              'hidden max-w-64 min-w-0 items-center gap-2 rounded-xl border border-border bg-surface-muted px-3 py-2',
+              principal?.kind === 'platform_staff' ? 'md:flex' : 'lg:flex',
+            )}
+          >
+            <WorkspaceIcon className="size-4 shrink-0 text-brand-600" aria-hidden />
+            {topBarStart}
+          </div>
+        )}
+        <div className="shrink-0 border-l border-border pl-2 sm:pl-4">
+          <UserMenu profilePath={profilePath} dashboard />
         </div>
       </header>
 
@@ -230,7 +304,10 @@ export function AppShell({
             <button
               type="button"
               ref={moreButtonRef}
-              onClick={() => setDrawerOpen(true)}
+              onClick={(event) => {
+                drawerTriggerRef.current = event.currentTarget;
+                setDrawerOpen(true);
+              }}
               aria-expanded={drawerOpen}
               aria-controls="mobile-drawer"
               className="flex h-14 w-full flex-col items-center justify-center gap-1 text-[11px] font-medium text-ink-500"
@@ -256,11 +333,15 @@ export function AppShell({
           <button
             type="button"
             aria-label="Close navigation"
-            className="absolute inset-0 bg-brand-950/50"
+            className="absolute inset-0 bg-brand-950/60 backdrop-blur-sm"
+            tabIndex={-1}
             onClick={() => closeDrawer(true)}
           />
-          <div className="absolute inset-y-0 left-0 flex w-[82vw] max-w-xs flex-col bg-brand-950 text-white">
-            <div className="flex h-14 items-center justify-between px-4">
+          <div
+            ref={drawerPanelRef}
+            className="absolute inset-y-0 left-0 flex w-[86vw] max-w-xs flex-col bg-brand-950 text-white shadow-2xl"
+          >
+            <div className="flex h-20 shrink-0 items-center justify-between border-b border-white/10 px-4">
               <BrandMark inverse />
               <Button
                 ref={drawerCloseRef}
@@ -273,7 +354,14 @@ export function AppShell({
                 <X className="size-5" />
               </Button>
             </div>
-            {sidebarBadge && <div className="px-4 pb-2">{sidebarBadge}</div>}
+            <div className="mx-3 mt-4 rounded-xl border border-white/10 bg-white/5 p-3">
+              <p className="text-[10px] font-semibold tracking-wider text-brand-300 uppercase">
+                {workspaceLabel}
+              </p>
+              <p className="mt-1 truncate text-sm font-medium">{workspaceName}</p>
+              {sidebarBadge && <div className="mt-2">{sidebarBadge}</div>}
+              {principal?.kind === 'platform_staff' && <div className="mt-2">{topBarStart}</div>}
+            </div>
             <SidebarNav
               groups={visible}
               collapsed={false}

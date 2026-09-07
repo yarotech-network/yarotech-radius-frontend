@@ -85,6 +85,7 @@ describe('PlansPage', () => {
     const { unmount } = renderPage(<PlansPage />, { role: 'staff', path: '/plans' });
     expect(await screen.findByText('No plans yet')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'New plan' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'View storefront' })).not.toBeInTheDocument();
     unmount();
 
     let posted: Record<string, unknown> | null = null;
@@ -130,5 +131,27 @@ describe('PlansPage', () => {
       is_active: true,
     });
     expect(await screen.findByText('Plan created')).toBeInTheDocument();
+  });
+  it('shows authoritative prices and preserves rows after a failed refresh', async () => {
+    const user = userEvent.setup();
+    server.use(http.get(`${API}/plans/`, () => HttpResponse.json(paginated(plans))));
+    renderPage(<PlansPage />, { role: 'owner', path: '/plans' });
+    const table = await screen.findByRole('table', { name: 'Internet plans' });
+    expect(await within(table).findByText('Daily 1GB')).toBeInTheDocument();
+    expect(within(table).getByText('\u20a6500.00')).toBeInTheDocument();
+    expect(within(table).getByText('Active')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'View storefront' })).toHaveAttribute(
+      'href',
+      '/storefront',
+    );
+    expect(screen.getByText('2 total plans')).toBeInTheDocument();
+    server.use(
+      http.get(`${API}/plans/`, () =>
+        HttpResponse.json({ detail: 'Unavailable' }, { status: 503 }),
+      ),
+    );
+    await user.click(screen.getByRole('button', { name: 'Refresh plans' }));
+    expect(await screen.findByText('Plans could not be refreshed')).toBeInTheDocument();
+    expect(within(table).getByText('Daily 1GB')).toBeInTheDocument();
   });
 });

@@ -1,3 +1,4 @@
+import { usePrintVouchers } from '../hooks/usePrintVouchers';
 import { http, HttpResponse } from 'msw';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { screen, waitFor, within } from '@testing-library/react';
@@ -49,6 +50,11 @@ const printPage = (v: Voucher) =>
 let printed: string[] = [];
 beforeEach(() => {
   printed = [];
+  server.use(
+    http.post(`${API}/vouchers/authorize-print/`, () =>
+      HttpResponse.json({ used: 1, limit: null, day: '2026-09-07', timezone: 'Africa/Lagos' }),
+    ),
+  );
   vi.spyOn(download, 'printHtml').mockImplementation((html) => {
     printed.push(html);
   });
@@ -115,6 +121,44 @@ describe('VouchersPage', () => {
     expect(within(menu).queryByRole('menuitem', { name: 'Edit' })).not.toBeInTheDocument();
   });
 
+  it('keeps vouchers visible when refresh fails and links to their details', async () => {
+    const user = userEvent.setup();
+    server.use(http.get(`${API}/vouchers/`, () => HttpResponse.json(paginated([voucher(1)]))));
+    renderPage(<VouchersPage />, { role: 'manager', path: '/vouchers' });
+    const table = await screen.findByRole('table', { name: 'Vouchers' });
+    expect(await within(table).findByRole('link', { name: 'WH10001' })).toHaveAttribute(
+      'href',
+      '/vouchers/1',
+    );
+    expect(screen.getByText('1 total vouchers')).toBeInTheDocument();
+    server.use(
+      http.get(`${API}/vouchers/`, () =>
+        HttpResponse.json({ detail: 'Unavailable' }, { status: 503 }),
+      ),
+    );
+    await user.click(screen.getByRole('button', { name: 'Refresh vouchers' }));
+    expect(await screen.findByText('Vouchers could not be refreshed')).toBeInTheDocument();
+    expect(within(table).getByText('WH10001')).toBeInTheDocument();
+  });
+
+  it('offers selection on mobile cards and reports plan-filter failure independently', async () => {
+    const user = userEvent.setup();
+    server.use(
+      http.get(`${API}/vouchers/`, () => HttpResponse.json(paginated([voucher(1)]))),
+      http.get(`${API}/plans/`, () =>
+        HttpResponse.json({ detail: 'Unavailable' }, { status: 503 }),
+      ),
+    );
+    renderPage(<VouchersPage />, { role: 'staff', path: '/vouchers' });
+    expect(await screen.findByText('Plan filters could not be loaded')).toBeInTheDocument();
+    const cards = screen.getByRole('list');
+    await user.click(await within(cards).findByRole('checkbox', { name: 'Select WH10001' }));
+    expect(screen.getByText('1 selected')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Print selected' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Clear selection' }));
+    expect(screen.queryByRole('button', { name: 'Print selected' })).not.toBeInTheDocument();
+  });
+
   it('shows the empty state with a call to action', async () => {
     server.use(http.get(`${API}/vouchers/`, () => HttpResponse.json(paginated([]))));
     renderPage(<VouchersPage />, { role: 'owner', path: '/vouchers' });
@@ -158,6 +202,38 @@ describe('GenerateVouchersPage', () => {
     await waitFor(() => expect(printed).toHaveLength(1));
     expect(printed[0]).toContain('WH100011');
     expect(printed[0]).toContain('pw-12');
+  });
+
+  it('starts a distinct request for another batch and shows the returned usernames', async () => {
+    const user = userEvent.setup();
+    const keys: (string | null)[] = [];
+    server.use(
+      http.post(`${API}/vouchers/generate/`, ({ request }) => {
+        keys.push(request.headers.get('Idempotency-Key'));
+        return HttpResponse.json([voucher(keys.length + 20)], { status: 201 });
+      }),
+    );
+    renderPage(<GenerateVouchersPage />, {
+      role: 'manager',
+      path: '/vouchers/generate',
+      route: '/vouchers/generate?plan=1',
+    });
+    await screen.findByRole('radio', { name: /Daily 1GB/ });
+    expect(screen.getByText('Price per voucher')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Generate 20 vouchers' }));
+    expect(await screen.findByRole('link', { name: 'WH100021' })).toHaveAttribute(
+      'href',
+      '/vouchers/21',
+    );
+    await user.click(screen.getByRole('button', { name: 'Generate another batch' }));
+    await user.click(screen.getByRole('button', { name: 'Generate 20 vouchers' }));
+    expect(await screen.findByRole('link', { name: 'WH100022' })).toHaveAttribute(
+      'href',
+      '/vouchers/22',
+    );
+    expect(keys).toHaveLength(2);
+    expect(keys[0]).toBeTruthy();
+    expect(keys[1]).not.toBe(keys[0]);
   });
 
   it('surfaces validation errors from the API on the right field', async () => {
@@ -209,6 +285,37 @@ describe('VoucherDetailPage', () => {
     expect(screen.queryByRole('button', { name: 'Disable' })).not.toBeInTheDocument();
   });
 
+  it.each([
+    { role: 'staff' as const, status: 'unused' as const },
+    { role: 'owner' as const, status: 'active' as const },
+  ])('denies URL-driven editing for $role with a $status voucher', async ({ role, status }) => {
+    server.use(http.get(`${API}/vouchers/7/`, () => HttpResponse.json(voucher(7, { status }))));
+    renderPage(<VoucherDetailPage />, { role, path: '/vouchers/:id', route: '/vouchers/7?edit=1' });
+    await screen.findByRole('heading', { name: /WH10007/ });
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument();
+  });
+
+  it('keeps loaded details with a warning after refresh fails', async () => {
+    const user = userEvent.setup();
+    server.use(http.get(`${API}/vouchers/7/`, () => HttpResponse.json(voucher(7))));
+    renderPage(<VoucherDetailPage />, {
+      role: 'owner',
+      path: '/vouchers/:id',
+      route: '/vouchers/7',
+    });
+    await screen.findByRole('heading', { name: /WH10007/ });
+    expect(screen.getByRole('heading', { name: 'Voucher lifecycle' })).toBeInTheDocument();
+    server.use(
+      http.get(`${API}/vouchers/7/`, () =>
+        HttpResponse.json({ detail: 'Unavailable' }, { status: 503 }),
+      ),
+    );
+    await user.click(screen.getByRole('button', { name: 'Refresh voucher' }));
+    expect(await screen.findByText('Voucher could not be refreshed')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /WH10007/ })).toBeInTheDocument();
+  });
+
   it('renders a friendly not-found error', async () => {
     server.use(
       http.get(`${API}/vouchers/99/`, () =>
@@ -229,4 +336,32 @@ describe('VoucherDetailPage', () => {
     });
     expect(await screen.findByText('Voucher not found')).toBeInTheDocument();
   });
+});
+
+function PrintQuotaExample() {
+  const printer = usePrintVouchers();
+  return <button onClick={() => void printer.print([1, 2])}>Print selected vouchers</button>;
+}
+
+it('shows quota errors without loading or printing a partial batch', async () => {
+  let credentialsRequested = false;
+  server.use(
+    http.post(`${API}/vouchers/authorize-print/`, () =>
+      HttpResponse.json(
+        { detail: 'Daily voucher printing limit reached: 1 of 1 used.' },
+        { status: 403 },
+      ),
+    ),
+    http.get(`${API}/vouchers/:id/print/`, () => {
+      credentialsRequested = true;
+      return HttpResponse.text(printPage(voucher(1)));
+    }),
+  );
+  renderPage(<PrintQuotaExample />);
+  await userEvent.click(screen.getByRole('button', { name: 'Print selected vouchers' }));
+  expect(
+    await screen.findByText('Daily voucher printing limit reached: 1 of 1 used.'),
+  ).toBeInTheDocument();
+  expect(credentialsRequested).toBe(false);
+  expect(printed).toHaveLength(0);
 });

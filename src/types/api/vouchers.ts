@@ -57,6 +57,7 @@ export interface Voucher {
 }
 
 export interface VoucherListParams extends PageParams {
+  agent?: number;
   status?: VoucherStatus;
   plan?: number;
   created_after?: string;

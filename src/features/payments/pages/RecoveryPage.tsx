@@ -1,8 +1,8 @@
 import { useMemo } from 'react';
 import { useSearchParams } from 'react-router';
-import { LifeBuoy } from 'lucide-react';
+import { LifeBuoy, RefreshCw } from 'lucide-react';
 import { PageHeader, StatusBadge } from '@/components/layout';
-import { Button, Select, Tooltip } from '@/components/ui';
+import { Button, Card, Select, Tooltip } from '@/components/ui';
 import { Alert, EmptyState } from '@/components/feedback';
 import {
   DataTable,
@@ -67,8 +67,24 @@ export default function RecoveryPage() {
       primary: true,
       cell: (r) => (
         <div className="min-w-0">
-          <code className="font-mono text-sm font-semibold text-ink-900">{r.reference}</code>
-          <div className="text-xs text-ink-500">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              select(r.id);
+            }}
+            className="text-left font-mono text-sm font-semibold break-all text-brand-700 hover:underline focus-visible:underline"
+          >
+            {r.reference}
+          </button>
+          {needsAttention(r) && (
+            <p className="mt-1 text-xs font-medium text-warning-700">
+              {r.fulfillment_status === 'paid_unfulfilled'
+                ? 'Payment received; voucher not issued'
+                : 'Voucher issued; credentials email failed'}
+            </p>
+          )}
+          <div className="mt-1 text-xs text-ink-500">
             {r.verified_at ? (
               <span title={formatDateTime(r.verified_at)}>
                 Verified {formatRelative(r.verified_at)}
@@ -84,7 +100,9 @@ export default function RecoveryPage() {
       key: 'amount',
       header: 'Amount',
       align: 'right',
-      cell: (r) => <span className="tabular-nums">{formatKobo(r.amount)}</span>,
+      cell: (r) => (
+        <span className="font-semibold text-ink-900 tabular-nums">{formatKobo(r.amount)}</span>
+      ),
     },
     { key: 'status', header: 'Payment', cell: (r) => <StatusBadge status={r.status} size="sm" /> },
     {
@@ -112,13 +130,43 @@ export default function RecoveryPage() {
   ];
 
   return (
-    <>
+    <div className="space-y-6">
       <PageHeader
         title="Payment recovery"
+        actions={
+          <Button
+            variant="secondary"
+            disabled={query.isFetching}
+            leadingIcon={<RefreshCw className={query.isFetching ? 'animate-spin' : ''} />}
+            onClick={() => void query.refetch()}
+          >
+            Refresh recovery
+          </Button>
+        }
         description="Find customers who paid but did not get their voucher, re-run fulfilment, and resend credentials."
         backTo="/payments"
         crumbs={[{ label: 'Payments', to: '/payments' }, { label: 'Recovery' }]}
       />
+      <Card className="border-brand-100 bg-gradient-to-br from-brand-50 via-white to-sky-50">
+        <div className="flex items-start gap-4">
+          <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-brand-600 text-white">
+            <LifeBuoy className="size-5" aria-hidden />
+          </span>
+          <div className="min-w-0">
+            <h2 className="text-lg font-semibold text-brand-950">
+              Resolve missing vouchers and delivery failures
+            </h2>
+            <p className="mt-1 text-sm leading-relaxed text-ink-600">
+              Review payment, voucher and email status separately. Open a reference to see the
+              available recovery actions and email history.
+            </p>
+            <p className="mt-3 text-xs font-medium text-brand-700">
+              Needs attention checks the current page only. Browse other pages to review additional
+              payments.
+            </p>
+          </div>
+        </div>
+      </Card>
       {attentionCount > 0 && !attentionOnly && (
         <Alert
           tone="warning"
@@ -133,102 +181,145 @@ export default function RecoveryPage() {
           Paid without a voucher, or the credentials email failed.
         </Alert>
       )}
-      <FilterBar
-        search={
-          <SearchInput
-            value={list.state.search}
-            onChange={list.setSearch}
-            placeholder="Search by reference"
-            ariaLabel="Search payments by reference"
-          />
-        }
-        filters={
-          <>
-            <Select
-              aria-label="Needs attention"
-              size="sm"
-              value={attentionOnly ? '1' : ''}
-              onChange={(e) => list.setFilter('attention', e.target.value || undefined)}
-              options={[
-                { value: '', label: 'All payments' },
-                { value: '1', label: 'Needs attention' },
-              ]}
+      <section aria-labelledby="recovery-queue-title" className="space-y-4">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <h2 id="recovery-queue-title" className="text-lg font-semibold text-brand-950">
+            Recovery queue
+          </h2>
+          <p role="status" className="text-sm text-ink-500">
+            {query.isPlaceholderData
+              ? 'Updating results...'
+              : query.data
+                ? `${rows?.length ?? 0} shown on this page; ${query.data.count} total before attention filtering`
+                : query.isError
+                  ? 'Payment count unavailable'
+                  : 'Loading payments...'}
+          </p>
+        </div>
+        <FilterBar
+          inline
+          search={
+            <SearchInput
+              value={list.state.search}
+              onChange={list.setSearch}
+              placeholder="Search by reference"
+              ariaLabel="Search payments by reference"
             />
-            <Select
-              aria-label="Payment status"
-              size="sm"
-              value={list.state.filters.status ?? ''}
-              onChange={(e) => list.setFilter('status', e.target.value || undefined)}
-              options={PAYMENT_STATUS_FILTERS}
-            />
-            <Select
-              aria-label="Plan"
-              size="sm"
-              value={list.state.filters.plan ?? ''}
-              onChange={(e) => list.setFilter('plan', e.target.value || undefined)}
-              options={[
-                { value: '', label: 'All plans' },
-                ...(plans.data ?? []).map((p) => ({ value: String(p.id), label: p.name })),
-              ]}
-            />
-          </>
-        }
-        activeCount={list.activeFilterCount}
-        onClear={list.clearFilters}
-      />
-      <DataTable
-        caption="Payment recovery"
-        columns={columns}
-        rows={rows}
-        rowKey={(r) => r.id}
-        loading={query.isPending}
-        refreshing={query.isFetching && !query.isPending}
-        error={query.error}
-        onRetry={() => void query.refetch()}
-        onRowClick={(r) => select(r.id)}
-        empty={
-          attentionOnly && (query.data?.results.length ?? 0) > 0 ? (
-            <EmptyState
-              icon={<LifeBuoy className="h-6 w-6" aria-hidden />}
-              title="Nothing needs attention on this page"
-              description="Every payment here either has its voucher and email delivered, or never completed."
-              action={
-                <Button variant="secondary" onClick={() => list.setFilter('attention', undefined)}>
-                  Show all payments
-                </Button>
-              }
-            />
-          ) : list.activeFilterCount > 0 ? (
-            <EmptyState
-              icon={<LifeBuoy className="h-6 w-6" aria-hidden />}
-              title="No payments match"
-              action={
-                <Button variant="secondary" onClick={list.clearFilters}>
-                  Clear filters
-                </Button>
-              }
-            />
-          ) : (
-            <EmptyState
-              icon={<LifeBuoy className="h-6 w-6" aria-hidden />}
-              title="No payments yet"
-              description="Storefront purchases will show up here once customers start buying."
-            />
-          )
-        }
-      />
-      {query.data && query.data.count > 0 && (
-        <Pagination
-          count={query.data.count}
-          page={list.state.page}
-          totalPages={query.data.total_pages}
-          pageSize={list.state.page_size}
-          onPageChange={list.setPage}
-          onPageSizeChange={list.setPageSize}
-          itemLabel="payments"
+          }
+          filters={
+            <div className="flex items-center gap-2 [&>div]:w-44 [&>div]:shrink-0">
+              <Select
+                aria-label="Needs attention"
+                size="sm"
+                value={attentionOnly ? '1' : ''}
+                onChange={(e) => list.setFilter('attention', e.target.value || undefined)}
+                options={[
+                  { value: '', label: 'All payments' },
+                  { value: '1', label: 'Needs attention' },
+                ]}
+              />
+              <Select
+                aria-label="Payment status"
+                size="sm"
+                value={list.state.filters.status ?? ''}
+                onChange={(e) => list.setFilter('status', e.target.value || undefined)}
+                options={PAYMENT_STATUS_FILTERS}
+              />
+              <Select
+                aria-label="Plan"
+                size="sm"
+                value={list.state.filters.plan ?? ''}
+                onChange={(e) => list.setFilter('plan', e.target.value || undefined)}
+                options={[
+                  { value: '', label: 'All plans' },
+                  ...(plans.data ?? []).map((p) => ({ value: String(p.id), label: p.name })),
+                ]}
+              />
+            </div>
+          }
+          activeCount={list.activeFilterCount}
+          onClear={list.clearFilters}
         />
-      )}
+        {plans.isError && (
+          <Alert
+            tone="warning"
+            title="Plan filters could not be loaded"
+            actions={
+              <Button
+                size="sm"
+                variant="secondary"
+                disabled={plans.isFetching}
+                onClick={() => void plans.refetch()}
+              >
+                Retry plan filters
+              </Button>
+            }
+          >
+            Search and payment status filters remain available.
+          </Alert>
+        )}
+        {query.isError && query.data && (
+          <Alert tone="warning" title="Recovery queue could not be refreshed">
+            Showing the last loaded payments. Refresh again to check their current status.
+          </Alert>
+        )}
+        <DataTable
+          caption="Payment recovery"
+          columns={columns}
+          rows={rows}
+          rowKey={(r) => r.id}
+          loading={query.isPending}
+          refreshing={query.isFetching && !query.isPending}
+          error={query.error}
+          onRetry={() => void query.refetch()}
+          onRowClick={(r) => select(r.id)}
+          empty={
+            attentionOnly && (query.data?.results.length ?? 0) > 0 ? (
+              <EmptyState
+                icon={<LifeBuoy className="h-6 w-6" aria-hidden />}
+                title="Nothing needs attention on this page"
+                description="No paid-without-voucher or failed-email cases were found on this page. Other payments may still be pending or have email delivery in progress."
+                action={
+                  <Button
+                    variant="secondary"
+                    onClick={() => list.setFilter('attention', undefined)}
+                  >
+                    Show all payments
+                  </Button>
+                }
+              />
+            ) : list.activeFilterCount > 0 ? (
+              <EmptyState
+                icon={<LifeBuoy className="h-6 w-6" aria-hidden />}
+                title="No payments match"
+                action={
+                  <Button variant="secondary" onClick={list.clearFilters}>
+                    Clear filters
+                  </Button>
+                }
+              />
+            ) : (
+              <EmptyState
+                icon={<LifeBuoy className="h-6 w-6" aria-hidden />}
+                title="No payments yet"
+                description="Storefront purchases will show up here once customers start buying."
+              />
+            )
+          }
+        />
+        {query.data && query.data.count > 0 && (
+          <Pagination
+            count={query.data.count}
+            page={list.state.page}
+            totalPages={query.data.total_pages}
+            pageSize={list.state.page_size}
+            onPageChange={list.setPage}
+            onPageSizeChange={list.setPageSize}
+            itemLabel="payments"
+          />
+        )}
+      </section>
       <RecoveryDrawer paymentId={selectedId} onClose={() => select(null)} />
-    </>
+    </div>
   );
 }

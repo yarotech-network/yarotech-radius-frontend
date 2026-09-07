@@ -44,7 +44,7 @@ export function RecoveryDrawer({
           errorTitle="Payment not found"
           skeleton={<Skeleton className="h-64 w-full" />}
         >
-          {(row) => <RecoveryDetail row={row} />}
+          {(row) => <RecoveryDetail key={row.id} row={row} />}
         </QueryBoundary>
       )}
     </Dialog>
@@ -182,9 +182,9 @@ function RecoveryDetail({ row }: { row: PaymentRecovery }) {
       )}
 
       {canAct ? (
-        <div className="flex flex-col gap-3 rounded-card border border-border p-4">
+        <div className="flex flex-col gap-3 rounded-card border border-brand-100 bg-brand-50/40 p-4">
           <h3 className="text-sm font-semibold text-ink-900">Actions</h3>
-          <div className="flex flex-col gap-2 sm:flex-row">
+          <div className="flex flex-col gap-2">
             <Button
               variant={row.fulfillment_status === 'paid_unfulfilled' ? 'primary' : 'secondary'}
               leadingIcon={<RotateCcw className="h-4 w-4" aria-hidden />}

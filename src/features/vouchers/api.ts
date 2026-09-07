@@ -10,6 +10,12 @@ import type {
 } from '@/types/api';
 
 export const vouchersApi = {
+  authorizePrint(ids: readonly number[]) {
+    return http.post<{ used: number; limit: number | null; day: string; timezone: string }>(
+      '/vouchers/authorize-print/',
+      { voucher_ids: ids },
+    );
+  },
   list(params: VoucherListParams) {
     return http.get<Paginated<Voucher>>('/vouchers/', { ...params });
   },

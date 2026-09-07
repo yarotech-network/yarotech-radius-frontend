@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight, Radio } from 'lucide-react';
 import { PageHeader } from '@/components/layout';
 import { Button, Card, FormField, PasswordInput } from '@/components/ui';
 import { Alert, useToast } from '@/components/feedback';
@@ -74,11 +74,15 @@ export default function NewRouterPage() {
     reset: resetErrors,
     captureError,
   } = useFormSubmit(form.setError, FIELDS, ALIASES);
+  const [name, address, location] = useWatch({
+    control: form.control,
+    name: ['name', 'ip_address', 'location'],
+  });
   const current = STEPS[step]!;
   const last = step === STEPS.length - 1;
 
   async function next() {
-    const valid = await form.trigger([...current.fields]);
+    const valid = await form.trigger([...current.fields], { shouldFocus: true });
     if (valid) setStep((s) => Math.min(s + 1, STEPS.length - 1));
   }
 
@@ -95,8 +99,7 @@ export default function NewRouterPage() {
       } catch (error) {
         captureError(error);
         // Jump to the first step that has an error so the user sees it.
-        const errored = Object.keys(form.formState.errors);
-        const idx = STEPS.findIndex((s) => s.fields.some((f) => errored.includes(f)));
+        const idx = STEPS.findIndex((s) => s.fields.some((f) => form.getFieldState(f).error));
         if (idx >= 0) setStep(idx);
       }
     },
@@ -109,13 +112,31 @@ export default function NewRouterPage() {
   const errors = form.formState.errors;
 
   return (
-    <>
+    <div className="space-y-6">
       <PageHeader
         title="Add router"
         description="Register a MikroTik as a RADIUS client. You can fill in VPN and RouterOS details later."
         backTo="/routers"
         crumbs={[{ label: 'Routers', to: '/routers' }, { label: 'Add router' }]}
       />
+      <Card className="border-brand-100 bg-gradient-to-br from-brand-50 via-white to-sky-50">
+        <div className="flex items-start gap-4">
+          <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-brand-600 text-white">
+            <Radio className="size-5" aria-hidden />
+          </span>
+          <div className="min-w-0">
+            <h2 className="text-lg font-semibold text-brand-950">Connect a new hotspot</h2>
+            <p className="mt-1 text-sm leading-relaxed text-ink-600">
+              Start with the router identity and RADIUS secret. Add optional VPN and RouterOS access
+              details now, or complete them later from the router page.
+            </p>
+            <p className="mt-3 text-xs font-medium text-brand-700">
+              Registration creates the device record. Review its onboarding and connection checks
+              after saving.
+            </p>
+          </div>
+        </div>
+      </Card>
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -123,55 +144,73 @@ export default function NewRouterPage() {
           else void next();
         }}
         noValidate
-        className="grid gap-6 lg:grid-cols-[14rem_1fr]"
+        className="grid grid-cols-1 gap-6 lg:grid-cols-[15rem_minmax(0,1fr)]"
       >
-        <ol className="flex gap-2 overflow-x-auto lg:flex-col" aria-label="Steps">
-          {STEPS.map((s, i) => {
-            const state = i === step ? 'current' : i < step ? 'done' : 'todo';
-            return (
-              <li key={s.key} className="shrink-0">
-                <button
-                  type="button"
-                  onClick={() => i < step && setStep(i)}
-                  disabled={i > step}
-                  aria-current={state === 'current' ? 'step' : undefined}
-                  className={cn(
-                    'flex w-full items-center gap-3 rounded-control px-3 py-2 text-left text-sm transition-colors disabled:cursor-not-allowed',
-                    state === 'current'
-                      ? 'bg-brand-50 text-brand-800'
-                      : 'text-ink-600 hover:bg-surface-muted disabled:hover:bg-transparent',
-                  )}
-                >
-                  <span
+        <div className="min-w-0">
+          <p className="mb-3 text-xs font-semibold tracking-wide text-ink-500 uppercase">
+            Registration progress
+          </p>
+          <ol className="flex gap-2 overflow-x-auto pb-2 lg:flex-col" aria-label="Steps">
+            {STEPS.map((s, i) => {
+              const state = i === step ? 'current' : i < step ? 'done' : 'todo';
+              return (
+                <li key={s.key} className="shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => i < step && setStep(i)}
+                    disabled={i > step || form.formState.isSubmitting}
+                    aria-current={state === 'current' ? 'step' : undefined}
                     className={cn(
-                      'grid h-6 w-6 shrink-0 place-items-center rounded-full border text-xs font-semibold',
-                      state === 'done'
-                        ? 'border-brand-600 bg-brand-600 text-white'
-                        : state === 'current'
-                          ? 'border-brand-600 text-brand-700'
-                          : 'border-border-strong text-ink-400',
+                      'flex w-full items-center gap-3 rounded-control px-3 py-2 text-left text-sm transition-colors disabled:cursor-not-allowed',
+                      state === 'current'
+                        ? 'bg-brand-600 text-white shadow-sm'
+                        : 'text-ink-600 hover:bg-surface-muted disabled:hover:bg-transparent',
                     )}
                   >
-                    {i + 1}
-                  </span>
-                  <span className="min-w-0">
-                    <span className="block truncate font-medium">{s.title}</span>
-                    {'optional' in s && s.optional && (
-                      <span className="block text-xs text-ink-400">Optional</span>
-                    )}
-                  </span>
-                </button>
-              </li>
-            );
-          })}
-        </ol>
+                    <span
+                      className={cn(
+                        'grid h-6 w-6 shrink-0 place-items-center rounded-full border text-xs font-semibold',
+                        state === 'done'
+                          ? 'border-brand-600 bg-brand-600 text-white'
+                          : state === 'current'
+                            ? 'border-white/60 text-white'
+                            : 'border-border-strong text-ink-400',
+                      )}
+                    >
+                      {state === 'done' ? <Check className="size-3.5" aria-hidden /> : i + 1}
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block truncate font-medium">{s.title}</span>
+                      {'optional' in s && s.optional && (
+                        <span
+                          className={
+                            state === 'current'
+                              ? 'block text-xs text-white/80'
+                              : 'block text-xs text-ink-400'
+                          }
+                        >
+                          Optional
+                        </span>
+                      )}
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
+          </ol>
+        </div>
 
-        <Card className="flex flex-col gap-5">
+        <Card className="flex min-w-0 flex-col gap-5">
           {message && <Alert tone="danger">{message}</Alert>}
           <div>
-            <h2 className="text-base font-semibold text-ink-900">
+            <h2 className="text-lg font-semibold text-brand-950">
               Step {step + 1} of {STEPS.length}: {current.title}
             </h2>
+            {current.key === 'basics' && (
+              <p className="mt-1 text-sm text-ink-600">
+                Choose a recognizable name and the address used for RADIUS requests.
+              </p>
+            )}
             {current.key === 'radius' && (
               <p className="mt-1 text-sm text-ink-600">
                 The shared secret configured under RADIUS on the router. It is stored encrypted and
@@ -214,7 +253,7 @@ export default function NewRouterPage() {
             <RouterWireGuardFields register={form.register} errors={errors} />
           )}
           {current.key === 'routeros' && (
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <RouterOsUsernameField register={form.register} errors={errors} />
               <FormField
                 label="RouterOS password"
@@ -229,18 +268,50 @@ export default function NewRouterPage() {
             </div>
           )}
 
+          {last && (
+            <section
+              aria-labelledby="router-review-title"
+              className="rounded-xl border border-brand-100 bg-brand-50/50 p-4"
+            >
+              <h3 id="router-review-title" className="text-sm font-semibold text-brand-950">
+                Review before registering
+              </h3>
+              <dl className="mt-3 grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
+                <div className="min-w-0">
+                  <dt className="text-xs text-ink-500">Router name</dt>
+                  <dd className="mt-1 font-medium break-words">{String(name || 'Not provided')}</dd>
+                </div>
+                <div className="min-w-0">
+                  <dt className="text-xs text-ink-500">NAS IP address</dt>
+                  <dd className="mt-1 font-mono break-all">{String(address || 'Not provided')}</dd>
+                </div>
+                <div className="min-w-0 sm:col-span-2">
+                  <dt className="text-xs text-ink-500">Location</dt>
+                  <dd className="mt-1 break-words">{String(location || 'Not provided')}</dd>
+                </div>
+              </dl>
+              <p className="mt-3 text-xs text-ink-500">
+                Use Back to revise earlier details. Secrets are omitted from this review.
+              </p>
+            </section>
+          )}
           <div className="flex flex-col-reverse gap-2 border-t border-border pt-4 sm:flex-row sm:justify-between">
             <Button
               type="button"
               variant="ghost"
               leadingIcon={<ChevronLeft className="h-4 w-4" aria-hidden />}
               onClick={() => setStep((s) => Math.max(0, s - 1))}
-              disabled={step === 0}
+              disabled={step === 0 || form.formState.isSubmitting}
             >
               Back
             </Button>
             <div className="flex flex-col-reverse gap-2 sm:flex-row">
-              <Button type="button" variant="secondary" onClick={() => navigate('/routers')}>
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={form.formState.isSubmitting}
+                onClick={() => navigate('/routers')}
+              >
                 Cancel
               </Button>
               {last ? (
@@ -259,6 +330,6 @@ export default function NewRouterPage() {
           </div>
         </Card>
       </form>
-    </>
+    </div>
   );
 }

@@ -1,37 +1,71 @@
-import { useEffect } from 'react';
-import { Building2, Radio, Ticket, Users, Wallet } from 'lucide-react';
-import { PageHeader, Section } from '@/components/layout';
-import { ButtonLink, Stat } from '@/components/ui';
-import { ErrorState } from '@/components/feedback';
+﻿import { useEffect, type ReactNode } from 'react';
+import { Link } from 'react-router';
+import {
+  ArrowRight,
+  Building2,
+  Clock3,
+  Radio,
+  RefreshCw,
+  ShieldCheck,
+  Ticket,
+  Users,
+  Wallet,
+} from 'lucide-react';
+import { PageHeader, Section, StatusBadge } from '@/components/layout';
+import { Button, ButtonLink, Card, Skeleton, Stat } from '@/components/ui';
+import { Alert, EmptyState, ErrorState } from '@/components/feedback';
 import { formatKobo } from '@/lib/formatting/money';
 import { formatDateTime, formatRelative } from '@/lib/formatting/dates';
-import { StatusBadge } from '@/components/layout';
 import { PLATFORM_RECENT_TENANTS_PARAMS, usePlatformStats, useTenants } from '../queries';
 
-/** `/platform` — cross-tenant KPIs from `platform/dashboard/` plus the newest tenants. */
+/** Cross-tenant totals and recent operators, each with independent query feedback. */
 export default function PlatformOverviewPage() {
   const stats = usePlatformStats();
   const recent = useTenants(PLATFORM_RECENT_TENANTS_PARAMS);
+  const s = stats.data;
+  const refreshing = stats.isFetching || recent.isFetching;
+  const number = (value: number | undefined) =>
+    value === undefined ? '—' : value.toLocaleString();
+
   useEffect(() => {
     document.title = 'Platform overview · Yarotech RADIUS';
   }, []);
 
-  const s = stats.data;
-  const number = (n: number | undefined) => (n === undefined ? '—' : n.toLocaleString());
-
   return (
-    <>
+    <div className="space-y-6">
       <PageHeader
         title="Platform overview"
-        description="Every operator on the platform at a glance. Amounts are successful payments in naira."
-        meta={
-          s && stats.dataUpdatedAt ? (
-            <span className="text-xs text-ink-500">
-              Updated {formatRelative(new Date(stats.dataUpdatedAt))}
-            </span>
-          ) : undefined
+        description="Your operators, network and payments in one place."
+        actions={
+          <Button
+            variant="secondary"
+            disabled={refreshing}
+            leadingIcon={
+              <RefreshCw className={refreshing ? 'animate-spin motion-reduce:animate-none' : ''} />
+            }
+            onClick={() => {
+              void stats.refetch();
+              void recent.refetch();
+            }}
+          >
+            {refreshing ? 'Refreshing…' : 'Refresh overview'}
+          </Button>
         }
       />
+
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-brand-100 bg-brand-50/70 px-4 py-3">
+        <div className="flex items-center gap-2 text-sm font-medium text-brand-800">
+          <ShieldCheck className="size-4 shrink-0" aria-hidden />
+          Platform-wide view
+        </div>
+        <p className="flex items-center gap-1.5 text-xs text-ink-600" role="status">
+          <Clock3 className="size-3.5" aria-hidden />
+          {s && stats.dataUpdatedAt
+            ? `Figures retrieved ${formatRelative(new Date(stats.dataUpdatedAt))}`
+            : 'Figures appear after loading'}
+        </p>
+      </div>
+
       {stats.isError && !s ? (
         <ErrorState
           error={stats.error}
@@ -40,147 +74,293 @@ export default function PlatformOverviewPage() {
         />
       ) : (
         <>
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-            <Stat
-              tone="brand"
-              label="Tenants"
-              value={number(s?.tenants)}
-              hint={s ? `${s.active_tenants.toLocaleString()} active` : undefined}
-              icon={<Building2 className="size-4" aria-hidden />}
-              loading={stats.isPending}
-            />
-            <Stat
-              label="Routers"
-              value={number(s?.routers)}
-              hint={s ? `${s.onboarded_routers.toLocaleString()} onboarded` : undefined}
-              icon={<Radio className="size-4" aria-hidden />}
-              loading={stats.isPending}
-            />
-            <Stat
-              label="Agents"
-              value={number(s?.agents)}
-              icon={<Users className="size-4" aria-hidden />}
-              loading={stats.isPending}
-            />
-            <Stat
-              label="Vouchers issued"
-              value={number(s?.vouchers)}
-              icon={<Ticket className="size-4" aria-hidden />}
-              loading={stats.isPending}
-            />
-          </div>
+          {stats.isError && s && (
+            <Alert tone="warning" title="Figures could not be refreshed">
+              Showing the last retrieved figures. Use Refresh overview to try again.
+            </Alert>
+          )}
+          <Section title="Platform at a glance" description="Current totals across the platform.">
+            <div className="grid grid-cols-1 gap-3 min-[400px]:grid-cols-2 xl:grid-cols-4">
+              <Stat
+                label="Tenants"
+                value={number(s?.tenants)}
+                hint={s ? `${number(s.active_tenants)} active` : 'Registered businesses'}
+                icon={<Building2 />}
+                loading={stats.isPending}
+                tone="brand"
+                className="min-w-0 rounded-2xl p-5 [overflow-wrap:anywhere] shadow-subtle"
+              />
+              <Stat
+                label="Routers"
+                value={number(s?.routers)}
+                hint={s ? `${number(s.onboarded_routers)} onboarded` : 'Registered network devices'}
+                icon={<Radio />}
+                loading={stats.isPending}
+                className="min-w-0 rounded-2xl p-5 [overflow-wrap:anywhere] shadow-subtle"
+              />
+              <Stat
+                label="Agents"
+                value={number(s?.agents)}
+                hint="Resellers across all tenants"
+                icon={<Users />}
+                loading={stats.isPending}
+                className="min-w-0 rounded-2xl p-5 [overflow-wrap:anywhere] shadow-subtle"
+              />
+              <Stat
+                label="Vouchers issued"
+                value={number(s?.vouchers)}
+                hint="Total access vouchers"
+                icon={<Ticket />}
+                loading={stats.isPending}
+                className="min-w-0 rounded-2xl p-5 [overflow-wrap:anywhere] shadow-subtle"
+              />
+            </div>
+          </Section>
+
           <Section
-            title="Revenue"
-            description="Successful transactions across all tenants, by source."
-            className="mt-6"
+            title="Payment overview"
+            description="Cumulative successful payments in naira, kept separate by source."
           >
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-              <Stat
-                label="Voucher sales"
-                value={s ? formatKobo(s.successful_payment_amount) : '—'}
-                hint={s ? `${s.pending_payments.toLocaleString()} pending` : undefined}
-                icon={<Wallet className="size-4" aria-hidden />}
+            <div className="grid gap-4 xl:grid-cols-3">
+              <PaymentCard
+                title="Voucher sales"
+                value={s ? formatKobo(s.successful_payment_amount) : null}
+                description="Customer purchases of internet access."
+                to="/platform/payments?source=vouchers"
+                icon={<Ticket />}
                 loading={stats.isPending}
-                tone={s && s.pending_payments > 0 ? 'warning' : 'default'}
+                prominent
               />
-              <Stat
-                label="Agent wallet top-ups"
-                value={s ? formatKobo(s.successful_wallet_funding_amount) : '—'}
+              <PaymentCard
+                title="Agent wallet top-ups"
+                value={s ? formatKobo(s.successful_wallet_funding_amount) : null}
+                description="Successful funding of reseller wallets."
+                to="/platform/payments?source=wallet"
+                icon={<Wallet />}
                 loading={stats.isPending}
               />
-              <Stat
-                label="Subscriptions"
-                value={s ? formatKobo(s.successful_subscription_amount) : '—'}
+              <PaymentCard
+                title="Subscriptions"
+                value={s ? formatKobo(s.successful_subscription_amount) : null}
+                description="Payments for operator platform plans."
+                to="/platform/payments?source=subscriptions"
+                icon={<Building2 />}
                 loading={stats.isPending}
               />
             </div>
           </Section>
+          {s && s.pending_payments > 0 && (
+            <Alert
+              tone="warning"
+              title={`${number(s.pending_payments)} pending`}
+              actions={
+                <ButtonLink
+                  to="/platform/payments?source=vouchers&status=pending"
+                  variant="secondary"
+                  size="sm"
+                >
+                  Review pending payments
+                </ButtonLink>
+              }
+            >
+              Voucher payments are awaiting confirmation. Review their status before treating them
+              as completed sales.
+            </Alert>
+          )}
         </>
       )}
-      <Section
-        title="Newest tenants"
-        className="mt-6"
-        actions={
-          <ButtonLink to="/platform/tenants" variant="secondary" size="sm">
-            All tenants
-          </ButtonLink>
-        }
-      >
-        {recent.isPending ? (
-          <div
-            className="h-40 animate-pulse rounded-card border border-border bg-surface"
-            aria-busy
-          />
-        ) : recent.isError ? (
-          <ErrorState
-            error={recent.error}
-            onRetry={() => void recent.refetch()}
-            title="Could not load tenants"
-          />
-        ) : recent.data.results.length === 0 ? (
-          <p className="text-sm text-ink-500">No operator tenants yet.</p>
-        ) : (
-          <ul className="divide-y divide-border rounded-card border border-border bg-surface">
-            {recent.data.results.map((t) => (
-              <li key={t.id} className="flex items-center justify-between gap-3 px-4 py-3">
-                <div className="min-w-0">
-                  <ButtonLink
-                    to={`/platform/tenants/${t.id}`}
-                    variant="link"
-                    className="font-medium"
-                  >
-                    {t.name}
-                  </ButtonLink>
-                  <div className="truncate text-xs text-ink-500">
-                    /s/{t.slug} · {t.member_count} member{t.member_count === 1 ? '' : 's'} ·{' '}
-                    {t.voucher_count.toLocaleString()} vouchers
+
+      <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,1.8fr)_minmax(0,1fr)]">
+        <Section
+          title="Newest tenants"
+          description="The latest operator businesses to join your platform."
+          actions={
+            <ButtonLink
+              to="/platform/tenants"
+              variant="link"
+              size="sm"
+              trailingIcon={<ArrowRight />}
+            >
+              All tenants
+            </ButtonLink>
+          }
+        >
+          {recent.isError && recent.data && (
+            <Alert tone="warning" title="Tenant list could not be refreshed">
+              Showing the last retrieved operators. Use Refresh overview to try again.
+            </Alert>
+          )}
+          {recent.isPending ? (
+            <Card
+              aria-busy="true"
+              aria-label="Loading newest tenants"
+              className="space-y-5 rounded-2xl"
+            >
+              {[0, 1, 2].map((i) => (
+                <div key={i} className="flex gap-3">
+                  <Skeleton className="size-10 shrink-0 rounded-xl" />
+                  <div className="flex-1 space-y-2">
+                    <Skeleton className="h-4 w-2/3" />
+                    <Skeleton className="h-3 w-1/2" />
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <time
-                    dateTime={t.created_at}
-                    title={formatDateTime(t.created_at)}
-                    className="hidden text-xs text-ink-500 sm:block"
-                  >
-                    {formatRelative(t.created_at)}
-                  </time>
-                  <StatusBadge status={t.is_active ? 'active' : 'inactive'} size="sm" />
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </Section>
-      <div className="mt-6 grid gap-3 sm:grid-cols-3">
-        <QuickLink
-          to="/platform/routers"
-          title="Router fleet"
-          text="Every router across tenants with onboarding state."
-        />
-        <QuickLink
-          to="/platform/payments"
-          title="Payments"
-          text="Voucher sales, wallet top-ups and subscriptions."
-        />
-        <QuickLink
-          to="/platform/staff"
-          title="Staff access"
-          text="Invite support staff and manage their grants."
-        />
+              ))}
+            </Card>
+          ) : recent.isError && !recent.data ? (
+            <ErrorState
+              error={recent.error}
+              onRetry={() => void recent.refetch()}
+              title="Could not load tenants"
+            />
+          ) : recent.data && recent.data.results.length === 0 ? (
+            <Card className="rounded-2xl">
+              <EmptyState
+                icon={<Building2 className="size-6" />}
+                title="No operator tenants yet."
+                description="Add your first operator to start building your platform."
+              />
+              <div className="mt-3 flex justify-center">
+                <ButtonLink to="/platform/tenants">Manage tenants</ButtonLink>
+              </div>
+            </Card>
+          ) : (
+            <ul className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-surface shadow-subtle">
+              {recent.data?.results.map((t) => (
+                <li key={t.id} className="flex items-start gap-3 p-4 sm:p-5">
+                  <span className="mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-600">
+                    <Building2 className="size-5" aria-hidden />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <Link
+                        to={`/platform/tenants/${t.id}`}
+                        className="min-w-0 font-semibold [overflow-wrap:anywhere] break-words text-brand-950 underline-offset-4 hover:text-brand-600 hover:underline focus-visible:outline-brand-600"
+                      >
+                        {t.name}
+                      </Link>
+                      <StatusBadge status={t.is_active ? 'active' : 'inactive'} size="sm" />
+                    </div>
+                    <p className="mt-1 truncate text-xs text-ink-500" title={`/s/${t.slug}`}>
+                      /s/{t.slug}
+                    </p>
+                    <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-ink-500">
+                      <span>
+                        {number(t.member_count)} member{t.member_count === 1 ? '' : 's'}
+                      </span>
+                      <span>{number(t.voucher_count)} vouchers</span>
+                      <time dateTime={t.created_at} title={formatDateTime(t.created_at)}>
+                        Joined {formatRelative(t.created_at)}
+                      </time>
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Section>
+        <Section title="Manage your platform" description="Go directly to your operational tools.">
+          <div className="space-y-3">
+            <QuickLink
+              to="/platform/routers"
+              title="Router fleet"
+              text="Inspect devices and onboarding across tenants."
+              icon={<Radio />}
+            />
+            <QuickLink
+              to="/platform/payments"
+              title="Payments"
+              text="Review transactions and payment status."
+              icon={<Wallet />}
+            />
+            <QuickLink
+              to="/platform/staff"
+              title="Staff access"
+              text="Manage invitations and tenant service grants."
+              icon={<Users />}
+            />
+            <QuickLink
+              to="/platform/audit"
+              title="Audit log"
+              text="Review recorded platform activity."
+              icon={<ShieldCheck />}
+            />
+          </div>
+        </Section>
       </div>
-    </>
+    </div>
   );
 }
 
-function QuickLink({ to, title, text }: { to: string; title: string; text: string }) {
+function PaymentCard({
+  title,
+  value,
+  description,
+  to,
+  icon,
+  loading,
+  prominent = false,
+}: {
+  title: string;
+  value: string | null;
+  description: string;
+  to: string;
+  icon: ReactNode;
+  loading: boolean;
+  prominent?: boolean;
+}) {
   return (
-    <ButtonLink
-      to={to}
-      variant="secondary"
-      className="h-auto flex-col items-start gap-1 px-4 py-3 text-left"
+    <Card
+      className={`min-w-0 rounded-2xl p-5 shadow-subtle ${prominent ? 'border-brand-200 bg-brand-50/50' : ''}`}
     >
-      <span className="font-medium text-brand-950">{title}</span>
-      <span className="text-xs font-normal text-ink-500">{text}</span>
-    </ButtonLink>
+      <div className="mb-4 flex items-center gap-2 text-brand-700">
+        <span className="flex size-9 items-center justify-center rounded-xl bg-brand-100/70 [&>svg]:size-4">
+          {icon}
+        </span>
+        <h3 className="text-sm font-medium">{title}</h3>
+      </div>
+      {loading ? (
+        <Skeleton className="h-8 w-36" />
+      ) : (
+        <p className="text-2xl font-semibold tracking-tight [overflow-wrap:anywhere] text-brand-950 tabular-nums">
+          {value ?? '—'}
+        </p>
+      )}
+      <p className="mt-2 text-xs leading-relaxed text-ink-500">{description}</p>
+      <Link
+        to={to}
+        aria-label={`View ${title.toLowerCase()}`}
+        className="mt-5 inline-flex items-center gap-2 rounded text-xs font-semibold text-brand-700 hover:underline focus-visible:outline-brand-600"
+      >
+        View payments <ArrowRight className="size-3.5" aria-hidden />
+      </Link>
+    </Card>
+  );
+}
+
+function QuickLink({
+  to,
+  title,
+  text,
+  icon,
+}: {
+  to: string;
+  title: string;
+  text: string;
+  icon: ReactNode;
+}) {
+  return (
+    <Link
+      to={to}
+      className="group flex items-center gap-3 rounded-2xl border border-border bg-surface p-4 shadow-subtle transition-colors hover:border-brand-300 hover:bg-brand-50/40 focus-visible:outline-brand-600"
+    >
+      <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-ink-600 group-hover:bg-brand-100 group-hover:text-brand-700 [&>svg]:size-5">
+        {icon}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-semibold text-brand-950">{title}</span>
+        <span className="mt-1 block text-xs leading-relaxed text-ink-500">{text}</span>
+      </span>
+      <ArrowRight className="size-4 shrink-0 text-ink-400 group-hover:text-brand-600" aria-hidden />
+    </Link>
   );
 }

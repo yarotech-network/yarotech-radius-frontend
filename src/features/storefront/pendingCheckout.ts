@@ -13,9 +13,8 @@ export interface PendingCheckout {
 }
 
 /**
- * The backend does not pass a callback URL to Paystack (gap #9), so the browser may come back
- * with only `?reference=` — or with nothing at all. Remember the last checkout locally so the
- * result pages can recover it.
+ * Remember checkout context so return pages can recover a missing reference and link back.
+ * The backend supplies a flow-specific callback URL to Paystack for every new checkout.
  */
 export const pendingCheckout = {
   save(entry: Omit<PendingCheckout, 'startedAt'>) {

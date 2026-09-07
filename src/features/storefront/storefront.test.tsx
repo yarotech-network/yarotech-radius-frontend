@@ -288,6 +288,9 @@ describe('pricing', () => {
               price_display: '₦15,000',
               duration_days: 30,
               features: ['1 router'],
+              max_routers: 1,
+              whatsapp_enabled: false,
+              daily_voucher_print_limit: 75,
               is_active: true,
             },
             {
@@ -307,6 +310,9 @@ describe('pricing', () => {
     expect(await screen.findByRole('heading', { name: 'Starter' })).toBeInTheDocument();
     expect(screen.getByText('₦15,000.00')).toBeInTheDocument();
     expect(screen.getByText('1 router')).toBeInTheDocument();
+    expect(screen.getByText('1 registered routers')).toBeInTheDocument();
+    expect(screen.getByText('WhatsApp not included')).toBeInTheDocument();
+    expect(screen.getByText('75 vouchers prepared for printing per day')).toBeInTheDocument();
     expect(screen.queryByText('Legacy')).not.toBeInTheDocument();
   });
 });

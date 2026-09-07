@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { PlanLimits } from '@/features/settings/components/PlanLimits';
+import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { Check, CreditCard, ExternalLink, RefreshCw } from 'lucide-react';
 import { Badge, Button, DescriptionList, Skeleton } from '@/components/ui';
@@ -11,14 +12,20 @@ import { cn } from '@/lib/utilities/cn';
 import { errorMessage, isApiError } from '@/services/api/errors';
 import { can } from '@/services/auth/principal';
 import type { SubscriptionPlan, TenantSubscription } from '@/types/api';
-import { useCheckout, usePricing, useSubscription, useSubscriptionPayment } from '../queries';
+import {
+  useCheckout,
+  usePricing,
+  useSubscription,
+  useSubscriptionPayment,
+  useVerifySubscriptionPayment,
+} from '../queries';
 import { SettingsCard } from '../components/SettingsCard';
 
 export default function SubscriptionSettingsPage() {
   const principal = usePrincipal();
   const canCheckout = can(principal, 'subscription.checkout');
   const [params, setParams] = useSearchParams();
-  const reference = params.get('reference');
+  const reference = params.get('reference') ?? params.get('trxref');
   const subscription = useSubscription();
   const pricing = usePricing();
   const checkout = useCheckout();
@@ -30,7 +37,10 @@ export default function SubscriptionSettingsPage() {
       (prev) => {
         const next = new URLSearchParams(prev);
         if (ref) next.set('reference', ref);
-        else next.delete('reference');
+        else {
+          next.delete('reference');
+          next.delete('trxref');
+        }
         return next;
       },
       { replace: true },
@@ -52,7 +62,7 @@ export default function SubscriptionSettingsPage() {
         const ref = (error.body as { reference?: string } | null)?.reference;
         if (ref) trackReference(ref);
         setCheckoutError(
-          'The payment provider is unavailable right now. Nothing was charged — try again in a few minutes.',
+          'The payment provider is unavailable right now. Check the payment status before starting another checkout.',
         );
       } else setCheckoutError(errorMessage(error));
     }
@@ -90,7 +100,13 @@ export default function SubscriptionSettingsPage() {
         )}
       </SettingsCard>
 
-      {reference && <PaymentTracker reference={reference} onDismiss={() => trackReference(null)} />}
+      {reference && canCheckout && (
+        <PaymentTracker
+          key={reference}
+          reference={reference}
+          onDismiss={() => trackReference(null)}
+        />
+      )}
 
       <SettingsCard
         id="plans"
@@ -127,7 +143,9 @@ export default function SubscriptionSettingsPage() {
         ) : (
           <ul className="grid gap-4 sm:grid-cols-2">
             {pricing.data.map((plan) => {
-              const current = subscription.data?.plan === plan.id && !subscription.data.is_expired;
+              const current =
+                (subscription.data?.entitlements?.plan_id ?? subscription.data?.plan) === plan.id &&
+                !subscription.data?.is_expired;
               return (
                 <li
                   key={plan.id}
@@ -150,6 +168,7 @@ export default function SubscriptionSettingsPage() {
                       / {plan.duration_days} days
                     </span>
                   </p>
+                  <PlanLimits plan={plan} />
                   {plan.features.length > 0 && (
                     <ul className="mt-3 space-y-1 text-sm text-ink-700">
                       {plan.features.map((f, i) => (
@@ -187,7 +206,9 @@ function CurrentPlan({ subscription }: { subscription: TenantSubscription }) {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center gap-3">
-        <span className="text-xl font-semibold text-ink-900">{subscription.plan_name}</span>
+        <span className="text-xl font-semibold text-ink-900">
+          {subscription.entitlements?.terms.name ?? subscription.plan_name}
+        </span>
         <StatusBadge status={tone} size="md" />
         {subscription.is_trial && (
           <Badge tone="info" size="sm">
@@ -209,6 +230,25 @@ function CurrentPlan({ subscription }: { subscription: TenantSubscription }) {
           },
         ]}
       />
+      {subscription.entitlements && (
+        <div className="rounded-xl border border-border p-4">
+          <h3 className="font-semibold text-brand-950">Your purchased allowances</h3>
+          <PlanLimits plan={subscription.entitlements.terms} />
+          <p className="mt-3 text-sm text-ink-600">
+            {subscription.entitlements.routers_used} routers registered.{' '}
+            {subscription.entitlements.vouchers_prepared_today} vouchers prepared today (
+            {subscription.entitlements.timezone}). Same-day reprints are free.
+          </p>
+          {subscription.entitlements.upcoming.map((period) => (
+            <div className="mt-4 border-t border-border pt-3" key={period.starts_at}>
+              <p className="text-sm font-semibold">
+                {period.terms.name} starts {formatDateTime(period.starts_at)}
+              </p>
+              <PlanLimits plan={period.terms} />
+            </div>
+          ))}
+        </div>
+      )}
       {subscription.is_expired && (
         <Alert tone="warning" title="Subscription expired">
           Choose a plan below to reactivate this workspace.
@@ -220,6 +260,15 @@ function CurrentPlan({ subscription }: { subscription: TenantSubscription }) {
 
 function PaymentTracker({ reference, onDismiss }: { reference: string; onDismiss: () => void }) {
   const payment = useSubscriptionPayment(reference);
+  const verification = useVerifySubscriptionPayment(reference);
+  const attempted = useRef(false);
+  const { mutate: verify } = verification;
+  useEffect(() => {
+    if (payment.data?.status === 'pending' && !attempted.current) {
+      attempted.current = true;
+      verify();
+    }
+  }, [payment.data?.status, verify]);
   if (payment.isPending) return <Alert tone="info" className="mb-6" title="Checking payment…" />;
   if (payment.isError)
     return (
@@ -230,6 +279,9 @@ function PaymentTracker({ reference, onDismiss }: { reference: string; onDismiss
         onDismiss={onDismiss}
       >
         {errorMessage(payment.error)} Reference {reference}.
+        <Button size="sm" variant="secondary" onClick={() => void payment.refetch()}>
+          Retry status check
+        </Button>
       </Alert>
     );
   const p = payment.data;
@@ -259,10 +311,11 @@ function PaymentTracker({ reference, onDismiss }: { reference: string; onDismiss
         <Button
           size="sm"
           variant="secondary"
-          onClick={() => void payment.refetch()}
+          onClick={() => verify()}
+          disabled={verification.isPending}
           leadingIcon={
             <RefreshCw
-              className={cn('h-4 w-4', payment.isFetching && 'animate-spin')}
+              className={cn('h-4 w-4', verification.isPending && 'animate-spin')}
               aria-hidden
             />
           }
@@ -272,7 +325,9 @@ function PaymentTracker({ reference, onDismiss }: { reference: string; onDismiss
       }
     >
       Payment of {formatKobo(p.amount)} (reference {reference}) is pending. Complete it in the
-      Paystack tab; this page refreshes automatically.
+      Paystack tab, then select Check now if it is still pending. Do not pay again if Paystack has
+      already confirmed success.
+      {verification.isError && <p className="mt-2">{errorMessage(verification.error)}</p>}
     </Alert>
   );
 }

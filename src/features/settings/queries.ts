@@ -128,3 +128,18 @@ export function useSubscriptionPayment(reference: string | null) {
     refetchInterval: (query) => (query.state.data?.status === 'pending' ? 5_000 : false),
   });
 }
+
+export function useVerifySubscriptionPayment(reference: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: () => settingsApi.verifySubscriptionPayment(reference),
+    onSuccess: async (payment) => {
+      const queryKey = settingsKeys.subscriptionPayment(reference);
+      // Cancel an older status read before publishing the verified result.
+      await client.cancelQueries({ queryKey });
+      client.setQueryData(queryKey, payment);
+      if (payment.status === 'success')
+        await client.invalidateQueries({ queryKey: settingsKeys.subscription() });
+    },
+  });
+}

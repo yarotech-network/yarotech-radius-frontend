@@ -16,8 +16,8 @@ import { fundSchema, QUICK_AMOUNTS_KOBO, type FundInput, type FundOutput } from 
 const FIELDS = ['amount'] as const;
 
 /**
- * Top up via Paystack. The backend does not send a callback URL (gap #9) so the reference is
- * remembered locally and `/agent/wallet/return` polls it; Paystack itself opens in the same tab.
+ * Top up via Paystack. The backend returns the agent to `/agent/wallet/return`.
+ * The reference is also remembered locally as a fallback; Paystack opens in the same tab.
  */
 export function FundWalletDialog({
   open,

@@ -1,3 +1,4 @@
+import { PlanLimits } from '@/features/settings/components/PlanLimits';
 import { useEffect } from 'react';
 import { Link } from 'react-router';
 import {
@@ -176,7 +177,7 @@ function BusinessPlans() {
         id="business-plans"
         eyebrow="For businesses"
         title="Plans for hotspot operators"
-        description="Everything you need to run vouchers, routers, agents and payments — one subscription, billed monthly with Paystack."
+        description="Everything you need to run vouchers, routers, agents and payments — choose a subscription duration and pay with Paystack."
       />
       {pricing.isPending ? (
         <ul className="grid gap-4 sm:grid-cols-2" aria-busy>
@@ -213,6 +214,7 @@ function BusinessPlans() {
                   / {plan.duration_days} days
                 </span>
               </p>
+              <PlanLimits plan={plan} />
               {plan.features.length > 0 && (
                 <ul className="mt-4 space-y-2 text-sm text-ink-700">
                   {plan.features.slice(0, 5).map((feature, i) => (

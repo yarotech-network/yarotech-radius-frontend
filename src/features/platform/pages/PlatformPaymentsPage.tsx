@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router';
-import { CreditCard } from 'lucide-react';
+import { CreditCard, RefreshCw } from 'lucide-react';
 import { PageHeader, StatusBadge } from '@/components/layout';
 import {
   DataTable,
@@ -10,8 +10,8 @@ import {
   useListParams,
   type Column,
 } from '@/components/data';
-import { Button, Select, Tabs } from '@/components/ui';
-import { EmptyState } from '@/components/feedback';
+import { Button, Card, Select, Tabs } from '@/components/ui';
+import { Alert, EmptyState } from '@/components/feedback';
 import { useDebouncedValue } from '@/lib/utilities/useDebouncedValue';
 import { formatKobo } from '@/lib/formatting/money';
 import { formatDateTime, formatRelative } from '@/lib/formatting/dates';
@@ -130,8 +130,10 @@ export default function PlatformPaymentsPage() {
       primary: true,
       cell: (p) => (
         <div className="min-w-0">
-          <code className="font-mono text-sm font-semibold text-ink-900">{p.reference}</code>
-          <div className="truncate text-xs text-ink-500">
+          <code className="font-mono text-sm font-semibold break-all text-ink-900">
+            {p.reference}
+          </code>
+          <div className="mt-1 text-xs break-all text-ink-500">
             {p.customer_email || p.customer_phone || 'Anonymous customer'}
           </div>
         </div>
@@ -142,7 +144,9 @@ export default function PlatformPaymentsPage() {
       key: 'amount',
       header: 'Amount',
       align: 'right',
-      cell: (p) => <span className="tabular-nums">{formatKobo(p.amount)}</span>,
+      cell: (p) => (
+        <span className="font-semibold text-ink-900 tabular-nums">{formatKobo(p.amount)}</span>
+      ),
     },
     { key: 'status', header: 'Status', cell: (p) => <StatusBadge status={p.status} size="sm" /> },
     {
@@ -165,7 +169,9 @@ export default function PlatformPaymentsPage() {
       primary: true,
       cell: (p) => (
         <div className="min-w-0">
-          <code className="font-mono text-sm font-semibold text-ink-900">{p.reference}</code>
+          <code className="font-mono text-sm font-semibold break-all text-ink-900">
+            {p.reference}
+          </code>
           <div className="text-xs text-ink-500">Agent #{p.agent_id}</div>
         </div>
       ),
@@ -175,7 +181,9 @@ export default function PlatformPaymentsPage() {
       key: 'amount',
       header: 'Amount',
       align: 'right',
-      cell: (p) => <span className="tabular-nums">{formatKobo(p.amount)}</span>,
+      cell: (p) => (
+        <span className="font-semibold text-ink-900 tabular-nums">{formatKobo(p.amount)}</span>
+      ),
     },
     { key: 'status', header: 'Status', cell: (p) => <StatusBadge status={p.status} size="sm" /> },
     { key: 'created', header: 'Created', hideBelow: 'md', cell: (p) => when(p.created_at) },
@@ -193,7 +201,9 @@ export default function PlatformPaymentsPage() {
       primary: true,
       cell: (p) => (
         <div className="min-w-0">
-          <code className="font-mono text-sm font-semibold text-ink-900">{p.reference}</code>
+          <code className="font-mono text-sm font-semibold break-all text-ink-900">
+            {p.reference}
+          </code>
           <div className="text-xs text-ink-500">{planName(p.plan)}</div>
         </div>
       ),
@@ -203,7 +213,9 @@ export default function PlatformPaymentsPage() {
       key: 'amount',
       header: 'Amount',
       align: 'right',
-      cell: (p) => <span className="tabular-nums">{formatKobo(p.amount)}</span>,
+      cell: (p) => (
+        <span className="font-semibold text-ink-900 tabular-nums">{formatKobo(p.amount)}</span>
+      ),
     },
     { key: 'status', header: 'Status', cell: (p) => <StatusBadge status={p.status} size="sm" /> },
     { key: 'created', header: 'Created', hideBelow: 'md', cell: (p) => when(p.created_at) },
@@ -251,87 +263,136 @@ export default function PlatformPaymentsPage() {
   );
 
   return (
-    <>
+    <div className="space-y-6">
       <PageHeader
         title="Payments"
+        actions={
+          <Button
+            variant="secondary"
+            disabled={active.isFetching}
+            leadingIcon={<RefreshCw className={active.isFetching ? 'animate-spin' : ''} />}
+            onClick={() => void active.refetch()}
+          >
+            Refresh payments
+          </Button>
+        }
         description="Every Paystack transaction across the platform, by source. Amounts are in naira."
       />
-      <Tabs
-        items={SOURCES}
-        value={source}
-        onChange={setSource}
-        ariaLabel="Payment source"
-        className="mb-4"
-      />
-      <FilterBar
-        search={
-          source === 'subscriptions' ? undefined : (
-            <SearchInput
-              value={list.state.search}
-              onChange={list.setSearch}
-              placeholder="Search reference"
-              ariaLabel="Search payments"
-            />
-          )
-        }
-        filters={
-          <>
-            <TenantSelect
-              value={list.state.filters.tenant ?? ''}
-              onChange={(v) => list.setFilter('tenant', v || undefined)}
-            />
-            <Select
-              aria-label="Status"
-              size="sm"
-              value={list.state.filters.status ?? ''}
-              onChange={(e) => list.setFilter('status', e.target.value || undefined)}
-              options={statusOptions}
-            />
-          </>
-        }
-        activeCount={list.activeFilterCount}
-        onClear={list.clearFilters}
-      />
-      {source === 'vouchers' && (
-        <DataTable
-          caption="Voucher sales"
-          columns={voucherColumns}
-          rows={vouchers.data?.results}
-          rowKey={(p) => p.id}
-          loading={vouchers.isPending}
-          refreshing={vouchers.isFetching && !vouchers.isPending}
-          error={vouchers.error}
-          onRetry={() => void vouchers.refetch()}
-          empty={emptyState}
+      <Card className="border-brand-100 bg-gradient-to-br from-brand-50 via-white to-sky-50">
+        <div className="flex items-start gap-4">
+          <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-brand-600 text-white">
+            <CreditCard className="size-5" aria-hidden />
+          </span>
+          <div className="min-w-0">
+            <h2 className="text-lg font-semibold text-brand-950">Payments across your platform</h2>
+            <p className="mt-1 text-sm leading-relaxed text-ink-600">
+              Review customer voucher purchases, agent wallet funding and tenant subscriptions.
+              Choose a payment source, then narrow the results by tenant and status.
+            </p>
+          </div>
+        </div>
+      </Card>
+      <section aria-labelledby="payment-source-title" className="space-y-4">
+        <div className="overflow-x-auto">
+          <Tabs
+            items={SOURCES}
+            value={source}
+            onChange={setSource}
+            ariaLabel="Payment source"
+            className="mb-4"
+          />
+        </div>
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <h2 id="payment-source-title" className="text-lg font-semibold text-brand-950">
+            {SOURCES.find((item) => item.value === source)?.label}
+          </h2>
+          <p role="status" className="text-sm text-ink-500">
+            {active.isPlaceholderData
+              ? 'Updating results...'
+              : active.data
+                ? `${active.data.count} payments in this view`
+                : active.isError
+                  ? 'Payment count unavailable'
+                  : 'Loading payments...'}
+          </p>
+        </div>
+        <FilterBar
+          inline
+          search={
+            source === 'subscriptions' ? undefined : (
+              <SearchInput
+                value={list.state.search}
+                onChange={list.setSearch}
+                placeholder="Search reference"
+                ariaLabel="Search payments"
+              />
+            )
+          }
+          filters={
+            <div className="flex items-center gap-2 [&>div]:w-44 [&>div]:shrink-0">
+              <TenantSelect
+                value={list.state.filters.tenant ?? ''}
+                onChange={(v) => list.setFilter('tenant', v || undefined)}
+              />
+              <Select
+                aria-label="Status"
+                size="sm"
+                value={list.state.filters.status ?? ''}
+                onChange={(e) => list.setFilter('status', e.target.value || undefined)}
+                options={statusOptions}
+              />
+            </div>
+          }
+          activeCount={list.activeFilterCount}
+          onClear={list.clearFilters}
         />
-      )}
-      {source === 'wallet' && (
-        <DataTable
-          caption="Agent wallet top-ups"
-          columns={walletColumns}
-          rows={wallet.data?.results}
-          rowKey={(p) => p.id}
-          loading={wallet.isPending}
-          refreshing={wallet.isFetching && !wallet.isPending}
-          error={wallet.error}
-          onRetry={() => void wallet.refetch()}
-          empty={emptyState}
-        />
-      )}
-      {source === 'subscriptions' && (
-        <DataTable
-          caption="Subscription payments"
-          columns={subscriptionColumns}
-          rows={subscriptions.data?.results}
-          rowKey={(p) => p.id}
-          loading={subscriptions.isPending}
-          refreshing={subscriptions.isFetching && !subscriptions.isPending}
-          error={subscriptions.error}
-          onRetry={() => void subscriptions.refetch()}
-          empty={emptyState}
-        />
-      )}
-      {pagination}
-    </>
+        {active.isError && active.data && (
+          <Alert tone="warning" title="Payments could not be refreshed">
+            Showing the last loaded results for this payment source. Refresh again to check for
+            changes.
+          </Alert>
+        )}
+        {source === 'vouchers' && (
+          <DataTable
+            caption="Voucher sales"
+            columns={voucherColumns}
+            rows={vouchers.data?.results}
+            rowKey={(p) => p.id}
+            loading={vouchers.isPending}
+            refreshing={vouchers.isFetching && !vouchers.isPending}
+            error={vouchers.error}
+            onRetry={() => void vouchers.refetch()}
+            empty={emptyState}
+          />
+        )}
+        {source === 'wallet' && (
+          <DataTable
+            caption="Agent wallet top-ups"
+            columns={walletColumns}
+            rows={wallet.data?.results}
+            rowKey={(p) => p.id}
+            loading={wallet.isPending}
+            refreshing={wallet.isFetching && !wallet.isPending}
+            error={wallet.error}
+            onRetry={() => void wallet.refetch()}
+            empty={emptyState}
+          />
+        )}
+        {source === 'subscriptions' && (
+          <DataTable
+            caption="Subscription payments"
+            columns={subscriptionColumns}
+            rows={subscriptions.data?.results}
+            rowKey={(p) => p.id}
+            loading={subscriptions.isPending}
+            refreshing={subscriptions.isFetching && !subscriptions.isPending}
+            error={subscriptions.error}
+            onRetry={() => void subscriptions.refetch()}
+            empty={emptyState}
+          />
+        )}
+        {pagination}
+      </section>
+    </div>
   );
 }

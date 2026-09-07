@@ -7,6 +7,7 @@ import { server } from '@/test/server';
 import { API, paginated } from '@/test/fixtures';
 import { renderPage } from '@/test/renderPage';
 import type { NasDevice, RouterOperation } from '@/types/api';
+import RouterOperationsPage from './RouterOperationsPage';
 import RoutersPage from './RoutersPage';
 import RouterDetailPage from './RouterDetailPage';
 import NewRouterPage from './NewRouterPage';
@@ -79,6 +80,30 @@ describe('RoutersPage', () => {
     expect(seen[0]?.searchParams.get('ordering')).toBe('name');
   });
 
+  it('links to the actual router and retains observations when refresh fails', async () => {
+    const user = userEvent.setup();
+    const device = router();
+    server.use(http.get(`${API}/routers/`, () => HttpResponse.json(paginated([device]))));
+    renderPage(<RoutersPage />, { path: '/routers', role: 'manager' });
+    const table = await screen.findByRole('table', { name: 'Routers' });
+    expect(await within(table).findByRole('link', { name: device.name })).toHaveAttribute(
+      'href',
+      `/routers/${device.id}`,
+    );
+    expect(within(table).getByText('No observation recorded')).toBeInTheDocument();
+    server.use(
+      http.get(`${API}/routers/`, () =>
+        HttpResponse.json({ detail: 'Unavailable' }, { status: 503 }),
+      ),
+    );
+    await user.click(screen.getByRole('button', { name: 'Refresh routers' }));
+    expect(await screen.findByText('Routers could not be refreshed')).toBeInTheDocument();
+    expect(within(table).getByRole('link', { name: `Open ${device.name}` })).toHaveAttribute(
+      'href',
+      `/routers/${device.id}`,
+    );
+  });
+
   it('hides management actions from staff', async () => {
     server.use(http.get(`${API}/routers/`, () => HttpResponse.json(paginated([router()]))));
     renderPage(<RoutersPage />, { path: '/routers', role: 'staff' });
@@ -88,6 +113,33 @@ describe('RoutersPage', () => {
 });
 
 describe('RouterDetailPage', () => {
+  it('retains the device and reports an unknown health state after refresh failure', async () => {
+    const user = userEvent.setup();
+    const device = router();
+    server.use(...emptyDetailEndpoints(device));
+    renderPage(<RouterDetailPage />, {
+      role: 'owner',
+      path: '/routers/:id',
+      route: `/routers/${device.id}`,
+    });
+    await screen.findByText('Telemetry not available');
+    expect(screen.getByText('Health observed')).toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Refresh router' })).toBeEnabled(),
+    );
+    server.use(
+      http.get(`${API}/routers/:id/health/`, () =>
+        HttpResponse.json({ detail: 'Unavailable' }, { status: 503 }),
+      ),
+    );
+    await user.click(screen.getByRole('button', { name: 'Refresh router' }));
+    expect(
+      await screen.findByText('Health information could not be refreshed'),
+    ).toBeInTheDocument();
+    expect(screen.getByText('Unknown')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /mikrotik-wuse-01/ })).toBeInTheDocument();
+  });
+
   it('shows only the transitions the state machine allows and applies one', async () => {
     let current = router();
     const posted: unknown[] = [];
@@ -193,6 +245,38 @@ describe('RouterDetailPage', () => {
 });
 
 describe('NewRouterPage', () => {
+  it('reviews non-secret details and returns to the field rejected by the server', async () => {
+    const user = userEvent.setup();
+    server.use(
+      http.post(`${API}/routers/`, () =>
+        HttpResponse.json(
+          {
+            problem: {
+              code: 'validation_error',
+              message: 'Invalid input.',
+              fields: { ip_address: ['This address is already registered.'] },
+            },
+          },
+          { status: 400 },
+        ),
+      ),
+    );
+    renderPage(<NewRouterPage />, { path: '/routers/new' });
+    await user.type(screen.getByLabelText(/^Name/), 'Branch router');
+    await user.type(screen.getByLabelText(/NAS IP address/), '10.100.100.14');
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
+    await user.type(await screen.findByLabelText(/RADIUS shared secret/), 'sharedsecret123');
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
+    expect(screen.getByRole('heading', { name: 'Review before registering' })).toBeInTheDocument();
+    expect(screen.getByText('Branch router')).toBeInTheDocument();
+    expect(screen.queryByText('sharedsecret123')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Register router' }));
+    expect(await screen.findByText('This address is already registered.')).toBeInTheDocument();
+    expect(screen.getByLabelText(/^Name/)).toHaveValue('Branch router');
+    expect(screen.getByLabelText(/NAS IP address/)).toHaveValue('10.100.100.14');
+  });
+
   it('walks through the steps, validates per step and posts once with an Idempotency-Key', async () => {
     const requests: { key: string | null; body: Record<string, unknown> }[] = [];
     server.use(
@@ -235,5 +319,49 @@ describe('NewRouterPage', () => {
     });
     // Secrets are only sent when provided.
     expect(requests[0]?.body).not.toHaveProperty('routeros_password_encrypted');
+  });
+});
+
+describe('RouterOperationsPage', () => {
+  it('filters operation history, links to the router and preserves failed records on refresh error', async () => {
+    const user = userEvent.setup();
+    const device = router();
+    const seen: URL[] = [];
+    const op: RouterOperation = {
+      id: 'op-history',
+      router: device.id,
+      action: 'provision',
+      status: 'failed',
+      attempts: 2,
+      error_code: 'ssh_unreachable',
+      created_at: '2026-09-01T10:00:00Z',
+      completed_at: '2026-09-01T10:01:00Z',
+    };
+    server.use(
+      http.get(`${API}/routers/`, () => HttpResponse.json(paginated([device]))),
+      http.get(`${API}/router-operations/`, ({ request }) => {
+        seen.push(new URL(request.url));
+        return HttpResponse.json(paginated([op]));
+      }),
+    );
+    renderPage(<RouterOperationsPage />, { path: '/routers/operations', role: 'manager' });
+    expect(await screen.findByRole('link', { name: device.name })).toHaveAttribute(
+      'href',
+      `/routers/${device.id}?tab=vpn`,
+    );
+    expect(screen.getByText('ssh_unreachable')).toBeInTheDocument();
+    await user.selectOptions(screen.getByLabelText('Status'), 'failed');
+    await waitFor(() => expect(seen.at(-1)?.searchParams.get('status')).toBe('failed'));
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Refresh operations' })).toBeEnabled(),
+    );
+    server.use(
+      http.get(`${API}/router-operations/`, () =>
+        HttpResponse.json({ detail: 'Unavailable' }, { status: 503 }),
+      ),
+    );
+    await user.click(screen.getByRole('button', { name: 'Refresh operations' }));
+    expect(await screen.findByText('Operations could not be refreshed')).toBeInTheDocument();
+    expect(screen.getByText('ssh_unreachable')).toBeInTheDocument();
   });
 });

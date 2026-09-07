@@ -34,9 +34,13 @@ export function useDashboardStats() {
   return useQuery(dashboardStatsQuery());
 }
 
-export function useLiveUsers(params: LiveUsersParams, options: { live?: boolean } = {}) {
+export function useLiveUsers(
+  params: LiveUsersParams,
+  options: { live?: boolean; enabled?: boolean } = {},
+) {
   return useQuery({
     ...dashboardLiveQuery(params),
+    enabled: options.enabled ?? true,
     placeholderData: keepPreviousData,
     refetchInterval: options.live === false ? false : LIVE_POLL_INTERVAL_MS,
     refetchIntervalInBackground: false,

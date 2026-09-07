@@ -69,6 +69,13 @@ export const WORKSPACE_NAV: NavGroup[] = [
     label: 'Sales',
     items: [
       {
+        key: 'storefront',
+        label: 'Storefront',
+        to: '/storefront',
+        icon: ShoppingBag,
+        capabilities: ['settings.profile'],
+      },
+      {
         key: 'vouchers',
         label: 'Vouchers',
         to: '/vouchers',
@@ -175,6 +182,12 @@ export const PLATFORM_NAV: NavGroup[] = [
         to: '/platform/payments',
         icon: BadgeDollarSign,
         mobilePrimary: true,
+      },
+      {
+        key: 'business-plans',
+        label: 'Business plans',
+        to: '/platform/business-plans',
+        icon: BadgeDollarSign,
       },
       { key: 'staff', label: 'Staff', to: '/platform/staff', icon: Users },
       { key: 'audit', label: 'Audit log', to: '/platform/audit', icon: ClipboardList },

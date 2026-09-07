@@ -1,6 +1,15 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router';
-import { Layers, MoreHorizontal, Pencil, Plus, Ticket, Trash2 } from 'lucide-react';
+import {
+  Layers,
+  MoreHorizontal,
+  Pencil,
+  Plus,
+  RefreshCw,
+  Store,
+  Ticket,
+  Trash2,
+} from 'lucide-react';
 import { PageHeader } from '@/components/layout';
 import { BooleanBadge } from '@/components/layout/StatusBadge';
 import {
@@ -11,8 +20,8 @@ import {
   useListParams,
   type Column,
 } from '@/components/data';
-import { Button, ConfirmDialog, Menu, Select } from '@/components/ui';
-import { EmptyState, useToast } from '@/components/feedback';
+import { Button, ButtonLink, Card, ConfirmDialog, Menu, Select } from '@/components/ui';
+import { Alert, EmptyState, useToast } from '@/components/feedback';
 import { useDebouncedValue } from '@/lib/utilities/useDebouncedValue';
 import { formatKobo } from '@/lib/formatting/money';
 import { formatDate } from '@/lib/formatting/dates';
@@ -62,9 +71,14 @@ export default function PlansPage() {
       primary: true,
       cell: (plan) => (
         <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <span className="font-medium text-ink-900">{plan.name}</span>
-            {!plan.is_active && <BooleanBadge value={false} falseLabel="Inactive" size="sm" />}
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-semibold break-words text-ink-900">{plan.name}</span>
+            <BooleanBadge
+              value={plan.is_active}
+              trueLabel="Active"
+              falseLabel="Inactive"
+              size="sm"
+            />
           </div>
           <PlanSummary plan={plan} className="mt-1" />
         </div>
@@ -81,7 +95,7 @@ export default function PlansPage() {
     },
     {
       key: 'prefix',
-      header: 'Prefix',
+      header: 'Voucher prefix',
       hideBelow: 'lg',
       cell: (plan) =>
         plan.voucher_prefix ? (
@@ -102,151 +116,203 @@ export default function PlansPage() {
   ];
 
   return (
-    <>
+    <div className="space-y-6">
       <PageHeader
         title="Plans"
         description="Internet packages your customers buy. Every voucher is generated from a plan."
         actions={
-          canManage ? (
+          <div className="flex flex-wrap gap-2">
             <Button
-              leadingIcon={<Plus className="h-4 w-4" aria-hidden />}
-              onClick={() => setEditor({ open: true })}
+              variant="secondary"
+              leadingIcon={<RefreshCw className={query.isFetching ? 'animate-spin' : ''} />}
+              disabled={query.isFetching}
+              onClick={() => void query.refetch()}
             >
-              New plan
+              Refresh plans
             </Button>
-          ) : undefined
+            {canManage ? (
+              <Button
+                leadingIcon={<Plus className="h-4 w-4" aria-hidden />}
+                onClick={() => setEditor({ open: true })}
+              >
+                New plan
+              </Button>
+            ) : null}
+          </div>
         }
       />
-      <FilterBar
-        search={
-          <SearchInput
-            value={list.state.search}
-            onChange={list.setSearch}
-            placeholder="Search plans"
-            ariaLabel="Search plans"
-          />
-        }
-        filters={
-          <Select
-            aria-label="Status"
-            size="sm"
-            value={list.state.filters.is_active ?? ''}
-            onChange={(e) => list.setFilter('is_active', e.target.value || undefined)}
-            options={[
-              { value: '', label: 'All plans' },
-              { value: 'true', label: 'Active only' },
-              { value: 'false', label: 'Inactive only' },
-            ]}
-          />
-        }
-        activeCount={list.activeFilterCount}
-        onClear={list.clearFilters}
-      />
-      <DataTable
-        caption="Internet plans"
-        columns={columns}
-        rows={query.data?.results}
-        rowKey={(plan) => plan.id}
-        loading={query.isPending}
-        refreshing={query.isFetching && !query.isPending}
-        error={query.error}
-        onRetry={() => void query.refetch()}
-        ordering={list.state.ordering}
-        onOrderingChange={list.setOrdering}
-        empty={
-          list.activeFilterCount > 0 ? (
-            <EmptyState
-              icon={<Layers className="h-6 w-6" aria-hidden />}
-              title="No plans match"
-              description="Try a different search or clear the filters."
-              action={
-                <Button variant="secondary" onClick={list.clearFilters}>
-                  Clear filters
-                </Button>
-              }
+      <Card className="border-brand-100 bg-gradient-to-br from-brand-50 via-white to-sky-50">
+        <div className="flex flex-wrap items-start justify-between gap-5">
+          <div className="flex min-w-0 flex-1 gap-4">
+            <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-brand-600 text-white">
+              <Layers className="size-5" aria-hidden />
+            </span>
+            <div className="min-w-0">
+              <h2 className="text-lg font-semibold text-brand-950">
+                Build your internet catalogue
+              </h2>
+              <p className="mt-1 max-w-2xl text-sm leading-relaxed text-ink-600">
+                Set the price, duration, data allowance and speed for each package. Active plans are
+                available for new sales; deactivate a plan to keep its history.
+              </p>
+            </div>
+          </div>
+          {can(principal, 'settings.profile') && (
+            <ButtonLink to="/storefront" variant="secondary" leadingIcon={<Store />}>
+              View storefront
+            </ButtonLink>
+          )}
+        </div>
+      </Card>
+      <section aria-labelledby="plan-catalogue-title" className="space-y-4">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <h2 id="plan-catalogue-title" className="text-lg font-semibold text-brand-950">
+            Plan catalogue
+          </h2>
+          <p role="status" className="text-sm text-ink-500">
+            {query.isPlaceholderData
+              ? 'Updating results...'
+              : query.data
+                ? `${query.data.count} ${list.activeFilterCount ? 'matching' : 'total'} plans`
+                : 'Prices shown in NGN'}
+          </p>
+        </div>
+        <FilterBar
+          search={
+            <SearchInput
+              value={list.state.search}
+              onChange={list.setSearch}
+              placeholder="Search plans"
+              ariaLabel="Search plans"
             />
-          ) : (
-            <EmptyState
-              icon={<Layers className="h-6 w-6" aria-hidden />}
-              title="No plans yet"
-              description={
-                canManage
-                  ? 'Create your first plan to start generating vouchers.'
-                  : 'Plans will appear here once a manager creates them.'
-              }
-              action={
-                canManage ? (
-                  <Button onClick={() => setEditor({ open: true })}>Create a plan</Button>
-                ) : undefined
-              }
+          }
+          filters={
+            <Select
+              aria-label="Status"
+              size="sm"
+              value={list.state.filters.is_active ?? ''}
+              onChange={(e) => list.setFilter('is_active', e.target.value || undefined)}
+              options={[
+                { value: '', label: 'All plans' },
+                { value: 'true', label: 'Active only' },
+                { value: 'false', label: 'Inactive only' },
+              ]}
             />
-          )
-        }
-        rowActions={(plan) => {
-          const items = [
-            ...(canGenerate
-              ? [
-                  {
-                    key: 'gen',
-                    label: 'Generate vouchers',
-                    icon: <Ticket className="h-4 w-4" aria-hidden />,
-                    href: `/vouchers/generate?plan=${plan.id}`,
-                  },
-                ]
-              : []),
-            ...(canManage
-              ? [
-                  {
-                    key: 'edit',
-                    label: 'Edit',
-                    icon: <Pencil className="h-4 w-4" aria-hidden />,
-                    onSelect: () => setEditor({ open: true, plan }),
-                  },
-                  {
-                    key: 'toggle',
-                    label: plan.is_active ? 'Deactivate' : 'Activate',
-                    onSelect: () => void toggleActive(plan),
-                  },
-                  'separator' as const,
-                  {
-                    key: 'delete',
-                    label: 'Delete',
-                    icon: <Trash2 className="h-4 w-4" aria-hidden />,
-                    tone: 'danger' as const,
-                    onSelect: () => setPendingDelete(plan),
-                  },
-                ]
-              : []),
-          ];
-          if (items.length === 0) return null;
-          return (
-            <Menu
-              trigger={(props) => (
-                <Button
-                  {...props}
-                  variant="ghost"
-                  size="icon"
-                  aria-label={`Actions for ${plan.name}`}
-                >
-                  <MoreHorizontal className="h-4 w-4" aria-hidden />
-                </Button>
-              )}
-              items={items}
-            />
-          );
-        }}
-      />
-      {query.data && query.data.count > 0 && (
-        <Pagination
-          count={query.data.count}
-          page={list.state.page}
-          totalPages={query.data.total_pages}
-          pageSize={list.state.page_size}
-          onPageChange={list.setPage}
-          onPageSizeChange={list.setPageSize}
-          itemLabel="plans"
+          }
+          activeCount={list.activeFilterCount}
+          onClear={list.clearFilters}
         />
-      )}
+        {query.isError && query.data && (
+          <Alert tone="warning" title="Plans could not be refreshed">
+            Showing the last loaded results. Refresh again to check for changes.
+          </Alert>
+        )}
+        <DataTable
+          caption="Internet plans"
+          columns={columns}
+          rows={query.data?.results}
+          rowKey={(plan) => plan.id}
+          loading={query.isPending}
+          refreshing={query.isFetching && !query.isPending}
+          error={query.error}
+          onRetry={() => void query.refetch()}
+          ordering={list.state.ordering}
+          onOrderingChange={list.setOrdering}
+          empty={
+            list.activeFilterCount > 0 ? (
+              <EmptyState
+                icon={<Layers className="h-6 w-6" aria-hidden />}
+                title="No plans match"
+                description="Try a different search or clear the filters."
+                action={
+                  <Button variant="secondary" onClick={list.clearFilters}>
+                    Clear filters
+                  </Button>
+                }
+              />
+            ) : (
+              <EmptyState
+                icon={<Layers className="h-6 w-6" aria-hidden />}
+                title="No plans yet"
+                description={
+                  canManage
+                    ? 'Create your first plan to start generating vouchers.'
+                    : 'Plans will appear here once a manager creates them.'
+                }
+                action={
+                  canManage ? (
+                    <Button onClick={() => setEditor({ open: true })}>Create a plan</Button>
+                  ) : undefined
+                }
+              />
+            )
+          }
+          rowActions={(plan) => {
+            const items = [
+              ...(canGenerate
+                ? [
+                    {
+                      key: 'gen',
+                      label: 'Generate vouchers',
+                      icon: <Ticket className="h-4 w-4" aria-hidden />,
+                      href: `/vouchers/generate?plan=${plan.id}`,
+                    },
+                  ]
+                : []),
+              ...(canManage
+                ? [
+                    {
+                      key: 'edit',
+                      label: 'Edit',
+                      icon: <Pencil className="h-4 w-4" aria-hidden />,
+                      onSelect: () => setEditor({ open: true, plan }),
+                    },
+                    {
+                      key: 'toggle',
+                      label: plan.is_active ? 'Deactivate' : 'Activate',
+                      onSelect: () => void toggleActive(plan),
+                    },
+                    'separator' as const,
+                    {
+                      key: 'delete',
+                      label: 'Delete',
+                      icon: <Trash2 className="h-4 w-4" aria-hidden />,
+                      tone: 'danger' as const,
+                      onSelect: () => setPendingDelete(plan),
+                    },
+                  ]
+                : []),
+            ];
+            if (items.length === 0) return null;
+            return (
+              <Menu
+                trigger={(props) => (
+                  <Button
+                    {...props}
+                    variant="ghost"
+                    size="icon"
+                    aria-label={`Actions for ${plan.name}`}
+                  >
+                    <MoreHorizontal className="h-4 w-4" aria-hidden />
+                  </Button>
+                )}
+                items={items}
+              />
+            );
+          }}
+        />
+        {query.data && query.data.count > 0 && (
+          <Pagination
+            count={query.data.count}
+            page={list.state.page}
+            totalPages={query.data.total_pages}
+            pageSize={list.state.page_size}
+            onPageChange={list.setPage}
+            onPageSizeChange={list.setPageSize}
+            itemLabel="plans"
+          />
+        )}
+      </section>
 
       <PlanDialog
         open={editor.open}
@@ -282,6 +348,6 @@ export default function PlansPage() {
           from active plans.
         </p>
       )}
-    </>
+    </div>
   );
 }

@@ -3,7 +3,8 @@ import { describe, expect, it } from 'vitest';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { server } from '@/test/server';
-import { API, paginated } from '@/test/fixtures';
+import { API, makeAssignment, makeUser, paginated } from '@/test/fixtures';
+import { derivePrincipal } from '@/services/auth/principal';
 import { renderPage } from '@/test/renderPage';
 import type { DashboardStats, LiveUsersResponse } from '@/types/api';
 import DashboardPage from './pages/DashboardPage';
@@ -44,6 +45,88 @@ const session = (id: number, username: string) => ({
 });
 
 describe('DashboardPage', () => {
+  it('keeps the online count and storefront available when business figures fail', async () => {
+    server.use(
+      http.get(`${API}/dashboard/stats/`, () =>
+        HttpResponse.json({ detail: 'Unavailable' }, { status: 503 }),
+      ),
+      http.get(`${API}/dashboard/live-users/`, () => HttpResponse.json(live([session(1, 'a')]))),
+    );
+    renderPage(<DashboardPage />, { role: 'owner' });
+    expect(await screen.findByText('Dashboard could not be loaded')).toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getByText('Online now').parentElement?.parentElement).toHaveTextContent('1'),
+    );
+    expect(screen.getByRole('link', { name: 'Manage storefront' })).toHaveAttribute(
+      'href',
+      '/storefront',
+    );
+  });
+
+  it('distinguishes an unavailable session count from zero and offers its own retry', async () => {
+    server.use(
+      http.get(`${API}/dashboard/stats/`, () => HttpResponse.json(stats)),
+      http.get(`${API}/dashboard/live-users/`, () =>
+        HttpResponse.json({ detail: 'Unavailable' }, { status: 503 }),
+      ),
+    );
+    renderPage(<DashboardPage />, { role: 'manager' });
+    expect(await screen.findByText('Live sessions could not be refreshed')).toBeInTheDocument();
+    expect(screen.getByText('Online now').parentElement?.parentElement).toHaveTextContent('—');
+    expect(screen.getByText('₦12,500.00')).toBeInTheDocument();
+    server.use(http.get(`${API}/dashboard/live-users/`, () => HttpResponse.json(live([]))));
+    await userEvent.click(screen.getByRole('button', { name: 'Retry live sessions' }));
+    await waitFor(() =>
+      expect(screen.queryByText('Live sessions could not be refreshed')).not.toBeInTheDocument(),
+    );
+    expect(screen.getByText('Online now').parentElement?.parentElement).toHaveTextContent('0');
+  });
+
+  it('does not request or refresh live sessions without permission', async () => {
+    let liveCalls = 0;
+    let statsCalls = 0;
+    server.use(
+      http.get(`${API}/dashboard/stats/`, () => {
+        statsCalls++;
+        return HttpResponse.json(stats);
+      }),
+      http.get(`${API}/dashboard/live-users/`, () => {
+        liveCalls++;
+        return HttpResponse.json(live([]));
+      }),
+    );
+    renderPage(<DashboardPage />, {
+      principal: derivePrincipal(
+        makeUser('platform_staff'),
+        [makeAssignment(5, ['payments.view'])],
+        5,
+      ),
+    });
+    const refresh = await screen.findByRole('button', { name: 'Refresh overview' });
+    expect(screen.getByText('No access')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Manage storefront' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Generate vouchers' })).not.toBeInTheDocument();
+    await userEvent.click(refresh);
+    await waitFor(() => expect(statsCalls).toBe(2));
+    expect(liveCalls).toBe(0);
+  });
+
+  it('keeps last business figures visible with a warning after refresh fails', async () => {
+    let calls = 0;
+    server.use(
+      http.get(`${API}/dashboard/stats/`, () =>
+        ++calls === 1
+          ? HttpResponse.json(stats)
+          : HttpResponse.json({ detail: 'Unavailable' }, { status: 503 }),
+      ),
+      http.get(`${API}/dashboard/live-users/`, () => HttpResponse.json(live([]))),
+    );
+    renderPage(<DashboardPage />, { role: 'manager' });
+    await userEvent.click(await screen.findByRole('button', { name: 'Refresh overview' }));
+    expect(await screen.findByText('Business figures could not be refreshed')).toBeInTheDocument();
+    expect(screen.getByText('₦12,500.00')).toBeInTheDocument();
+  });
+
   it('shows the stat cards, the recovery alert for managers and the live count', async () => {
     server.use(
       http.get(`${API}/dashboard/stats/`, () => HttpResponse.json(stats)),
@@ -82,10 +165,38 @@ describe('DashboardPage', () => {
     await userEvent.click(screen.getByRole('button', { name: /try again/i }));
     expect(await screen.findByText('₦12,500.00')).toBeInTheDocument();
     expect(screen.queryByText(/paid order/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Manage storefront' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Generate vouchers' })).not.toBeInTheDocument();
   });
 });
 
 describe('SessionsPage', () => {
+  it('allows manual refresh while paused and retains the last observation on failure', async () => {
+    const user = userEvent.setup();
+    let calls = 0;
+    server.use(
+      http.get(`${API}/dashboard/live-users/`, () => {
+        calls += 1;
+        return calls === 1
+          ? HttpResponse.json(live([session(1, 'WH10002')]))
+          : HttpResponse.json({ detail: 'Unavailable' }, { status: 503 });
+      }),
+      http.get(`${API}/routers/`, () => HttpResponse.json(paginated([]))),
+    );
+    renderPage(<SessionsPage />, { role: 'manager', path: '/sessions' });
+    const table = await screen.findByRole('table', { name: 'Live sessions' });
+    await within(table).findByText('WH10002');
+    await user.click(screen.getByRole('button', { name: 'Pause updates' }));
+    expect(screen.getByRole('button', { name: 'Resume updates' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    await user.click(screen.getByRole('button', { name: 'Refresh sessions' }));
+    expect(await screen.findByText('Sessions could not be refreshed')).toBeInTheDocument();
+    expect(within(table).getByText('WH10002')).toBeInTheDocument();
+    expect(calls).toBe(2);
+  });
+
   it('lists live sessions, filters by router and disconnects with confirmation', async () => {
     const seen: URL[] = [];
     let disconnected: string | null = null;

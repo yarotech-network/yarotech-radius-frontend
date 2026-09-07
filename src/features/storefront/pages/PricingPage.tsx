@@ -1,3 +1,4 @@
+import { PlanLimits } from '@/features/settings/components/PlanLimits';
 import { useEffect } from 'react';
 import { Check } from 'lucide-react';
 import { ButtonLink } from '@/components/ui';
@@ -19,7 +20,8 @@ export default function PricingPage() {
           Simple pricing for hotspot operators
         </h1>
         <p className="mt-2 text-sm text-ink-500">
-          Run vouchers, routers, agents and payments from one workspace. Pay monthly with Paystack.
+          Run vouchers, routers, agents and payments from one workspace. Choose the duration that
+          fits your business and pay with Paystack.
         </p>
       </header>
       {pricing.isPending ? (
@@ -52,6 +54,7 @@ export default function PricingPage() {
                   / {plan.duration_days} days
                 </span>
               </p>
+              <PlanLimits plan={plan} />
               {plan.features.length > 0 && (
                 <ul className="mt-4 space-y-2 text-sm text-ink-700">
                   {plan.features.map((f, i) => (

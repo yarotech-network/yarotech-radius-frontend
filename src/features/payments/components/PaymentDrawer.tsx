@@ -1,7 +1,7 @@
 import { Link } from 'react-router';
 import { LifeBuoy } from 'lucide-react';
 import { Button, CopyButton, DescriptionList, Dialog, Skeleton } from '@/components/ui';
-import { QueryBoundary } from '@/components/feedback';
+import { Alert, QueryBoundary } from '@/components/feedback';
 import { StatusBadge } from '@/components/layout';
 import { usePrincipal } from '@/app/auth/useAuth';
 import { formatDateTime } from '@/lib/formatting/dates';
@@ -39,19 +39,27 @@ export function PaymentDrawer({
         >
           {(p) => (
             <div className="flex flex-col gap-6">
-              <div className="flex flex-wrap items-center justify-between gap-3 rounded-card border border-border bg-surface-muted px-4 py-3">
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-card border border-brand-100 bg-gradient-to-br from-brand-50 to-white px-4 py-5">
                 <span className="text-2xl font-semibold text-ink-900 tabular-nums">
                   {formatKobo(p.amount)}
                 </span>
                 <StatusBadge status={p.status} size="md" />
               </div>
+              {p.status === 'success' && !p.voucher && (
+                <Alert tone="warning" title="Paid, no voucher">
+                  Payment is recorded as successful, but no voucher is linked yet.{' '}
+                  {canRecover
+                    ? 'Open recovery below to review fulfilment.'
+                    : 'Ask a manager to review fulfilment.'}
+                </Alert>
+              )}
               <DescriptionList
                 columns={2}
                 items={[
                   {
                     label: 'Reference',
                     value: (
-                      <span className="inline-flex items-center gap-1 font-mono text-[13px]">
+                      <span className="inline-flex max-w-full flex-wrap items-center gap-2 font-mono text-[13px] break-all">
                         {p.reference}
                         <CopyButton value={p.reference} label="Copy reference" />
                       </span>
@@ -64,7 +72,7 @@ export function PaymentDrawer({
                     value: (
                       <a
                         href={`mailto:${p.customer_email}`}
-                        className="text-brand-700 hover:underline"
+                        className="break-all text-brand-700 hover:underline"
                       >
                         {p.customer_email}
                       </a>

@@ -10,8 +10,8 @@ import { pendingCheckout } from '../pendingCheckout';
 import { AccessCodePanel } from '../components/AccessCodePanel';
 
 /**
- * `/pay/result?reference=` — where Paystack sends the customer back (configured in the Paystack
- * dashboard, gap #9). Falls back to the locally remembered checkout when the reference is missing.
+ * `/pay/result?reference=` is the voucher return destination supplied by the backend to Paystack.
+ * Falls back to the locally remembered checkout when the reference is missing.
  *
  * On success the backend returns the voucher's access code only while the voucher is unused; once
  * the customer has logged in, the page shows the username alone and points at the email copy.

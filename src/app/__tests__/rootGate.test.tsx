@@ -54,6 +54,8 @@ beforeEach(() => {
 
 describe('root gate (/)', () => {
   it('shows the public landing page to anonymous visitors', async () => {
+    // Check routing behavior independently of cold module-transform time.
+    await import('@/features/storefront/pages/LandingPage');
     mockPricing();
     renderRoot();
 

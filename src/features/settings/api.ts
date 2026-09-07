@@ -54,6 +54,11 @@ export const settingsApi = {
     payload: SubscriptionCheckoutRequest,
     idempotencyKey = newIdempotencyKey('checkout'),
   ) => http.post<CheckoutResult>('/subscriptions/checkout/', payload, { idempotencyKey }),
+  verifySubscriptionPayment: (reference: string) =>
+    http.post<SubscriptionPayment>(
+      `/subscriptions/payments/${encodeURIComponent(reference)}/verify/`,
+      {},
+    ),
   subscriptionPayment: (reference: string) =>
     http.get<SubscriptionPayment>(`/subscriptions/payments/${encodeURIComponent(reference)}/`),
 };

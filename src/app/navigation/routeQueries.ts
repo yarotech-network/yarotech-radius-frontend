@@ -1,10 +1,6 @@
 import type { QueryClient } from '@tanstack/react-query';
 import { PAGE_SIZE_DEFAULT } from '@/app/config/constants';
-import {
-  DASHBOARD_LIVE_PARAMS,
-  dashboardLiveQuery,
-  dashboardStatsQuery,
-} from '@/features/dashboard/queries';
+import { dashboardLiveQuery, dashboardStatsQuery } from '@/features/dashboard/queries';
 import { AUDIT_LIST_DEFAULT_PARAMS, auditListQuery } from '@/features/audit/queries';
 import {
   AGENT_FUNDINGS_DEFAULT_PARAMS,
@@ -46,7 +42,7 @@ import { VOUCHERS_LIST_DEFAULT_PARAMS, vouchersListQuery } from '@/features/vouc
 export const queryPrefetchers: Record<string, (client: QueryClient) => void> = {
   '/dashboard': (client) => {
     void client.prefetchQuery(dashboardStatsQuery());
-    void client.prefetchQuery(dashboardLiveQuery(DASHBOARD_LIVE_PARAMS));
+    // Session access varies within the workspace; the page checks permission before fetching it.
   },
   '/sessions': (client) => {
     void client.prefetchQuery(dashboardLiveQuery({ page: 1, page_size: PAGE_SIZE_DEFAULT }));

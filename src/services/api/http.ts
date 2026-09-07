@@ -73,7 +73,8 @@ async function parseErrorBody(response: Response): Promise<unknown> {
     try {
       return JSON.parse(text) as unknown;
     } catch {
-      return text ? { detail: text.slice(0, 200) } : null;
+      // Proxy and Django debug pages are not user-facing API error messages.
+      return null;
     }
   } catch {
     return null;

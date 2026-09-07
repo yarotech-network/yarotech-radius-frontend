@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
-import { useNavigate } from 'react-router';
-import { Plus, Radio } from 'lucide-react';
+import { Link, useNavigate } from 'react-router';
+import { ArrowUpRight, Plus, Radio, RefreshCw } from 'lucide-react';
 import { PageHeader } from '@/components/layout';
 import {
   DataTable,
@@ -10,8 +10,8 @@ import {
   useListParams,
   type Column,
 } from '@/components/data';
-import { Button, ButtonLink, Select } from '@/components/ui';
-import { EmptyState } from '@/components/feedback';
+import { Button, ButtonLink, Card, Select } from '@/components/ui';
+import { Alert, EmptyState } from '@/components/feedback';
 import { useDebouncedValue } from '@/lib/utilities/useDebouncedValue';
 import { formatDateTime, formatRelative } from '@/lib/formatting/dates';
 import { can } from '@/services/auth/principal';
@@ -52,22 +52,28 @@ export default function RoutersPage() {
       sortField: 'name',
       cell: (r) => (
         <div className="min-w-0">
-          <div className="font-medium text-ink-900">{r.name}</div>
-          <div className="mt-0.5 text-xs text-ink-500">
-            <code className="font-mono">{r.ip_address}</code>
+          <Link
+            to={`/routers/${r.id}`}
+            onClick={(e) => e.stopPropagation()}
+            className="font-semibold break-words text-brand-700 hover:underline"
+          >
+            {r.name}
+          </Link>
+          <div className="mt-1 text-xs break-words text-ink-500">
+            <code className="font-mono break-all">{r.ip_address}</code>
             {r.location ? ` · ${r.location}` : ''}
           </div>
         </div>
       ),
     },
-    { key: 'state', header: 'Status', cell: (r) => <RouterStateBadges router={r} /> },
+    { key: 'state', header: 'Setup status', cell: (r) => <RouterStateBadges router={r} /> },
     {
       key: 'vpn',
       header: 'VPN',
       hideBelow: 'lg',
       cell: (r) =>
         r.wireguard_ip ? (
-          <code className="font-mono text-xs">{r.wireguard_ip}</code>
+          <code className="font-mono text-xs break-all">{r.wireguard_ip}</code>
         ) : (
           <span className="text-ink-400">Not configured</span>
         ),
@@ -81,120 +87,183 @@ export default function RoutersPage() {
         r.last_seen_at ? (
           <span title={formatDateTime(r.last_seen_at)}>{formatRelative(r.last_seen_at)}</span>
         ) : (
-          <span className="text-ink-400">Never</span>
+          <span className="text-ink-400">No observation recorded</span>
         ),
     },
   ];
 
   return (
-    <>
+    <div className="space-y-6">
       <PageHeader
         title="Routers"
         description="MikroTik hotspots registered as RADIUS clients, with their onboarding and VPN status."
         actions={
-          canManage ? (
-            <ButtonLink to="/routers/new" leadingIcon={<Plus className="h-4 w-4" aria-hidden />}>
-              Add router
-            </ButtonLink>
-          ) : undefined
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="secondary"
+              disabled={query.isFetching}
+              leadingIcon={<RefreshCw className={query.isFetching ? 'animate-spin' : ''} />}
+              onClick={() => void query.refetch()}
+            >
+              Refresh routers
+            </Button>
+            {canManage ? (
+              <ButtonLink to="/routers/new" leadingIcon={<Plus className="h-4 w-4" aria-hidden />}>
+                Add router
+              </ButtonLink>
+            ) : null}
+          </div>
         }
       />
-      <FilterBar
-        search={
-          <SearchInput
-            value={list.state.search}
-            onChange={list.setSearch}
-            placeholder="Search name, IP or location"
-            ariaLabel="Search routers"
-          />
-        }
-        filters={
-          <>
-            <Select
-              aria-label="Onboarding state"
-              size="sm"
-              value={list.state.filters.onboarding_state ?? ''}
-              onChange={(e) => list.setFilter('onboarding_state', e.target.value || undefined)}
-              options={ONBOARDING_FILTER_OPTIONS}
+      <Card className="border-brand-100 bg-gradient-to-br from-brand-50 via-white to-sky-50">
+        <div className="flex items-start gap-4">
+          <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-brand-600 text-white">
+            <Radio className="size-5" aria-hidden />
+          </span>
+          <div className="min-w-0">
+            <h2 className="text-lg font-semibold text-brand-950">Manage your hotspot routers</h2>
+            <p className="mt-1 text-sm leading-relaxed text-ink-600">
+              Find a device by name, address or location. Open its details to review setup, VPN
+              configuration and available operational checks.
+            </p>
+            <p className="mt-3 text-xs font-medium text-brand-700">
+              Setup status and last-seen timestamps do not confirm current connectivity. Review the
+              router's health details for available observations.
+            </p>
+          </div>
+        </div>
+      </Card>
+      <section aria-labelledby="router-directory-title" className="space-y-4">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <h2 id="router-directory-title" className="text-lg font-semibold text-brand-950">
+            Router directory
+          </h2>
+          <p role="status" className="text-sm text-ink-500">
+            {query.isPlaceholderData
+              ? 'Updating results...'
+              : query.data
+                ? `${query.data.count} routers in this view`
+                : query.isError
+                  ? 'Router count unavailable'
+                  : 'Loading routers...'}
+          </p>
+        </div>
+        <FilterBar
+          inline
+          search={
+            <SearchInput
+              value={list.state.search}
+              onChange={list.setSearch}
+              placeholder="Search name, IP or location"
+              ariaLabel="Search routers"
             />
-            <Select
-              aria-label="Deployment"
-              size="sm"
-              value={list.state.filters.deployment_status ?? ''}
-              onChange={(e) => list.setFilter('deployment_status', e.target.value || undefined)}
-              options={[
-                { value: '', label: 'Any deployment' },
-                { value: 'not_deployed', label: 'Not deployed' },
-                { value: 'deploying', label: 'Deploying' },
-                { value: 'deployed', label: 'Deployed' },
-                { value: 'failed', label: 'Failed' },
-              ]}
-            />
-            <Select
-              aria-label="Active"
-              size="sm"
-              value={list.state.filters.is_active ?? ''}
-              onChange={(e) => list.setFilter('is_active', e.target.value || undefined)}
-              options={[
-                { value: '', label: 'Active and inactive' },
-                { value: 'true', label: 'Active only' },
-                { value: 'false', label: 'Inactive only' },
-              ]}
-            />
-          </>
-        }
-        activeCount={list.activeFilterCount}
-        onClear={list.clearFilters}
-      />
-      <DataTable
-        caption="Routers"
-        columns={columns}
-        rows={query.data?.results}
-        rowKey={(r) => r.id}
-        loading={query.isPending}
-        refreshing={query.isFetching && !query.isPending}
-        error={query.error}
-        onRetry={() => void query.refetch()}
-        ordering={list.state.ordering}
-        onOrderingChange={list.setOrdering}
-        onRowClick={(r) => navigate(`/routers/${r.id}`)}
-        empty={
-          list.activeFilterCount > 0 ? (
-            <EmptyState
-              icon={<Radio className="h-6 w-6" aria-hidden />}
-              title="No routers match"
-              description="Try another state or search term."
-              action={
-                <Button variant="secondary" onClick={list.clearFilters}>
-                  Clear filters
-                </Button>
-              }
-            />
-          ) : (
-            <EmptyState
-              icon={<Radio className="h-6 w-6" aria-hidden />}
-              title="No routers yet"
-              description={
-                canManage
-                  ? 'Register your first MikroTik to start onboarding it.'
-                  : 'Routers will appear here once a manager registers them.'
-              }
-              action={canManage ? <ButtonLink to="/routers/new">Add router</ButtonLink> : undefined}
-            />
-          )
-        }
-      />
-      {query.data && query.data.count > 0 && (
-        <Pagination
-          count={query.data.count}
-          page={list.state.page}
-          totalPages={query.data.total_pages}
-          pageSize={list.state.page_size}
-          onPageChange={list.setPage}
-          onPageSizeChange={list.setPageSize}
-          itemLabel="routers"
+          }
+          filters={
+            <div className="flex items-center gap-2 [&>div]:w-44 [&>div]:shrink-0">
+              <Select
+                aria-label="Onboarding state"
+                size="sm"
+                value={list.state.filters.onboarding_state ?? ''}
+                onChange={(e) => list.setFilter('onboarding_state', e.target.value || undefined)}
+                options={ONBOARDING_FILTER_OPTIONS}
+              />
+              <Select
+                aria-label="Deployment"
+                size="sm"
+                value={list.state.filters.deployment_status ?? ''}
+                onChange={(e) => list.setFilter('deployment_status', e.target.value || undefined)}
+                options={[
+                  { value: '', label: 'Any deployment' },
+                  { value: 'not_deployed', label: 'Not deployed' },
+                  { value: 'deploying', label: 'Deploying' },
+                  { value: 'deployed', label: 'Deployed' },
+                  { value: 'failed', label: 'Failed' },
+                ]}
+              />
+              <Select
+                aria-label="Active"
+                size="sm"
+                value={list.state.filters.is_active ?? ''}
+                onChange={(e) => list.setFilter('is_active', e.target.value || undefined)}
+                options={[
+                  { value: '', label: 'Active and inactive' },
+                  { value: 'true', label: 'Active only' },
+                  { value: 'false', label: 'Inactive only' },
+                ]}
+              />
+            </div>
+          }
+          activeCount={list.activeFilterCount}
+          onClear={list.clearFilters}
         />
-      )}
-    </>
+        {query.isError && query.data && (
+          <Alert tone="warning" title="Routers could not be refreshed">
+            Showing the last loaded records. Refresh again to check for changes.
+          </Alert>
+        )}
+        <DataTable
+          caption="Routers"
+          columns={columns}
+          rows={query.data?.results}
+          rowKey={(r) => r.id}
+          loading={query.isPending}
+          refreshing={query.isFetching && !query.isPending}
+          error={query.error}
+          onRetry={() => void query.refetch()}
+          ordering={list.state.ordering}
+          onOrderingChange={list.setOrdering}
+          onRowClick={(r) => navigate(`/routers/${r.id}`)}
+          rowActions={(r) => (
+            <ButtonLink
+              to={`/routers/${r.id}`}
+              variant="secondary"
+              size="sm"
+              aria-label={`Open ${r.name}`}
+              trailingIcon={<ArrowUpRight />}
+            >
+              Details
+            </ButtonLink>
+          )}
+          empty={
+            list.activeFilterCount > 0 ? (
+              <EmptyState
+                icon={<Radio className="h-6 w-6" aria-hidden />}
+                title="No routers match"
+                description="Try another state or search term."
+                action={
+                  <Button variant="secondary" onClick={list.clearFilters}>
+                    Clear filters
+                  </Button>
+                }
+              />
+            ) : (
+              <EmptyState
+                icon={<Radio className="h-6 w-6" aria-hidden />}
+                title="No routers yet"
+                description={
+                  canManage
+                    ? 'Register your first MikroTik to start onboarding it.'
+                    : 'Routers will appear here once a manager registers them.'
+                }
+                action={
+                  canManage ? <ButtonLink to="/routers/new">Add router</ButtonLink> : undefined
+                }
+              />
+            )
+          }
+        />
+        {query.data && query.data.count > 0 && (
+          <Pagination
+            count={query.data.count}
+            page={list.state.page}
+            totalPages={query.data.total_pages}
+            pageSize={list.state.page_size}
+            onPageChange={list.setPage}
+            onPageSizeChange={list.setPageSize}
+            itemLabel="routers"
+          />
+        )}
+      </section>
+    </div>
   );
 }

@@ -59,6 +59,22 @@ src/
 └── test/         MSW server, render helpers, fixtures
 ```
 
+## Tenant storefront
+
+Owners and managers can open **Sales → Storefront** (`/storefront`) to copy their customer
+link, open the public shop, preview public plans, and access plan, business-profile and payment
+settings. On mobile, the page is available in **More**. The link uses the current frontend origin
+and the tenant slug returned by `GET /api/v1/tenants/profile/`.
+
+Customers visit `/s/{tenant-slug}` without a dashboard account, choose an active internet plan,
+and continue to the existing Paystack checkout. The payment result page displays the access code
+after the backend confirms payment and fulfils the voucher. Public plans are scoped by tenant
+slug; inactive tenants are unavailable. No new backend routes or migrations are required.
+
+Share links from the deployed customer-accessible frontend domain. A localhost link only works
+on the machine hosting it. Before accepting purchases, verify the API v1 backend, tenant Paystack
+configuration, callback/webhook processing, and access-code delivery with a real end-to-end test.
+
 ## Deployment
 
 `npm run build` produces static files in `dist/`. Two supported modes:

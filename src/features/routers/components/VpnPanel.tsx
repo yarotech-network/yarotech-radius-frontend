@@ -190,12 +190,19 @@ export function OperationRow({
     <li className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3 text-sm">
       <StatusBadge status={op.status} />
       <span className="font-medium text-ink-900 capitalize">{op.action}</span>
-      {showRouter && <span className="text-ink-600">{showRouter}</span>}
+      {showRouter && (
+        <Link
+          to={`/routers/${op.router}?tab=vpn`}
+          className="min-w-0 font-medium break-words text-brand-700 hover:underline"
+        >
+          {showRouter}
+        </Link>
+      )}
       <span className="text-ink-500">
         {op.attempts} {op.attempts === 1 ? 'attempt' : 'attempts'}
       </span>
       {op.error_code && (
-        <code className="rounded bg-danger-50 px-1.5 py-0.5 text-xs text-danger-700">
+        <code className="max-w-full rounded bg-danger-50 px-1.5 py-0.5 text-xs break-all text-danger-700">
           {op.error_code}
         </code>
       )}

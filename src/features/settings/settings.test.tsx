@@ -336,6 +336,9 @@ describe('SubscriptionSettingsPage', () => {
         HttpResponse.json({ detail: 'Subscription not found.' }, { status: 404 }),
       ),
       http.get(`${API}/pricing/`, () => HttpResponse.json(paginated(plans))),
+      http.post(`${API}/subscriptions/payments/:reference/verify/`, () =>
+        HttpResponse.json({ detail: 'Verification temporarily unavailable.' }, { status: 503 }),
+      ),
       http.post(`${API}/subscriptions/checkout/`, async ({ request }) => {
         posts.push((await request.json()) as Record<string, unknown>);
         return HttpResponse.json(
@@ -379,6 +382,24 @@ describe('SubscriptionSettingsPage', () => {
       expires_at: '2099-09-14T00:00:00Z',
       is_trial: false,
       is_expired: false,
+      entitlements: {
+        plan_id: 2,
+        terms: {
+          name: 'Purchased Business',
+          price: 4500000,
+          duration_days: 30,
+          version: 1,
+          max_routers: 5,
+          whatsapp_enabled: true,
+          daily_voucher_print_limit: 100,
+        },
+        enabled: true,
+        routers_used: 3,
+        vouchers_prepared_today: 12,
+        day: '2026-09-07',
+        timezone: 'Africa/Lagos',
+        upcoming: [],
+      },
     };
     server.use(
       http.get(`${API}/subscriptions/`, () => HttpResponse.json(sub)),
@@ -387,8 +408,99 @@ describe('SubscriptionSettingsPage', () => {
     renderPage(<SubscriptionSettingsPage />, { path: '/settings/subscription', role: 'manager' });
     expect(await screen.findByText('Current')).toBeInTheDocument();
     expect(screen.getAllByText('Business').length).toBeGreaterThan(0);
+    expect(screen.getByText('Purchased Business')).toBeInTheDocument();
+    expect(screen.getByText('5 registered routers')).toBeInTheDocument();
+    expect(
+      screen.getByText(/3 routers registered. 12 vouchers prepared today/),
+    ).toBeInTheDocument();
     expect(
       screen.queryByRole('button', { name: /Subscribe|Renew|Switch/ }),
     ).not.toBeInTheDocument();
+  });
+});
+
+describe('Subscription payment recovery', () => {
+  it('verifies a returned payment and refreshes the purchased subscription', async () => {
+    let verified = false;
+    let readsAfterSuccess = 0;
+    const payment = {
+      reference: 'subscription-return',
+      amount: 1500000,
+      status: 'pending',
+      plan: 1,
+      subscription: null,
+      created_at: '2026-09-01T10:00:00Z',
+      completed_at: null,
+    };
+    server.use(
+      http.get(`${API}/pricing/`, () => HttpResponse.json(paginated(plans))),
+      http.get(`${API}/subscriptions/`, () => {
+        if (!verified) return HttpResponse.json({ detail: 'Not found.' }, { status: 404 });
+        readsAfterSuccess++;
+        return HttpResponse.json({
+          id: 1,
+          tenant: 5,
+          plan: 1,
+          plan_name: 'Recovered plan',
+          status: 'active',
+          is_trial: false,
+          is_expired: false,
+          started_at: '2026-09-01T00:00:00Z',
+          expires_at: '2099-10-01T00:00:00Z',
+        });
+      }),
+      http.get(`${API}/subscriptions/payments/:reference/`, () => HttpResponse.json(payment)),
+      http.post(`${API}/subscriptions/payments/:reference/verify/`, () => {
+        verified = true;
+        return HttpResponse.json({ ...payment, status: 'success', subscription: 1 });
+      }),
+    );
+    renderPage(<SubscriptionSettingsPage />, {
+      path: '/settings/subscription',
+      route: '/settings/subscription?trxref=subscription-return',
+      role: 'owner',
+    });
+    expect(await screen.findByText('Payment confirmed')).toBeInTheDocument();
+    expect(await screen.findByText('Recovered plan')).toBeInTheDocument();
+    expect(readsAfterSuccess).toBeGreaterThan(0);
+  });
+
+  it('keeps a failed verification retryable and Check now verifies with Paystack', async () => {
+    let attempts = 0;
+    const payment = {
+      reference: 'subscription-retry',
+      amount: 1500000,
+      status: 'pending',
+      plan: 1,
+      subscription: null,
+      created_at: '2026-09-01T10:00:00Z',
+      completed_at: null,
+    };
+    server.use(
+      http.get(`${API}/pricing/`, () => HttpResponse.json(paginated(plans))),
+      http.get(`${API}/subscriptions/`, () =>
+        HttpResponse.json({ detail: 'Not found.' }, { status: 404 }),
+      ),
+      http.get(`${API}/subscriptions/payments/:reference/`, () => HttpResponse.json(payment)),
+      http.post(`${API}/subscriptions/payments/:reference/verify/`, () => {
+        attempts++;
+        if (attempts === 1)
+          return HttpResponse.json(
+            { detail: 'Verification unavailable. Do not pay again.' },
+            { status: 503 },
+          );
+        return HttpResponse.json({ ...payment, status: 'success', subscription: 1 });
+      }),
+    );
+    renderPage(<SubscriptionSettingsPage />, {
+      path: '/settings/subscription',
+      route: '/settings/subscription?reference=subscription-retry',
+      role: 'owner',
+    });
+    expect(await screen.findByText(/Verification unavailable/)).toBeInTheDocument();
+    expect(screen.queryByText('Payment confirmed')).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Check now' }));
+    expect(await screen.findByText('Payment confirmed')).toBeInTheDocument();
+    expect(attempts).toBe(2);
   });
 });

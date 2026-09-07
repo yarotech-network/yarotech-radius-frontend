@@ -10,10 +10,12 @@ export function UserMenu({
   profilePath,
   compact = false,
   className,
+  dashboard = false,
 }: {
   profilePath: string | null;
   compact?: boolean;
   className?: string;
+  dashboard?: boolean;
 }) {
   const { principal, signOut } = useAuth();
   const navigate = useNavigate();
@@ -47,6 +49,7 @@ export function UserMenu({
           className={cn(
             'flex h-10 items-center gap-2 rounded-control pr-2 pl-1 text-left transition-colors hover:bg-slate-100 focus-visible:outline-brand-600',
             compact && 'pr-1',
+            dashboard && 'h-12 gap-3 rounded-xl px-2 hover:bg-brand-50',
           )}
           {...props}
         >
@@ -57,7 +60,11 @@ export function UserMenu({
                 {displayName(user)}
               </span>
               <span className="max-w-36 truncate text-[11px] text-ink-500">
-                {principal.kind === 'member' ? principal.tenantName : user.role.replace('_', ' ')}
+                {dashboard
+                  ? user.role.replaceAll('_', ' ')
+                  : principal.kind === 'member'
+                    ? principal.tenantName
+                    : user.role.replace('_', ' ')}
               </span>
             </span>
           )}

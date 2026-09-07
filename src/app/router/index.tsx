@@ -55,8 +55,14 @@ const PaymentsPage = lazyRoute(lazy(() => import('@/features/payments/pages/Paym
 const RecoveryPage = lazyRoute(lazy(() => import('@/features/payments/pages/RecoveryPage')));
 const AuditPage = lazyRoute(lazy(() => import('@/features/audit/pages/AuditPage')));
 const StorefrontPage = lazyRoute(lazy(() => import('@/features/storefront/pages/StorefrontPage')));
+const StorefrontManagementPage = lazyRoute(
+  lazy(() => import('@/features/storefront/pages/StorefrontManagementPage')),
+);
 const PaymentResultPage = lazyRoute(
   lazy(() => import('@/features/storefront/pages/PaymentResultPage')),
+);
+const BusinessPlansPage = lazyRoute(
+  lazy(() => import('@/features/platform/pages/BusinessPlansPage')),
 );
 const PricingPage = lazyRoute(lazy(() => import('@/features/storefront/pages/PricingPage')));
 const AgentHomePage = lazyRoute(lazy(() => import('@/features/agent/pages/AgentHomePage')));
@@ -107,6 +113,10 @@ const devRoutes: RouteObject[] = import.meta.env.DEV
 /* ---------- workspace (tenant members + platform staff) ---------- */
 const workspaceRoutes: RouteObject[] = [
   { path: 'dashboard', Component: DashboardPage },
+  {
+    element: <RequireCapability capability="settings.profile" />,
+    children: [{ path: 'storefront', Component: StorefrontManagementPage }],
+  },
   {
     element: <RequireCapability capability="sessions.view" />,
     children: [{ path: 'sessions', Component: SessionsPage }],
@@ -200,6 +210,7 @@ const platformRoutes: RouteObject[] = [
   { index: true, Component: PlatformOverviewPage },
   { path: 'tenants', Component: TenantsPage },
   { path: 'tenants/:id', Component: TenantDetailPage },
+  { path: 'business-plans', Component: BusinessPlansPage },
   { path: 'routers', Component: PlatformRoutersPage },
   { path: 'payments', Component: PlatformPaymentsPage },
   { path: 'staff', Component: StaffPage },

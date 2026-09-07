@@ -84,6 +84,23 @@ describe('http client', () => {
     });
   });
 
+  it.each([404, 500, 502])('does not expose HTML error documents for HTTP %s', async (status) => {
+    server.use(
+      mswHttp.get(`${BASE}/pricing/`, () =>
+        new HttpResponse('<!DOCTYPE html><html><body>Internal debug information</body></html>', {
+          status,
+          headers: { 'Content-Type': 'text/html' },
+        }),
+      ),
+    );
+    const error = await http
+      .get('/pricing/', undefined, { anonymous: true })
+      .catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(ApiError);
+    expect(error).toMatchObject({ status, body: null });
+    expect((error as ApiError).message).not.toMatch(/html|Internal debug information/i);
+  });
+
   it('converts fetch failures into a network ApiError', async () => {
     server.use(mswHttp.get(`${BASE}/health/`, () => HttpResponse.error()));
     await expect(http.get('/health/', undefined, { anonymous: true })).rejects.toMatchObject({

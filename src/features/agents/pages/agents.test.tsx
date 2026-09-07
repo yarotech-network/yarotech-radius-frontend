@@ -62,6 +62,26 @@ describe('agent schemas', () => {
 });
 
 describe('AgentsPage', () => {
+  it('preserves loaded agents and balances when refresh fails', async () => {
+    let calls = 0;
+    server.use(
+      http.get(`${API}/tenant/agents/`, () => {
+        calls += 1;
+        return calls === 1
+          ? HttpResponse.json(paginated([agent()]))
+          : new HttpResponse(null, { status: 503 });
+      }),
+    );
+    renderPage(<AgentsPage />, { path: '/agents' });
+    const table = await screen.findByRole('table', { name: 'Agents' });
+    expect(await within(table).findByRole('link', { name: 'agent' })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Refresh agents' }));
+    expect(await screen.findByText('Agents could not be refreshed')).toBeInTheDocument();
+    expect(within(table).getByRole('link', { name: 'agent' })).toBeInTheDocument();
+    expect(within(table).getByText('Chidi Phones')).toBeInTheDocument();
+    expect(calls).toBe(2);
+  });
+
   it('lists agents, filters by status and creates a new agent idempotently', async () => {
     const seen: URL[] = [];
     const created: { key: string | null; body: Record<string, unknown> }[] = [];
@@ -98,6 +118,8 @@ describe('AgentsPage', () => {
     });
     const table = await screen.findByRole('table', { name: 'Agents' });
     expect(await within(table).findByText('agent2')).toBeInTheDocument();
+    expect(within(table).getByRole('link', { name: 'agent' })).toHaveAttribute('href', '/agents/1');
+    expect(within(table).getByText('Unavailable')).toBeInTheDocument();
     expect(within(table).getByText('₦2,500.00')).toBeInTheDocument();
     await userEvent.selectOptions(screen.getByLabelText('Status'), 'pending');
     await waitFor(() => expect(seen.at(-1)?.searchParams.get('status')).toBe('pending'));
@@ -140,6 +162,25 @@ describe('AgentsPage', () => {
 });
 
 describe('AgentDetailPage', () => {
+  it('retains the profile when manual refresh fails and labels an unavailable wallet', async () => {
+    let calls = 0;
+    server.use(
+      http.get(`${API}/tenant/agents/:id/`, () => {
+        calls += 1;
+        return calls === 1
+          ? HttpResponse.json(agent({ wallet_balance: null }))
+          : new HttpResponse(null, { status: 503 });
+      }),
+    );
+    renderPage(<AgentDetailPage />, { path: '/agents/:id', route: '/agents/1' });
+    await screen.findByRole('heading', { name: /agent/ });
+    expect(screen.getAllByText('Unavailable').length).toBeGreaterThan(0);
+    await userEvent.click(screen.getByRole('button', { name: 'Refresh agent' }));
+    expect(await screen.findByText('Agent could not be refreshed')).toBeInTheDocument();
+    expect(screen.getAllByText('Chidi Phones').length).toBeGreaterThan(0);
+    expect(screen.getByRole('button', { name: 'Suspend' })).toBeInTheDocument();
+  });
+
   it('approves a pending agent after confirmation and lists their sales', async () => {
     let current = agent({ status: 'pending', wallet_balance: null });
     const approvals: string[] = [];
@@ -151,7 +192,8 @@ describe('AgentDetailPage', () => {
         return HttpResponse.json(current);
       }),
       http.get(`${API}/vouchers/`, ({ request }) => {
-        expect(new URL(request.url).searchParams.get('search')).toBe('agent');
+        expect(new URL(request.url).searchParams.get('agent')).toBe('1');
+        expect(new URL(request.url).searchParams.has('search')).toBe(false);
         return HttpResponse.json(
           paginated([
             {

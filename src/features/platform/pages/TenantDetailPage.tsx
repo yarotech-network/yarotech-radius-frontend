@@ -1,6 +1,14 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
-import { ExternalLink, Pencil, Power, Trash2 } from 'lucide-react';
+import {
+  ArrowUpRight,
+  Building2,
+  ExternalLink,
+  Pencil,
+  Power,
+  RefreshCw,
+  Trash2,
+} from 'lucide-react';
 import { PageHeader, Section, StatusBadge } from '@/components/layout';
 import {
   Button,
@@ -8,6 +16,7 @@ import {
   Card,
   CardHeader,
   ConfirmDialog,
+  CopyButton,
   DescriptionList,
   Skeleton,
   Tabs,
@@ -47,7 +56,7 @@ export default function TenantDetailPage() {
       />
     );
   }
-  if (query.isError) {
+  if (query.isError && !tenant) {
     return (
       <ErrorState
         error={query.error}
@@ -60,15 +69,33 @@ export default function TenantDetailPage() {
     return (
       <div className="flex flex-col gap-4" aria-busy>
         <Skeleton className="h-8 w-64" />
-        <Skeleton className="h-4 w-96" />
+        <Skeleton className="h-4 w-full max-w-96" />
         <Skeleton className="h-56 w-full" />
       </div>
     );
   }
-  return <TenantDetail tenant={tenant} />;
+  return (
+    <TenantDetail
+      key={tenant.id}
+      tenant={tenant}
+      refreshing={query.isFetching}
+      refreshFailed={query.isError}
+      onRefresh={() => void query.refetch()}
+    />
+  );
 }
 
-function TenantDetail({ tenant }: { tenant: Tenant }) {
+function TenantDetail({
+  tenant,
+  refreshing,
+  refreshFailed,
+  onRefresh,
+}: {
+  tenant: Tenant;
+  refreshing: boolean;
+  refreshFailed: boolean;
+  onRefresh: () => void;
+}) {
   const navigate = useNavigate();
   const toast = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -86,24 +113,34 @@ function TenantDetail({ tenant }: { tenant: Tenant }) {
     setSearchParams(params, { replace: true });
   }
 
-  const storefront = `/s/${tenant.slug}`;
+  const storefront = `/s/${encodeURIComponent(tenant.slug)}`;
+  const storefrontUrl = new URL(storefront, window.location.origin).href;
 
   return (
-    <>
+    <div className="space-y-6">
       <PageHeader
-        title={tenant.name}
+        title={<span className="break-words">{tenant.name}</span>}
+        backTo="/platform/tenants"
         crumbs={[{ label: 'Tenants', to: '/platform/tenants' }, { label: tenant.name }]}
         description={
           <span className="inline-flex flex-wrap items-center gap-2">
             <StatusBadge status={tenant.is_active ? 'active' : 'inactive'} size="sm" dot />
-            <code className="font-mono text-xs text-ink-500">{storefront}</code>
+            <code className="font-mono text-xs break-all text-ink-500">{storefront}</code>
             {tenant.is_platform_admin && (
               <span className="text-xs text-ink-500">· platform tenant</span>
             )}
           </span>
         }
         actions={
-          <>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="secondary"
+              disabled={refreshing}
+              leadingIcon={<RefreshCw className={refreshing ? 'animate-spin' : ''} />}
+              onClick={onRefresh}
+            >
+              Refresh tenant
+            </Button>
             <ButtonLink
               to={storefront}
               target="_blank"
@@ -120,9 +157,55 @@ function TenantDetail({ tenant }: { tenant: Tenant }) {
             >
               Edit
             </Button>
-          </>
+          </div>
         }
       />
+      {refreshFailed && (
+        <Alert tone="warning" title="Tenant could not be refreshed">
+          Showing the last loaded profile. Refresh again to check for changes.
+        </Alert>
+      )}
+      <Card className="border-brand-100 bg-gradient-to-br from-brand-50 via-white to-sky-50">
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_auto]">
+          <div className="flex min-w-0 items-start gap-4">
+            <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-brand-600 text-white">
+              <Building2 className="size-5" aria-hidden />
+            </span>
+            <div className="min-w-0">
+              <h2 className="text-lg font-semibold text-brand-950">
+                {tenant.is_platform_admin ? 'Platform workspace' : 'Operator workspace'}
+              </h2>
+              <p className="mt-1 text-sm text-ink-600">
+                {tenant.is_active
+                  ? 'Review this workspace, manage its members and open its operational records.'
+                  : 'This workspace is inactive. Review its details before restoring access.'}
+              </p>
+              <p className="mt-3 text-sm break-all text-brand-700">{storefrontUrl}</p>
+              <CopyButton
+                key={storefrontUrl}
+                value={storefrontUrl}
+                label="Copy storefront link"
+                variant="secondary"
+                className="mt-3"
+              />
+            </div>
+          </div>
+          <dl className="grid grid-cols-2 gap-6 rounded-xl border border-brand-100 bg-white p-4">
+            <div>
+              <dt className="text-xs text-ink-500">Members</dt>
+              <dd className="mt-1 text-2xl font-semibold text-brand-950 tabular-nums">
+                {tenant.member_count.toLocaleString()}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-xs text-ink-500">Vouchers</dt>
+              <dd className="mt-1 text-2xl font-semibold text-brand-950 tabular-nums">
+                {tenant.voucher_count.toLocaleString()}
+              </dd>
+            </div>
+          </dl>
+        </div>
+      </Card>
       <Tabs
         items={TABS}
         value={tab}
@@ -133,9 +216,13 @@ function TenantDetail({ tenant }: { tenant: Tenant }) {
       {tab === 'members' ? (
         <TenantMembersPanel tenantId={tenant.id} tenantName={tenant.name} />
       ) : (
-        <div className="grid gap-6 lg:grid-cols-3">
-          <div className="flex flex-col gap-6 lg:col-span-2">
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+          <div className="flex min-w-0 flex-col gap-6 xl:col-span-2">
             <Card>
+              <CardHeader
+                title="Business profile"
+                description="Contact details and workspace history."
+              />
               <DescriptionList
                 columns={2}
                 items={[
@@ -153,7 +240,7 @@ function TenantDetail({ tenant }: { tenant: Tenant }) {
               title="Activity"
               description="Tenant-scoped views across the platform console."
             >
-              <ul className="grid gap-2 sm:grid-cols-2">
+              <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <CrossLink
                   to={`/platform/routers?tenant=${tenant.id}`}
                   label="Routers"
@@ -179,21 +266,10 @@ function TenantDetail({ tenant }: { tenant: Tenant }) {
           </div>
           <div className="flex flex-col gap-6">
             <Card>
-              <CardHeader title="At a glance" className="mb-3" />
-              <dl className="grid grid-cols-2 gap-3 text-sm">
-                <div>
-                  <dt className="text-ink-500">Members</dt>
-                  <dd className="text-xl font-semibold text-brand-950 tabular-nums">
-                    {tenant.member_count}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-ink-500">Vouchers</dt>
-                  <dd className="text-xl font-semibold text-brand-950 tabular-nums">
-                    {tenant.voucher_count.toLocaleString()}
-                  </dd>
-                </div>
-              </dl>
+              <CardHeader
+                title="Workspace members"
+                description="Review membership and manage access for this business."
+              />
               <Button variant="link" size="sm" className="mt-2" onClick={() => setTab('members')}>
                 Manage members
               </Button>
@@ -220,7 +296,7 @@ function TenantDetail({ tenant }: { tenant: Tenant }) {
                 {tenant.is_active ? 'Deactivate tenant' : 'Reactivate tenant'}
               </Button>
             </Card>
-            <Card className="border-danger-200">
+            <Card className="border-danger-200 bg-danger-50/30">
               <CardHeader title="Danger zone" className="mb-2" />
               <p className="text-sm text-ink-600">
                 Deleting removes the tenant and <strong>everything in it</strong> — members,
@@ -283,19 +359,22 @@ function TenantDetail({ tenant }: { tenant: Tenant }) {
           void navigate('/platform/tenants', { replace: true });
         }}
       />
-    </>
+    </div>
   );
 }
 
 function CrossLink({ to, label, hint }: { to: string; label: string; hint: string }) {
   return (
-    <li>
+    <li className="min-w-0">
       <Link
         to={to}
         className="flex flex-col rounded-control border border-border bg-surface px-4 py-3 hover:border-border-strong hover:bg-surface-muted focus-visible:outline-2 focus-visible:outline-brand-600"
       >
-        <span className="text-sm font-medium text-brand-700">{label}</span>
-        <span className="text-xs text-ink-500">{hint}</span>
+        <span className="flex items-center justify-between gap-3 text-sm font-semibold text-brand-700">
+          {label}
+          <ArrowUpRight className="size-4 shrink-0" aria-hidden />
+        </span>
+        <span className="mt-1 text-xs leading-relaxed text-ink-500">{hint}</span>
       </Link>
     </li>
   );

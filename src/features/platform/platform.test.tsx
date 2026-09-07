@@ -147,6 +147,93 @@ describe('platform rules + vocabulary', () => {
 });
 
 describe('PlatformOverviewPage', () => {
+  it('keeps recent tenants and operational links visible when figures fail', async () => {
+    server.use(
+      http.get(`${API}/platform/dashboard/`, () =>
+        HttpResponse.json({ detail: 'Unavailable' }, { status: 503 }),
+      ),
+      ...tenantHandlers(),
+    );
+    renderPage(<PlatformOverviewPage />, { path: '/platform', role: 'platform_admin' });
+    expect(await screen.findByText('Could not load platform figures')).toBeInTheDocument();
+    expect(await screen.findByRole('link', { name: 'Wuse Hotspot' })).toHaveAttribute(
+      'href',
+      '/platform/tenants/2',
+    );
+    expect(screen.getByRole('link', { name: /Router fleet/ })).toHaveAttribute(
+      'href',
+      '/platform/routers',
+    );
+  });
+
+  it('keeps successful figures visible when the recent tenant request fails', async () => {
+    server.use(
+      http.get(`${API}/platform/dashboard/`, () => HttpResponse.json(stats)),
+      http.get(`${API}/tenants/`, () =>
+        HttpResponse.json({ detail: 'Unavailable' }, { status: 503 }),
+      ),
+    );
+    renderPage(<PlatformOverviewPage />, { path: '/platform', role: 'platform_admin' });
+    expect(await screen.findByText('Could not load tenants')).toBeInTheDocument();
+    expect(await screen.findByText('₦1,000.00')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'View agent wallet top-ups' })).toHaveAttribute(
+      'href',
+      '/platform/payments?source=wallet',
+    );
+    expect(screen.getByRole('link', { name: 'View subscriptions' })).toHaveAttribute(
+      'href',
+      '/platform/payments?source=subscriptions',
+    );
+    expect(screen.getByRole('link', { name: 'Review pending payments' })).toHaveAttribute(
+      'href',
+      '/platform/payments?source=vouchers&status=pending',
+    );
+  });
+
+  it('shows a useful empty tenant state and no pending warning for zero pending payments', async () => {
+    server.use(
+      http.get(`${API}/platform/dashboard/`, () =>
+        HttpResponse.json({ ...stats, pending_payments: 0, tenants: 0, active_tenants: 0 }),
+      ),
+      http.get(`${API}/tenants/`, () => HttpResponse.json(paginated([]))),
+    );
+    renderPage(<PlatformOverviewPage />, { path: '/platform', role: 'platform_admin' });
+    expect(await screen.findByText('No operator tenants yet.')).toBeInTheDocument();
+    expect(await screen.findByText('0 active')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Manage tenants' })).toHaveAttribute(
+      'href',
+      '/platform/tenants',
+    );
+    expect(screen.queryByRole('link', { name: 'Review pending payments' })).not.toBeInTheDocument();
+  });
+
+  it('refreshes both sections and warns when showing stale figures', async () => {
+    let statsCalls = 0;
+    let tenantCalls = 0;
+    server.use(
+      http.get(`${API}/platform/dashboard/`, () => {
+        statsCalls += 1;
+        return statsCalls === 1
+          ? HttpResponse.json(stats)
+          : HttpResponse.json({ detail: 'Unavailable' }, { status: 503 });
+      }),
+      http.get(`${API}/tenants/`, () => {
+        tenantCalls += 1;
+        return HttpResponse.json(
+          paginated([tenant({ name: tenantCalls > 1 ? 'Updated operator' : 'Wuse Hotspot' })]),
+        );
+      }),
+    );
+    renderPage(<PlatformOverviewPage />, { path: '/platform', role: 'platform_admin' });
+    const refresh = await screen.findByRole('button', { name: 'Refresh overview' });
+    await userEvent.click(refresh);
+    expect(await screen.findByText('Figures could not be refreshed')).toBeInTheDocument();
+    expect(screen.getByText('₦1,000.00')).toBeInTheDocument();
+    expect(await screen.findByRole('link', { name: 'Updated operator' })).toBeInTheDocument();
+    expect(tenantCalls).toBe(2);
+    expect(statsCalls).toBe(2);
+  });
+
   it('shows KPIs, revenue and newest tenants', async () => {
     server.use(
       http.get(`${API}/platform/dashboard/`, () => HttpResponse.json(stats)),
@@ -212,6 +299,44 @@ describe('TenantsPage', () => {
     expect(await screen.findByText('detail page')).toBeInTheDocument();
   });
 
+  it('filters platform records and preserves loaded tenants after refresh failure', async () => {
+    const user = userEvent.setup();
+    const seen: URL[] = [];
+    server.use(
+      http.get(`${API}/tenants/`, ({ request }) => {
+        const url = new URL(request.url);
+        seen.push(url);
+        return HttpResponse.json(
+          paginated([
+            tenant({ is_platform_admin: url.searchParams.get('is_platform_admin') === 'true' }),
+          ]),
+        );
+      }),
+    );
+    renderPage(<TenantsPage />, { path: '/platform/tenants', role: 'platform_admin' });
+    const table = await screen.findByRole('table', { name: 'Tenants' });
+    expect(await within(table).findByRole('link', { name: 'Wuse Hotspot' })).toHaveAttribute(
+      'href',
+      '/platform/tenants/2',
+    );
+    expect(within(table).getByText('Operator')).toBeInTheDocument();
+    await user.selectOptions(screen.getByLabelText('Kind'), 'platform');
+    expect(await within(table).findByText('Platform')).toBeInTheDocument();
+    expect(seen.at(-1)?.searchParams.get('is_platform_admin')).toBe('true');
+    expect(screen.getByText('1 tenants in this view')).toBeInTheDocument();
+    server.use(
+      http.get(`${API}/tenants/`, () =>
+        HttpResponse.json({ detail: 'Unavailable' }, { status: 503 }),
+      ),
+    );
+    await user.click(screen.getByRole('button', { name: 'Refresh tenants' }));
+    expect(await screen.findByText('Tenants could not be refreshed')).toBeInTheDocument();
+    expect(within(table).getByRole('link', { name: 'Open Wuse Hotspot' })).toHaveAttribute(
+      'href',
+      '/platform/tenants/2',
+    );
+  });
+
   it('maps slug conflicts onto the field', async () => {
     server.use(
       http.post(`${API}/tenants/`, () =>
@@ -240,6 +365,41 @@ describe('TenantsPage', () => {
 });
 
 describe('TenantDetailPage', () => {
+  it('copies the selected storefront link and retains profile data after a failed refresh', async () => {
+    const user = userEvent.setup();
+    server.use(...tenantHandlers());
+    renderPage(<TenantDetailPage />, {
+      role: 'platform_admin',
+      path: '/platform/tenants/:id',
+      route: '/platform/tenants/2',
+    });
+    await screen.findByRole('heading', { name: 'Wuse Hotspot' });
+    await user.click(screen.getByRole('button', { name: 'Copy storefront link' }));
+    expect(await navigator.clipboard.readText()).toBe(`${window.location.origin}/s/wuse-hotspot`);
+    expect(screen.getByRole('link', { name: /^Payments/ })).toHaveAttribute(
+      'href',
+      '/platform/payments?tenant=2',
+    );
+    expect(screen.getByRole('link', { name: /^Staff access/ })).toHaveAttribute(
+      'href',
+      '/platform/staff?tenant=2',
+    );
+    expect(screen.getByRole('link', { name: /^Audit log/ })).toHaveAttribute(
+      'href',
+      '/platform/audit?tenant=2',
+    );
+    server.use(
+      http.get(`${API}/tenants/2/`, () =>
+        HttpResponse.json({ detail: 'Unavailable' }, { status: 503 }),
+      ),
+    );
+    await user.click(screen.getByRole('button', { name: 'Refresh tenant' }));
+    expect(
+      await screen.findByText('Tenant could not be refreshed', {}, { timeout: 6000 }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Wuse Hotspot' })).toBeInTheDocument();
+  });
+
   it('shows the profile, toggles activation and deletes with typed confirmation', async () => {
     const patches: unknown[] = [];
     let deleted = false;
@@ -347,7 +507,7 @@ describe('TenantDetailPage', () => {
 });
 
 describe('PlatformRoutersPage', () => {
-  it('lists the fleet with tenant links and forwards the tenant filter', async () => {
+  it('filters the fleet, links to its tenant and retains records after a failed refresh', async () => {
     const seen: URL[] = [];
     const router: NasDevice = {
       id: 'r-1',
@@ -387,6 +547,49 @@ describe('PlatformRoutersPage', () => {
     );
     expect(seen[0]?.searchParams.get('tenant')).toBe('2');
     expect(await screen.findByLabelText('Tenant')).toHaveValue('2');
+    expect(within(table).getByText('No observation recorded')).toBeInTheDocument();
+    await userEvent.selectOptions(screen.getByLabelText('Deployment'), 'failed');
+    await userEvent.selectOptions(screen.getByLabelText('Active'), 'false');
+    await userEvent.selectOptions(screen.getByLabelText('Onboarding state'), 'active');
+    await waitFor(() => {
+      const latest = seen.at(-1)?.searchParams;
+      expect(latest?.get('tenant')).toBe('2');
+      expect(latest?.get('deployment_status')).toBe('failed');
+      expect(latest?.get('is_active')).toBe('false');
+      expect(latest?.get('onboarding_state')).toBe('active');
+    });
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Refresh fleet' })).toBeEnabled(),
+    );
+    server.use(http.get(`${API}/platform/routers/`, () => new HttpResponse(null, { status: 503 })));
+    await userEvent.click(screen.getByRole('button', { name: 'Refresh fleet' }));
+    expect(await screen.findByText('Fleet could not be refreshed')).toBeInTheDocument();
+    expect(within(table).getByText('Wuse Core')).toBeInTheDocument();
+    expect(within(table).getByRole('link', { name: 'Wuse Hotspot' })).toHaveAttribute(
+      'href',
+      '/platform/tenants/2',
+    );
+  });
+
+  it('keeps the fleet usable when tenant choices fail and supports retry', async () => {
+    let calls = 0;
+    server.use(
+      http.get(`${API}/tenants/`, () => {
+        calls += 1;
+        return calls === 1
+          ? new HttpResponse(null, { status: 503 })
+          : HttpResponse.json(paginated([tenant()]));
+      }),
+      http.get(`${API}/platform/routers/`, () => HttpResponse.json(paginated([]))),
+    );
+    renderPage(<PlatformRoutersPage />, { path: '/platform/routers', role: 'platform_admin' });
+    expect(await screen.findByText('Tenant filters could not be loaded')).toBeInTheDocument();
+    expect(await screen.findByText('No routers registered yet')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Retry tenant filters' }));
+    await waitFor(() =>
+      expect(screen.queryByText('Tenant filters could not be loaded')).not.toBeInTheDocument(),
+    );
+    expect(screen.getByRole('option', { name: 'Wuse Hotspot' })).toBeInTheDocument();
   });
 });
 

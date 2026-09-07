@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router';
-import { CheckCircle2, PauseCircle, Pencil, Ticket } from 'lucide-react';
+import { CheckCircle2, PauseCircle, Pencil, RefreshCw, Store, Ticket } from 'lucide-react';
 import { PageHeader, StatusBadge } from '@/components/layout';
 import {
   Button,
@@ -30,7 +30,7 @@ export default function AgentDetailPage() {
   return (
     <QueryBoundary
       query={query}
-      errorTitle="Agent not found"
+      errorTitle="Could not load agent"
       skeleton={
         <>
           <PageHeader title={<Skeleton className="h-7 w-48" />} backTo="/agents" />
@@ -40,12 +40,33 @@ export default function AgentDetailPage() {
         </>
       }
     >
-      {(agent) => <AgentDetail agent={agent} />}
+      {(agent) => (
+        <AgentDetail
+          key={agent.id}
+          agent={agent}
+          refreshing={query.isFetching}
+          refreshFailed={query.isError}
+          onRefresh={() => void query.refetch()}
+        />
+      )}
     </QueryBoundary>
   );
 }
 
-function AgentDetail({ agent }: { agent: AgentProfile }) {
+function AgentDetail({
+  agent,
+  refreshing,
+  refreshFailed,
+  onRefresh,
+}: {
+  agent: AgentProfile;
+  refreshing: boolean;
+  refreshFailed: boolean;
+  onRefresh: () => void;
+}) {
+  useEffect(() => {
+    document.title = `${agent.username} - Agents - Yarotech RADIUS`;
+  }, [agent.username]);
   const toast = useToast();
   const approve = useApproveAgent();
   const suspend = useSuspendAgent();
@@ -54,19 +75,29 @@ function AgentDetail({ agent }: { agent: AgentProfile }) {
   const [confirm, setConfirm] = useState<'approve' | 'suspend' | null>(null);
 
   return (
-    <>
+    <div className="space-y-6">
       <PageHeader
         backTo="/agents"
         crumbs={[{ label: 'Agents', to: '/agents' }, { label: agent.username }]}
         title={
           <span className="inline-flex flex-wrap items-center gap-3">
-            {agent.username}
+            <span className="break-all">{agent.username}</span>
             <StatusBadge status={agent.status} size="md" />
           </span>
         }
         description={agent.shop_name || 'No shop name'}
         actions={
           <div className="flex flex-wrap gap-2">
+            <Button
+              variant="secondary"
+              onClick={onRefresh}
+              disabled={refreshing}
+              leadingIcon={
+                <RefreshCw className={refreshing ? 'size-4 animate-spin' : 'size-4'} aria-hidden />
+              }
+            >
+              Refresh agent
+            </Button>
             <Button
               variant="secondary"
               leadingIcon={<Pencil className="h-4 w-4" aria-hidden />}
@@ -95,6 +126,29 @@ function AgentDetail({ agent }: { agent: AgentProfile }) {
         }
       />
 
+      <Card className="border-brand-100 bg-gradient-to-br from-brand-50 via-white to-sky-50">
+        <div className="flex items-start gap-4">
+          <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-brand-600 text-white">
+            <Store className="size-5" aria-hidden />
+          </span>
+          <div className="min-w-0">
+            <h2 className="text-lg font-semibold text-brand-950">Reseller account</h2>
+            <p className="mt-1 text-sm leading-relaxed text-ink-600">
+              Review this agent's profile, prepaid wallet and commission. Open voucher history to
+              inspect the vouchers they generated.
+            </p>
+            <p className="mt-3 text-sm text-brand-800">
+              Joined {formatDateTime(agent.created_at)}. Status changes control access to the agent
+              portal.
+            </p>
+          </div>
+        </div>
+      </Card>
+      {refreshFailed && (
+        <Alert tone="warning" title="Agent could not be refreshed">
+          Showing the last loaded profile and wallet balance. Refresh again to check for changes.
+        </Alert>
+      )}
       {agent.status === 'pending' && (
         <Alert tone="info" className="mb-4" title="Awaiting approval">
           This agent cannot sign in to the agent portal until you approve them.
@@ -109,7 +163,7 @@ function AgentDetail({ agent }: { agent: AgentProfile }) {
       <div className="mb-4 grid gap-3 sm:grid-cols-3">
         <Stat
           label="Wallet balance"
-          value={formatKobo(agent.wallet_balance)}
+          value={agent.wallet_balance === null ? 'Unavailable' : formatKobo(agent.wallet_balance)}
           hint="Prepaid credit for voucher sales"
         />
         <Stat
@@ -124,16 +178,18 @@ function AgentDetail({ agent }: { agent: AgentProfile }) {
         />
       </div>
 
-      <Tabs
-        items={[
-          { value: 'overview', label: 'Profile' },
-          { value: 'sales', label: 'Vouchers sold' },
-        ]}
-        value={tab}
-        onChange={setTab}
-        ariaLabel="Agent sections"
-        className="mb-4"
-      />
+      <div className="overflow-x-auto">
+        <Tabs
+          items={[
+            { value: 'overview', label: 'Profile' },
+            { value: 'sales', label: 'Vouchers sold' },
+          ]}
+          value={tab}
+          onChange={setTab}
+          ariaLabel="Agent sections"
+          className="mb-4"
+        />
+      </div>
       <Card>
         {tab === 'overview' && (
           <DescriptionList
@@ -147,9 +203,7 @@ function AgentDetail({ agent }: { agent: AgentProfile }) {
               {
                 label: 'Wallet',
                 value:
-                  agent.wallet_balance === null
-                    ? 'No wallet yet'
-                    : formatKobo(agent.wallet_balance),
+                  agent.wallet_balance === null ? 'Unavailable' : formatKobo(agent.wallet_balance),
               },
             ]}
           />
@@ -167,7 +221,11 @@ function AgentDetail({ agent }: { agent: AgentProfile }) {
         }}
       />
       <ConfirmDialog
-        open={confirm !== null}
+        open={
+          confirm === 'approve'
+            ? canApprove(agent.status)
+            : confirm === 'suspend' && canSuspend(agent.status)
+        }
         onClose={() => setConfirm(null)}
         tone={confirm === 'suspend' ? 'danger' : 'default'}
         title={
@@ -188,6 +246,12 @@ function AgentDetail({ agent }: { agent: AgentProfile }) {
               : 'Approve agent'
         }
         onConfirm={async () => {
+          if (
+            !confirm ||
+            (confirm === 'approve' && !canApprove(agent.status)) ||
+            (confirm === 'suspend' && !canSuspend(agent.status))
+          )
+            return;
           const result =
             confirm === 'suspend'
               ? await suspend.mutateAsync(agent.id)
@@ -195,15 +259,15 @@ function AgentDetail({ agent }: { agent: AgentProfile }) {
           toast.success(`Agent ${AGENT_STATUS_LABELS[result.status].toLowerCase()}`);
         }}
       />
-    </>
+    </div>
   );
 }
 
-/** Vouchers this agent generated — the voucher list supports `search=<agent username>` (gap: no dedicated agent filter). */
+/** Server-filtered voucher history for this agent, including accurate page totals. */
 function AgentSales({ agent }: { agent: AgentProfile }) {
   const [page, setPage] = useState(1);
   const query = useVouchers({
-    search: agent.username,
+    agent: agent.id,
     page,
     page_size: 20,
     ordering: '-created_at',
@@ -216,7 +280,7 @@ function AgentSales({ agent }: { agent: AgentProfile }) {
       cell: (v) => (
         <Link
           to={`/vouchers/${v.id}`}
-          className="font-mono text-sm font-semibold text-brand-700 hover:underline"
+          className="font-mono text-sm font-semibold break-all text-brand-700 hover:underline"
           onClick={(e) => e.stopPropagation()}
         >
           {v.username}
@@ -234,7 +298,7 @@ function AgentSales({ agent }: { agent: AgentProfile }) {
     },
     {
       key: 'created',
-      header: 'Sold',
+      header: 'Generated',
       hideBelow: 'lg',
       cell: (v) => (
         <time dateTime={v.created_at} title={formatDateTime(v.created_at)}>
@@ -243,11 +307,37 @@ function AgentSales({ agent }: { agent: AgentProfile }) {
       ),
     },
   ];
-  // The search also matches voucher codes containing the username; keep only this agent's rows.
-  const rows = query.data?.results.filter((v) => v.agent === agent.id);
+  const rows = query.data?.results;
   return (
     <div className="flex flex-col gap-3">
-      <p className="text-sm text-ink-600">Vouchers generated by this agent from their wallet.</p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-semibold text-brand-950">Voucher history</h2>
+          <p role="status" className="mt-1 text-sm text-ink-600">
+            {query.isPlaceholderData
+              ? 'Updating results...'
+              : query.data
+                ? `${query.data.count} vouchers generated by this agent`
+                : query.isError
+                  ? 'Voucher count unavailable'
+                  : 'Loading vouchers...'}
+          </p>
+        </div>
+        <Button
+          variant="secondary"
+          size="sm"
+          disabled={query.isFetching}
+          onClick={() => void query.refetch()}
+          leadingIcon={<RefreshCw className="size-4" aria-hidden />}
+        >
+          Refresh vouchers
+        </Button>
+      </div>
+      {query.isError && query.data && (
+        <Alert tone="warning" title="Voucher history could not be refreshed">
+          Showing the last loaded vouchers. Refresh again to check for changes.
+        </Alert>
+      )}
       <DataTable
         caption="Vouchers sold"
         columns={columns}

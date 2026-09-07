@@ -150,6 +150,31 @@ describe('PaymentsPage', () => {
     );
   });
 
+  it('flags a paid transaction without a voucher and retains results after refresh failure', async () => {
+    const user = userEvent.setup();
+    const row = payment({ voucher: null, voucher_username: null });
+    server.use(
+      http.get(`${API}/payments/transactions/`, () => HttpResponse.json(paginated([row]))),
+      http.get(`${API}/payments/transactions/1/`, () => HttpResponse.json(row)),
+    );
+    renderPage(<PaymentsPage />, { path: '/payments', role: 'manager' });
+    const table = await screen.findByRole('table', { name: 'Payments' });
+    expect(await within(table).findByText('Paid, no voucher')).toBeInTheDocument();
+    server.use(
+      http.get(`${API}/payments/transactions/`, () =>
+        HttpResponse.json({ detail: 'Unavailable' }, { status: 503 }),
+      ),
+    );
+    await user.click(screen.getByRole('button', { name: 'Refresh payments' }));
+    expect(await screen.findByText('Payments could not be refreshed')).toBeInTheDocument();
+    await user.click(within(table).getByRole('button', { name: row.reference }));
+    const dialog = await screen.findByRole('dialog', { name: 'Payment' });
+    expect(await within(dialog).findByText('Paid, no voucher')).toBeInTheDocument();
+    expect(
+      within(dialog).getByRole('button', { name: /Recover this payment/ }),
+    ).toBeInTheDocument();
+  });
+
   it('shows an empty state and an error state', async () => {
     server.use(http.get(`${API}/payments/transactions/`, () => HttpResponse.json(paginated([]))));
     const { unmount } = renderPage(<PaymentsPage />, { path: '/payments' });
@@ -166,6 +191,42 @@ describe('PaymentsPage', () => {
 });
 
 describe('RecoveryPage', () => {
+  it('keeps page-scoped attention clear and retains unresolved payments after refresh failure', async () => {
+    const user = userEvent.setup();
+    server.use(
+      http.get(`${API}/plans/`, () => HttpResponse.json(paginated([]))),
+      http.get(`${API}/payment-recovery/`, () =>
+        HttpResponse.json(
+          paginated([
+            recovery(),
+            recovery({
+              id: 3,
+              reference: 'PENDING-003',
+              status: 'pending',
+              fulfillment_status: 'unverified',
+            }),
+          ]),
+        ),
+      ),
+    );
+    renderPage(<RecoveryPage />, { path: '/payments/recovery', role: 'manager' });
+    const table = await screen.findByRole('table', { name: 'Payment recovery' });
+    await within(table).findByRole('button', { name: 'PAY-UNFULFILLED-002' });
+    await user.selectOptions(screen.getByLabelText('Needs attention'), '1');
+    expect(within(table).queryByText('PENDING-003')).not.toBeInTheDocument();
+    expect(
+      screen.getByText('1 shown on this page; 2 total before attention filtering'),
+    ).toBeInTheDocument();
+    server.use(
+      http.get(`${API}/payment-recovery/`, () =>
+        HttpResponse.json({ detail: 'Unavailable' }, { status: 503 }),
+      ),
+    );
+    await user.click(screen.getByRole('button', { name: 'Refresh recovery' }));
+    expect(await screen.findByText('Recovery queue could not be refreshed')).toBeInTheDocument();
+    expect(within(table).getByText('Payment received; voucher not issued')).toBeInTheDocument();
+  });
+
   it('highlights payments needing attention, retries with idempotency and explains a 503', async () => {
     const retries: string[] = [];
     server.use(

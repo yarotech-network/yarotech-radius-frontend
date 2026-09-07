@@ -113,43 +113,51 @@ function TenantForm({
       aria-label={tenant ? 'Edit tenant' : 'New tenant'}
     >
       {message && <Alert tone="danger">{message}</Alert>}
-      <div className="grid gap-4 sm:grid-cols-2">
-        <FormField label="Business name" required error={errors.name?.message}>
-          <Input
-            autoFocus
-            {...form.register('name', {
-              onChange: (e: { target: { value: string } }) => {
-                // Suggest a slug from the name until the admin edits the slug by hand.
-                if (!slugTouched && !tenant)
-                  form.setValue('slug', slugify(e.target.value), {
-                    shouldValidate: form.formState.isSubmitted,
-                  });
-              },
-            })}
-          />
+      <fieldset className="min-w-0 space-y-4 rounded-xl border border-border p-4">
+        <legend className="px-2 text-sm font-semibold text-brand-950">Business identity</legend>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <FormField label="Business name" required error={errors.name?.message}>
+            <Input
+              autoFocus
+              {...form.register('name', {
+                onChange: (e: { target: { value: string } }) => {
+                  // Suggest a slug from the name until the admin edits the slug by hand.
+                  if (!slugTouched && !tenant)
+                    form.setValue('slug', slugify(e.target.value), {
+                      shouldValidate: form.formState.isSubmitted,
+                    });
+                },
+              })}
+            />
+          </FormField>
+          <FormField
+            label="Storefront slug"
+            required
+            error={errors.slug?.message}
+            hint="Customers buy at /s/<slug>."
+          >
+            <Input
+              autoCapitalize="none"
+              spellCheck={false}
+              {...form.register('slug', { onChange: () => setSlugTouched(true) })}
+            />
+          </FormField>
+        </div>
+      </fieldset>
+      <fieldset className="min-w-0 space-y-4 rounded-xl border border-border p-4">
+        <legend className="px-2 text-sm font-semibold text-brand-950">Contact information</legend>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <FormField label="Contact email" optionalLabel error={errors.email?.message}>
+            <Input type="email" inputMode="email" {...form.register('email')} />
+          </FormField>
+          <FormField label="Phone" optionalLabel error={errors.phone?.message}>
+            <Input type="tel" inputMode="tel" {...form.register('phone')} />
+          </FormField>
+        </div>
+        <FormField label="Address" optionalLabel error={errors.address?.message}>
+          <Textarea rows={2} {...form.register('address')} />
         </FormField>
-        <FormField
-          label="Storefront slug"
-          required
-          error={errors.slug?.message}
-          hint="Customers buy at /s/<slug>."
-        >
-          <Input
-            autoCapitalize="none"
-            spellCheck={false}
-            {...form.register('slug', { onChange: () => setSlugTouched(true) })}
-          />
-        </FormField>
-        <FormField label="Contact email" optionalLabel error={errors.email?.message}>
-          <Input type="email" inputMode="email" {...form.register('email')} />
-        </FormField>
-        <FormField label="Phone" optionalLabel error={errors.phone?.message}>
-          <Input type="tel" inputMode="tel" {...form.register('phone')} />
-        </FormField>
-      </div>
-      <FormField label="Address" optionalLabel error={errors.address?.message}>
-        <Textarea rows={2} {...form.register('address')} />
-      </FormField>
+      </fieldset>
       <div className="flex items-start justify-between gap-4 rounded-control border border-border px-3 py-2.5">
         <div>
           <p className="text-sm font-medium text-ink-900">Active</p>
@@ -164,7 +172,7 @@ function TenantForm({
           label="Active"
         />
       </div>
-      <div className="flex justify-end gap-2 border-t border-border pt-4">
+      <div className="flex flex-wrap justify-end gap-2 border-t border-border pt-4">
         <Button type="button" variant="ghost" onClick={onClose}>
           Cancel
         </Button>

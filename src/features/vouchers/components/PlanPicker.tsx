@@ -28,7 +28,7 @@ export function PlanPicker({
 }) {
   if (loading) {
     return (
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3" aria-busy>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2" aria-busy>
         {Array.from({ length: 3 }).map((_, i) => (
           <Skeleton key={i} className="h-24 rounded-card" />
         ))}
@@ -50,7 +50,7 @@ export function PlanPicker({
       role="radiogroup"
       aria-invalid={invalid || undefined}
       aria-describedby={describedBy}
-      className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3"
+      className="grid grid-cols-1 gap-3 sm:grid-cols-2"
     >
       {plans.map((plan) => {
         const checked = plan.id === value;
@@ -62,7 +62,7 @@ export function PlanPicker({
             aria-checked={checked}
             onClick={() => onChange(plan.id)}
             className={cn(
-              'flex min-h-24 flex-col items-start gap-1 rounded-card border p-4 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600',
+              'flex min-h-24 min-w-0 flex-col items-start gap-1 rounded-card border p-4 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600',
               checked
                 ? 'border-brand-600 bg-brand-50 ring-1 ring-brand-600'
                 : 'border-border bg-surface hover:border-border-strong',
@@ -70,7 +70,7 @@ export function PlanPicker({
             )}
           >
             <span className="flex w-full items-start justify-between gap-2">
-              <span className="font-medium text-ink-900">{plan.name}</span>
+              <span className="min-w-0 font-semibold break-words text-ink-900">{plan.name}</span>
               <span
                 className={cn(
                   'grid h-5 w-5 shrink-0 place-items-center rounded-full border',

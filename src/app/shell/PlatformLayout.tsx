@@ -9,9 +9,7 @@ export function PlatformLayout() {
       profilePath={null}
       accent="platform"
       topBarStart={
-        <span className="hidden text-sm font-medium text-brand-100 sm:inline">
-          Platform console
-        </span>
+        <span className="truncate text-sm font-medium text-ink-700">Platform console</span>
       }
       sidebarBadge={
         <span className="inline-flex rounded-full bg-brand-400/20 px-2 py-0.5 text-[11px] font-medium text-brand-100">
