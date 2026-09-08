@@ -32,8 +32,12 @@ export function AccountSection() {
                 label: 'Role',
                 value: <span className="capitalize">{roleLabel.replace('_', ' ')}</span>,
               },
-              { label: 'Username', value: user.username, mono: true },
-              { label: 'Email', value: user.email },
+              {
+                label: 'Username',
+                value: <span className="break-all">{user.username}</span>,
+                mono: true,
+              },
+              { label: 'Email', value: <span className="break-all">{user.email}</span> },
               {
                 label: 'Name',
                 value: [user.first_name, user.last_name].filter(Boolean).join(' ') || null,

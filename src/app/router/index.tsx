@@ -18,6 +18,9 @@ import { RequireCapability } from '@/app/auth/RequireCapability';
 import { PaymentRedirect } from '@/features/payments/pages/PaymentRedirect';
 
 /* ---------- lazily loaded pages (one chunk per page) ---------- */
+const GettingStartedPage = lazyRoute(
+  lazy(() => import('@/features/auth/pages/GettingStartedPage')),
+);
 const LoginPage = lazyRoute(lazy(() => import('@/features/auth/pages/LoginPage')));
 const AgentLoginPage = lazyRoute(lazy(() => import('@/features/auth/pages/AgentLoginPage')));
 const RegisterPage = lazyRoute(lazy(() => import('@/features/auth/pages/RegisterPage')));
@@ -271,6 +274,7 @@ export const router = createBrowserRouter([
           { path: '/s/:slug/*', Component: StorefrontPage },
           { path: '/pay/result', Component: PaymentResultPage },
           { path: '/pricing', Component: PricingPage },
+          { path: '/guide', Component: GettingStartedPage },
           ...devRoutes,
         ],
       },

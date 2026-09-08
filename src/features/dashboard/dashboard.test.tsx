@@ -45,6 +45,24 @@ const session = (id: number, username: string) => ({
 });
 
 describe('DashboardPage', () => {
+  it('uses the full session count without treating one page of counters as network totals', async () => {
+    server.use(
+      http.get(`${API}/dashboard/stats/`, () => HttpResponse.json(stats)),
+      http.get(`${API}/dashboard/live-users/`, () =>
+        HttpResponse.json({ ...live([session(1, 'latest-client')]), count: 55, total_pages: 55 }),
+      ),
+    );
+    renderPage(<DashboardPage />, { role: 'owner' });
+    expect(await screen.findByText('latest-client')).toBeInTheDocument();
+    expect(screen.getByText('Online now').parentElement?.parentElement).toHaveTextContent('55');
+    expect(
+      screen.getByText(
+        'Cumulative data for this session only. These values are not current bandwidth rates.',
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByText('Routers online')).not.toBeInTheDocument();
+  });
+
   it('keeps the online count and storefront available when business figures fail', async () => {
     server.use(
       http.get(`${API}/dashboard/stats/`, () =>

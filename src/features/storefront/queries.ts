@@ -1,4 +1,4 @@
-import { keepPreviousData, useMutation, useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { PublicBuyRequest } from '@/types/api';
 import { storefrontApi, type PublicPlanParams } from './api';
 
@@ -42,7 +42,10 @@ export function usePaymentResult(reference: string | null) {
     queryKey: storefrontKeys.result(reference ?? ''),
     queryFn: () => storefrontApi.result(reference ?? ''),
     enabled: Boolean(reference),
-    refetchInterval: (query) => (query.state.data?.status === 'pending' ? 5_000 : false),
+    refetchInterval: (query) => {
+      const result = query.state.data;
+      return result && (result.status === 'pending' || (result.status === 'success' && !result.voucher)) ? 5_000 : false;
+    },
   });
 }
 
@@ -52,5 +55,18 @@ export function usePlatformPricing() {
     queryFn: storefrontApi.pricing,
     select: (page) => page.results.filter((p) => p.is_active),
     staleTime: 5 * 60_000,
+  });
+}
+
+
+export function useVerifyPaymentResult() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: storefrontApi.verify,
+    onSuccess: async (payment) => {
+      const queryKey = storefrontKeys.result(payment.reference);
+      await client.cancelQueries({ queryKey });
+      client.setQueryData(queryKey, payment);
+    },
   });
 }

@@ -1,9 +1,10 @@
 import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { KeyRound } from 'lucide-react';
-import { Button, FormField, Input, PasswordInput, Skeleton } from '@/components/ui';
-import { Alert, QueryBoundary, useToast } from '@/components/feedback';
+import { Link } from 'react-router';
+import { CreditCard, KeyRound, RefreshCw } from 'lucide-react';
+import { Button, Card, FormField, Input, PasswordInput, Skeleton } from '@/components/ui';
+import { Alert, ErrorState, useToast } from '@/components/feedback';
 import { useFormSubmit } from '@/lib/forms/useFormSubmit';
 import { formatDateTime } from '@/lib/formatting/dates';
 import type { TenantSetting } from '@/types/api';
@@ -18,15 +19,75 @@ import {
 } from '../settingsSchemas';
 
 export default function BillingSettingsPage() {
+  useEffect(() => {
+    document.title = 'Billing and payouts | Yarotech RADIUS';
+  }, []);
   const settings = useTenantSettings();
   return (
-    <QueryBoundary
-      query={settings}
-      errorTitle="Settings could not be loaded"
-      skeleton={<Skeleton className="h-96 w-full" />}
-    >
-      {(data) => <BillingForm settings={data} />}
-    </QueryBoundary>
+    <div className="space-y-6">
+      <Card className="border-brand-100 bg-gradient-to-br from-brand-50 via-white to-sky-50">
+        <div className="flex items-start gap-4">
+          <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-brand-600 text-white">
+            <CreditCard className="size-5" aria-hidden />
+          </span>
+          <div className="min-w-0 flex-1">
+            <h2 className="text-lg font-semibold text-brand-950">
+              Payment preferences for your business
+            </h2>
+            <p className="mt-1 text-sm leading-relaxed text-ink-600">
+              Manage customer-payment credentials, voucher defaults and agent wallet funding limits.
+            </p>
+            <nav
+              aria-label="Billing settings shortcuts"
+              className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-sm font-medium text-brand-700"
+            >
+              <a href="#paystack" className="hover:underline">
+                Paystack credentials
+              </a>
+              <a href="#vouchers" className="hover:underline">
+                Voucher and agent rules
+              </a>
+              <Link to="/settings/subscription" className="hover:underline">
+                Business subscription
+              </Link>
+            </nav>
+          </div>
+        </div>
+      </Card>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm text-ink-500">Changes apply after you save.</p>
+        <Button
+          variant="secondary"
+          size="sm"
+          disabled={settings.isFetching}
+          onClick={() => void settings.refetch()}
+          leadingIcon={
+            <RefreshCw
+              className={settings.isFetching ? 'size-4 animate-spin' : 'size-4'}
+              aria-hidden
+            />
+          }
+        >
+          Refresh billing settings
+        </Button>
+      </div>
+      {settings.isError && settings.data && (
+        <Alert tone="warning" title="Billing settings could not be refreshed">
+          Your unsaved entries are preserved. Showing the last loaded settings.
+        </Alert>
+      )}
+      {settings.data ? (
+        <BillingForm key={settings.data.id} settings={settings.data} />
+      ) : settings.isPending ? (
+        <Skeleton className="h-96 w-full" />
+      ) : (
+        <ErrorState
+          error={settings.error}
+          onRetry={() => void settings.refetch()}
+          title="Settings could not be loaded"
+        />
+      )}
+    </div>
   );
 }
 
@@ -56,6 +117,9 @@ function BillingForm({ settings }: { settings: TenantSetting }) {
   const submit = form.handleSubmit(async (values) => {
     resetErrors();
     const patch = settingsFormToPatch(values, settings);
+    for (const field of FIELDS) {
+      if (!form.formState.dirtyFields[field]) delete patch[field];
+    }
     if (Object.keys(patch).length === 0) {
       toast.info('Nothing to save');
       return;
@@ -66,7 +130,7 @@ function BillingForm({ settings }: { settings: TenantSetting }) {
       toast.success(
         'Billing settings saved',
         patch.paystack_secret_key || patch.paystack_public_key
-          ? 'Paystack keys updated. They are stored securely and never shown again.'
+          ? 'Replacement keys saved. Saved keys are not displayed on this page.'
           : undefined,
       );
     } catch (error) {
@@ -84,16 +148,18 @@ function BillingForm({ settings }: { settings: TenantSetting }) {
       <SettingsCard
         id="paystack"
         title="Paystack"
-        description="Keys from your Paystack dashboard. Customers pay into your own Paystack account; the platform never sees your balance."
+        description="Configure Paystack credentials for customer payments and agent wallet funding. Your business subscription is managed in the Subscription section."
       >
         <div className="mb-4 flex items-start gap-2 rounded-card border border-border bg-surface-muted p-3 text-xs text-ink-600">
           <KeyRound className="mt-0.5 h-4 w-4 shrink-0 text-brand-700" aria-hidden />
           <span>
             For security the stored keys are never displayed. Leave a field blank to keep the
-            current key; type a new one to replace it.
+            current key; type a new one to replace it. Blank fields do not confirm whether keys are
+            configured.
           </span>
         </div>
-        <div className="grid gap-4 sm:grid-cols-2">
+        <fieldset disabled={update.isPending} className="grid min-w-0 gap-4 sm:grid-cols-2">
+          <legend className="sr-only">Replace Paystack credentials</legend>
           <FormField
             label="Public key"
             hint="Starts with pk_test_ or pk_live_"
@@ -117,14 +183,18 @@ function BillingForm({ settings }: { settings: TenantSetting }) {
               {...form.register('paystack_secret_key')}
             />
           </FormField>
-        </div>
+        </fieldset>
       </SettingsCard>
       <SettingsCard
         id="vouchers"
         title="Vouchers & agents"
         description="Defaults applied when vouchers are generated and when agents sell on your behalf."
       >
-        <div className="grid gap-4 sm:grid-cols-3">
+        <fieldset
+          disabled={update.isPending}
+          className="grid min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-3"
+        >
+          <legend className="sr-only">Voucher and agent rules</legend>
           <FormField
             label="Voucher prefix"
             hint="Up to 10 letters/digits, e.g. WH"
@@ -141,34 +211,31 @@ function BillingForm({ settings }: { settings: TenantSetting }) {
             hint="Recorded for reporting; not applied to wallets automatically"
             error={errors.agent_commission_percent?.message}
           >
-            <div className="relative">
-              <Input
-                inputMode="decimal"
-                className="pr-8"
-                {...form.register('agent_commission_percent')}
-              />
-              <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm text-ink-400">
-                %
-              </span>
-            </div>
+            <Input
+              inputMode="decimal"
+              trailingSlot={
+                <span className="px-2 text-sm text-ink-400" aria-hidden>
+                  %
+                </span>
+              }
+              {...form.register('agent_commission_percent')}
+            />
           </FormField>
           <FormField
             label="Max wallet top-up"
             hint="Per agent funding request"
             error={errors.max_funding_amount?.message}
           >
-            <div className="relative">
-              <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-sm text-ink-400">
-                ₦
-              </span>
-              <Input
-                inputMode="decimal"
-                className="pl-7"
-                {...form.register('max_funding_amount')}
-              />
-            </div>
+            <Input inputMode="decimal" prefix="NGN" {...form.register('max_funding_amount')} />
           </FormField>
-        </div>
+        </fieldset>
+        <p role="status" className="mt-5 text-xs text-ink-500">
+          {update.isPending
+            ? 'Saving billing settings...'
+            : form.formState.isDirty
+              ? 'You have unsaved billing changes.'
+              : 'No unsaved billing changes.'}
+        </p>
         <div className="mt-6 flex flex-col-reverse gap-2 border-t border-border pt-4 sm:flex-row sm:items-center sm:justify-between">
           <span className="text-xs text-ink-500">
             Last updated {formatDateTime(settings.updated_at)}
@@ -177,7 +244,10 @@ function BillingForm({ settings }: { settings: TenantSetting }) {
             <Button
               type="button"
               variant="secondary"
-              onClick={() => form.reset(settingsToForm(settings))}
+              onClick={() => {
+                resetErrors();
+                form.reset(settingsToForm(settings));
+              }}
               disabled={!form.formState.isDirty || update.isPending}
             >
               Discard

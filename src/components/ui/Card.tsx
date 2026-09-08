@@ -9,7 +9,7 @@ export function Card({ className, padded = true, ...rest }: CardProps) {
   return (
     <div
       className={cn(
-        'rounded-card border border-border bg-surface',
+        'dashboard-card rounded-card border border-border bg-surface',
         padded && 'p-4 sm:p-5',
         className,
       )}

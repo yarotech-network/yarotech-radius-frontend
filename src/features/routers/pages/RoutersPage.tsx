@@ -10,7 +10,7 @@ import {
   useListParams,
   type Column,
 } from '@/components/data';
-import { Button, ButtonLink, Card, Select } from '@/components/ui';
+import { Button, ButtonLink, Select } from '@/components/ui';
 import { Alert, EmptyState } from '@/components/feedback';
 import { useDebouncedValue } from '@/lib/utilities/useDebouncedValue';
 import { formatDateTime, formatRelative } from '@/lib/formatting/dates';
@@ -19,6 +19,7 @@ import { usePrincipal } from '@/app/auth/useAuth';
 import type { DeploymentStatus, NasDevice, OnboardingState, RouterListParams } from '@/types/api';
 import { RouterStateBadges } from '../components/RouterStateBadges';
 import { ROUTERS_DEFAULT_ORDERING, useRouters } from '../queries';
+import { RouterAllowance } from '../components/RouterAllowance';
 import { ONBOARDING_FILTER_OPTIONS } from '../routerSchemas';
 
 const FILTERS = ['onboarding_state', 'deployment_status', 'is_active'] as const;
@@ -39,7 +40,8 @@ export default function RoutersPage() {
     if (state && STATES.includes(state)) p.onboarding_state = state as OnboardingState;
     const dep = list.state.filters.deployment_status;
     if (dep && DEPLOYMENTS.includes(dep)) p.deployment_status = dep as DeploymentStatus;
-    if (list.state.filters.is_active) p.is_active = list.state.filters.is_active === 'true';
+    if (['true', 'false'].includes(list.state.filters.is_active ?? ''))
+      p.is_active = list.state.filters.is_active === 'true';
     return p;
   }, [list.state, debouncedSearch]);
   const query = useRouters(params);
@@ -93,7 +95,7 @@ export default function RoutersPage() {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="router-page space-y-6">
       <PageHeader
         title="Routers"
         description="MikroTik hotspots registered as RADIUS clients, with their onboarding and VPN status."
@@ -115,24 +117,29 @@ export default function RoutersPage() {
           </div>
         }
       />
-      <Card className="border-brand-100 bg-gradient-to-br from-brand-50 via-white to-sky-50">
-        <div className="flex items-start gap-4">
-          <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-brand-600 text-white">
-            <Radio className="size-5" aria-hidden />
-          </span>
-          <div className="min-w-0">
-            <h2 className="text-lg font-semibold text-brand-950">Manage your hotspot routers</h2>
-            <p className="mt-1 text-sm leading-relaxed text-ink-600">
-              Find a device by name, address or location. Open its details to review setup, VPN
-              configuration and available operational checks.
-            </p>
-            <p className="mt-3 text-xs font-medium text-brand-700">
-              Setup status and last-seen timestamps do not confirm current connectivity. Review the
-              router's health details for available observations.
-            </p>
+      <div className="router-fleet-intro">
+        <div className="router-intro-copy">
+          <Radio className="size-6 shrink-0 text-brand-600" aria-hidden />
+          <div>
+            <h2>Connect and manage your MikroTik fleet</h2>
+            <p>Review setup, configure VPN access and follow provisioning for each device.</p>
+            <div className="mt-3 flex flex-wrap gap-4">
+              <Link to="/guide" className="text-sm font-semibold text-brand-700 hover:underline">
+                Setup guide
+              </Link>
+              {canManage && (
+                <Link
+                  to="/routers/operations"
+                  className="text-sm font-semibold text-brand-700 hover:underline"
+                >
+                  Provisioning operations
+                </Link>
+              )}
+            </div>
           </div>
         </div>
-      </Card>
+        <RouterAllowance />
+      </div>
       <section aria-labelledby="router-directory-title" className="space-y-4">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h2 id="router-directory-title" className="text-lg font-semibold text-brand-950">
@@ -148,6 +155,28 @@ export default function RoutersPage() {
                   : 'Loading routers...'}
           </p>
         </div>
+        <div className="router-status-filters" role="group" aria-label="Quick setup filters">
+          {[
+            { value: '', label: 'All setup states' },
+            { value: 'pending', label: 'Pending review' },
+            { value: 'waiting_for_vpn', label: 'Waiting for VPN' },
+            { value: 'active', label: 'Active setup' },
+            { value: 'suspended', label: 'Suspended' },
+          ].map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              aria-pressed={(list.state.filters.onboarding_state ?? '') === option.value}
+              onClick={() => list.setFilter('onboarding_state', option.value || undefined)}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+        <p className="text-xs text-ink-500">
+          Setup states describe configuration progress. Last seen is a recorded observation, not a
+          live connection indicator.
+        </p>
         <FilterBar
           inline
           search={

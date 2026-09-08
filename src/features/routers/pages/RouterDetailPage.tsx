@@ -112,7 +112,7 @@ function RouterDetail({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="router-page space-y-6">
       <PageHeader
         backTo="/routers"
         crumbs={[{ label: 'Routers', to: '/routers' }, { label: router.name }]}
@@ -202,7 +202,7 @@ function RouterDetail({
         </Alert>
       )}
 
-      <Card className="border-brand-100 bg-gradient-to-br from-brand-50 via-white to-sky-50">
+      <Card className="router-device-overview">
         <div className="mb-5 flex items-start gap-3">
           <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-brand-600 text-white">
             <Radio className="size-5" aria-hidden />
@@ -254,7 +254,11 @@ function RouterDetail({
         />
       </Card>
 
-      <div className="overflow-x-auto pb-1">
+      <div className="router-section-heading">
+        <h2>Device workspace</h2>
+        <p>Continue setup or review this router's configuration and activity.</p>
+      </div>
+      <div className="router-section-tabs overflow-x-auto pb-1">
         <Tabs
           items={tabs}
           value={tab}
@@ -263,7 +267,7 @@ function RouterDetail({
           className="mb-4"
         />
       </div>
-      <Card>
+      <Card className="router-section-content">
         {tab === 'onboarding' && (
           <div className="flex flex-col gap-8">
             <OnboardingPanel router={router} canManage={canManage} />

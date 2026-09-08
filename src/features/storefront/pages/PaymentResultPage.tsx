@@ -1,11 +1,11 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { CheckCircle2, Clock, RefreshCw, XCircle } from 'lucide-react';
 import { Button, ButtonLink, CopyButton } from '@/components/ui';
 import { Alert, EmptyState, ErrorState } from '@/components/feedback';
 import { cn } from '@/lib/utilities/cn';
-import { isApiError } from '@/services/api/errors';
-import { usePaymentResult } from '../queries';
+import { errorMessage, isApiError } from '@/services/api/errors';
+import { usePaymentResult, useVerifyPaymentResult } from '../queries';
 import { pendingCheckout } from '../pendingCheckout';
 import { AccessCodePanel } from '../components/AccessCodePanel';
 
@@ -25,12 +25,21 @@ export default function PaymentResultPage() {
     (remembered?.kind === 'voucher' ? remembered.reference : null);
   const slug = remembered?.reference === reference ? remembered.slug : undefined;
   const result = usePaymentResult(reference);
+  const verification = useVerifyPaymentResult();
+  const { mutate: verify } = verification;
+  const attempted = useRef<string | null>(null);
+  useEffect(() => {
+    if (reference && result.data && (result.data.status === 'pending' || (result.data.status === 'success' && !result.data.voucher)) && attempted.current !== reference) {
+      attempted.current = reference;
+      verify(reference);
+    }
+  }, [reference, result.data, verify]);
 
   useEffect(() => {
     document.title = 'Payment result · Yarotech RADIUS';
   }, []);
   useEffect(() => {
-    if (result.data && result.data.status !== 'pending') pendingCheckout.clear();
+    if (result.data && ((result.data.status === 'success' && result.data.voucher) || ['failed', 'abandoned'].includes(result.data.status))) pendingCheckout.clear();
   }, [result.data]);
 
   if (!reference) {
@@ -49,7 +58,7 @@ export default function PaymentResultPage() {
     <div className="mx-auto w-full max-w-lg py-6">
       <h1 className="text-2xl font-semibold text-brand-950">Payment result</h1>
       <p className="mt-1 text-sm text-ink-500">
-        Reference <code className="font-mono text-ink-700">{reference}</code>
+        Reference <code className="font-mono break-all text-ink-700">{reference}</code>
       </p>
       <div className="mt-6">
         {result.isPending ? (
@@ -124,19 +133,19 @@ export default function PaymentResultPage() {
                 className={cn('size-5', result.isFetching && 'animate-spin')}
                 aria-hidden
               />
-              <h2 className="text-lg font-semibold">Waiting for confirmation</h2>
+              <h2 className="text-lg font-semibold">{result.data.payment_verified ? 'Payment confirmed; access code pending' : 'Waiting for confirmation'}</h2>
             </div>
             <p className="mt-2 text-sm text-ink-600">
-              Paystack has not confirmed this payment yet. If you completed the payment, this
-              usually takes a few seconds; if you closed the Paystack page, you can go back and pay
-              again.
+              {result.data.payment_verified
+                ? 'Your payment is confirmed, but the access code could not yet be issued. Check again or contact the business with this reference. Do not pay again.'
+                : 'This payment has not yet been verified by the business. If Paystack confirmed success, select Check again. Do not start another payment if you were charged.'}
             </p>
             <Button
               className="mt-4"
               variant="secondary"
               size="sm"
-              onClick={() => void result.refetch()}
-              loading={result.isFetching}
+              onClick={() => verify(reference)}
+              loading={verification.isPending}
             >
               Check again
             </Button>
@@ -153,11 +162,17 @@ export default function PaymentResultPage() {
               </h2>
             </div>
             <p className="mt-2 text-sm text-ink-700">
-              You have not been charged for this order. You can start again from the plan list.
+              This order is not confirmed as paid. If you were charged, contact the business with this reference before paying again.
             </p>
           </section>
         )}
       </div>
+      {result.data?.status === 'success' && !result.data.voucher && (
+        <Button className="mt-4" variant="secondary" onClick={() => verify(reference)} loading={verification.isPending}>Check again</Button>
+      )}
+      {verification.isError && result.data && !result.data.voucher && (
+        <Alert tone="warning" className="mt-4">{errorMessage(verification.error)}</Alert>
+      )}
       <div className="mt-6 flex flex-wrap gap-3">
         {slug && (
           <ButtonLink to={`/s/${slug}`} variant="secondary">

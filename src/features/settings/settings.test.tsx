@@ -504,3 +504,127 @@ describe('Subscription payment recovery', () => {
     expect(attempts).toBe(2);
   });
 });
+
+describe('GeneralSettingsPage refresh recovery', () => {
+  it('preserves a draft after a failed refresh and never patches untouched refreshed fields', async () => {
+    let failRefresh = false;
+    let serverProfile = { ...profile };
+    const patches: Record<string, unknown>[] = [];
+    server.use(
+      http.get(`${API}/tenants/profile/`, () =>
+        failRefresh
+          ? HttpResponse.json({ detail: 'Unavailable' }, { status: 503 })
+          : HttpResponse.json(serverProfile),
+      ),
+      http.patch(`${API}/tenants/profile/`, async ({ request }) => {
+        const body = (await request.json()) as Record<string, unknown>;
+        patches.push(body);
+        return HttpResponse.json({ ...serverProfile, ...body });
+      }),
+    );
+    renderPage(<GeneralSettingsPage />, { path: '/settings/general', role: 'manager' });
+    const form = await screen.findByRole('form', { name: 'Business profile' });
+    expect(screen.getByRole('link', { name: '/s/wuse-hotspot' })).toHaveAttribute(
+      'href',
+      '/s/wuse-hotspot',
+    );
+    const name = within(form).getByLabelText(/Business name/);
+    await userEvent.clear(name);
+    await userEvent.type(name, 'Updated business');
+    expect(screen.getByText('You have unsaved changes.')).toBeInTheDocument();
+    failRefresh = true;
+    await userEvent.click(screen.getByRole('button', { name: 'Refresh profile' }));
+    expect(await screen.findByText('Profile could not be refreshed')).toBeInTheDocument();
+    expect(name).toHaveValue('Updated business');
+    failRefresh = false;
+    serverProfile = { ...profile, email: 'updated@example.com' };
+    await userEvent.click(screen.getByRole('button', { name: 'Refresh profile' }));
+    await waitFor(() =>
+      expect(screen.queryByText('Profile could not be refreshed')).not.toBeInTheDocument(),
+    );
+    expect(name).toHaveValue('Updated business');
+    await userEvent.click(within(form).getByRole('button', { name: 'Save changes' }));
+    await waitFor(() => expect(patches).toEqual([{ name: 'Updated business' }]));
+    await waitFor(() =>
+      expect(within(form).getByLabelText(/Contact email/)).toHaveValue('updated@example.com'),
+    );
+    expect(screen.getByText('No unsaved changes.')).toBeInTheDocument();
+  });
+});
+
+describe('BillingSettingsPage refresh recovery', () => {
+  it('retains replacement keys during refresh failure, patches only edits and clears them on discard', async () => {
+    let fail = false;
+    let saved = { ...setting };
+    const patches: Record<string, unknown>[] = [];
+    server.use(
+      http.get(`${API}/tenants/settings/`, () =>
+        fail
+          ? HttpResponse.json({ detail: 'Unavailable' }, { status: 503 })
+          : HttpResponse.json(saved),
+      ),
+      http.patch(`${API}/tenants/settings/`, async ({ request }) => {
+        patches.push((await request.json()) as Record<string, unknown>);
+        return HttpResponse.json(saved);
+      }),
+    );
+    renderPage(<BillingSettingsPage />, { path: '/settings/billing', role: 'manager' });
+    const form = await screen.findByRole('form', { name: 'Billing and payouts' });
+    expect(
+      screen.getByText(/Blank fields do not confirm whether keys are configured/),
+    ).toBeInTheDocument();
+    const secret = within(form).getByLabelText(/Secret key/);
+    await userEvent.type(secret, 'sk_test_replacement');
+    fail = true;
+    await userEvent.click(screen.getByRole('button', { name: 'Refresh billing settings' }));
+    expect(await screen.findByText('Billing settings could not be refreshed')).toBeInTheDocument();
+    expect(secret).toHaveValue('sk_test_replacement');
+    fail = false;
+    saved = { ...setting, max_funding_amount: 6000000 };
+    await userEvent.click(screen.getByRole('button', { name: 'Refresh billing settings' }));
+    await waitFor(() =>
+      expect(screen.queryByText('Billing settings could not be refreshed')).not.toBeInTheDocument(),
+    );
+    await userEvent.click(within(form).getByRole('button', { name: 'Save changes' }));
+    await waitFor(() => expect(patches).toEqual([{ paystack_secret_key: 'sk_test_replacement' }]));
+    await waitFor(() => expect(secret).toHaveValue(''));
+    expect(within(form).getByLabelText(/Max wallet top-up/)).toHaveValue('60000');
+    await userEvent.type(secret, 'sk_test_discard');
+    await userEvent.click(within(form).getByRole('button', { name: 'Discard' }));
+    expect(secret).toHaveValue('');
+    expect(within(form).getByRole('button', { name: 'Save changes' })).toBeDisabled();
+    expect(patches).toHaveLength(1);
+  });
+});
+
+describe('TeamSettingsPage directory recovery', () => {
+  it('filters by role and retains members when refresh fails', async () => {
+    let fail = false;
+    const roles: (string | null)[] = [];
+    server.use(
+      http.get(`${API}/tenant-memberships/`, ({ request }) => {
+        const role = new URL(request.url).searchParams.get('role');
+        roles.push(role);
+        if (fail) return HttpResponse.json({ detail: 'Unavailable' }, { status: 503 });
+        return HttpResponse.json(
+          paginated([member({ id: 3, user: 3, role: 'manager', user_display: 'Office manager' })]),
+        );
+      }),
+    );
+    renderPage(<TeamSettingsPage />, { path: '/settings/team', role: 'manager' });
+    const table = await screen.findByRole('table', { name: 'Team members' });
+    await within(table).findByText('Office manager');
+    expect(screen.getByText('1 matching member')).toBeInTheDocument();
+    await userEvent.selectOptions(
+      screen.getByRole('combobox', { name: 'Role' }),
+      'manager',
+    );
+    await waitFor(() => expect(roles).toContain('manager'));
+    fail = true;
+    await userEvent.click(screen.getByRole('button', { name: 'Refresh team' }));
+    expect(await screen.findByText('Team could not be refreshed')).toBeInTheDocument();
+    expect(within(table).getByText('Office manager')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Add member' })).not.toBeInTheDocument();
+    expect(within(table).queryByLabelText(/Role for/)).not.toBeInTheDocument();
+  });
+});

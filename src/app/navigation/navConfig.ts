@@ -34,6 +34,7 @@ export interface NavItem {
   end?: boolean;
   /** Show in the mobile bottom bar (max 4 + "More"). */
   mobilePrimary?: boolean;
+  children?: NavItem[];
 }
 
 export interface NavGroup {
@@ -44,66 +45,17 @@ export interface NavGroup {
 
 export const WORKSPACE_NAV: NavGroup[] = [
   {
-    key: 'overview',
+    key: 'main',
+    label: 'Main',
     items: [
       {
         key: 'dashboard',
-        label: 'Dashboard',
+        label: 'Overview',
         to: '/dashboard',
         icon: LayoutDashboard,
         end: true,
         capabilities: ['dashboard.view'],
         mobilePrimary: true,
-      },
-      {
-        key: 'sessions',
-        label: 'Live sessions',
-        to: '/sessions',
-        icon: Activity,
-        capabilities: ['sessions.view'],
-      },
-    ],
-  },
-  {
-    key: 'sales',
-    label: 'Sales',
-    items: [
-      {
-        key: 'storefront',
-        label: 'Storefront',
-        to: '/storefront',
-        icon: ShoppingBag,
-        capabilities: ['settings.profile'],
-      },
-      {
-        key: 'vouchers',
-        label: 'Vouchers',
-        to: '/vouchers',
-        icon: Ticket,
-        capabilities: ['vouchers.view', 'vouchers.generate'],
-        mobilePrimary: true,
-      },
-      {
-        key: 'plans',
-        label: 'Plans',
-        to: '/plans',
-        icon: ListChecks,
-        capabilities: ['plans.view'],
-      },
-      {
-        key: 'payments',
-        label: 'Payments',
-        to: '/payments',
-        icon: CreditCard,
-        capabilities: ['payments.view'],
-        mobilePrimary: true,
-      },
-      {
-        key: 'agents',
-        label: 'Agents',
-        to: '/agents',
-        icon: Store,
-        capabilities: ['agents.manage'],
       },
     ],
   },
@@ -113,11 +65,94 @@ export const WORKSPACE_NAV: NavGroup[] = [
     items: [
       {
         key: 'routers',
-        label: 'Routers',
+        label: 'Routers Management',
         to: '/routers',
         icon: Router,
         capabilities: ['routers.view'],
         mobilePrimary: true,
+        children: [
+          {
+            key: 'router-list',
+            label: 'All Routers',
+            to: '/routers',
+            end: true,
+            icon: Router,
+            capabilities: ['routers.view'],
+          },
+          {
+            key: 'router-new',
+            label: 'Add Router',
+            to: '/routers/new',
+            icon: Router,
+            capabilities: ['routers.manage'],
+          },
+          {
+            key: 'router-operations',
+            label: 'Operations',
+            to: '/routers/operations',
+            icon: Activity,
+            capabilities: ['routers.manage'],
+          },
+        ],
+      },
+      {
+        key: 'plans',
+        label: 'Plans',
+        to: '/plans',
+        icon: ListChecks,
+        capabilities: ['plans.view'],
+      },
+    ],
+  },
+  {
+    key: 'operations',
+    label: 'Customers & Operations',
+    items: [
+      {
+        key: 'sessions',
+        label: 'Live sessions',
+        to: '/sessions',
+        icon: Activity,
+        capabilities: ['sessions.view'],
+      },
+      {
+        key: 'vouchers',
+        label: 'Voucher Desk',
+        to: '/vouchers',
+        icon: Ticket,
+        capabilities: ['vouchers.view', 'vouchers.generate'],
+        mobilePrimary: true,
+        children: [
+          {
+            key: 'voucher-list',
+            label: 'All Vouchers',
+            to: '/vouchers',
+            end: true,
+            icon: Ticket,
+            capabilities: ['vouchers.view'],
+          },
+          {
+            key: 'voucher-new',
+            label: 'Generate Vouchers',
+            to: '/vouchers/generate',
+            icon: Ticket,
+            capabilities: ['vouchers.generate'],
+          },
+        ],
+      },
+      {
+        key: 'storefront',
+        label: 'Storefront',
+        to: '/storefront',
+        icon: ShoppingBag,
+        capabilities: ['settings.profile'],
+      },
+      {
+        key: 'agents',
+        label: 'Agents',
+        to: '/agents',
+        icon: Store,
+        capabilities: ['agents.manage'],
       },
       {
         key: 'devices',
@@ -129,22 +164,75 @@ export const WORKSPACE_NAV: NavGroup[] = [
     ],
   },
   {
-    key: 'admin',
-    label: 'Administration',
+    key: 'finance',
+    label: 'Finance',
     items: [
+      {
+        key: 'payments',
+        label: 'Payments',
+        to: '/payments',
+        icon: CreditCard,
+        capabilities: ['payments.view'],
+        mobilePrimary: true,
+        end: true,
+      },
+      {
+        key: 'recovery',
+        label: 'Payment Recovery',
+        to: '/payments/recovery',
+        icon: Activity,
+        capabilities: ['payments.recovery.view'],
+      },
+      {
+        key: 'subscription',
+        label: 'Billing & Subscription',
+        to: '/settings/subscription',
+        icon: BadgeDollarSign,
+        capabilities: ['subscription.view'],
+      },
+    ],
+  },
+  {
+    key: 'system',
+    label: 'System',
+    items: [
+      {
+        key: 'team',
+        label: 'Team',
+        to: '/settings/team',
+        icon: Users,
+        capabilities: ['team.view'],
+      },
+      {
+        key: 'settings',
+        label: 'Settings',
+        to: '/settings',
+        end: true,
+        icon: Settings,
+        capabilities: ['settings.profile', 'settings.billing'],
+        children: [
+          {
+            key: 'general',
+            label: 'General',
+            to: '/settings/general',
+            icon: Settings,
+            capabilities: ['settings.profile'],
+          },
+          {
+            key: 'billing',
+            label: 'Payment Settings',
+            to: '/settings/billing',
+            icon: Wallet,
+            capabilities: ['settings.billing'],
+          },
+        ],
+      },
       {
         key: 'audit',
         label: 'Audit log',
         to: '/audit',
         icon: ScrollText,
         capabilities: ['audit.view'],
-      },
-      {
-        key: 'settings',
-        label: 'Settings',
-        to: '/settings',
-        icon: Settings,
-        capabilities: ['settings.profile', 'team.view', 'subscription.view'],
       },
     ],
   },
@@ -203,13 +291,24 @@ export const AGENT_NAV: NavItem[] = [
   { key: 'profile', label: 'Profile', to: '/agent/profile', icon: UserCircle },
 ];
 
+function filterItems(items: NavItem[], principal: Principal | null): NavItem[] {
+  return items
+    .filter((item) => !item.capabilities || canAny(principal, item.capabilities))
+    .map((item) => ({
+      ...item,
+      ...(item.children ? { children: filterItems(item.children, principal) } : {}),
+    }));
+}
+
+export function flattenNavItems(groups: NavGroup[]): NavItem[] {
+  return groups.flatMap((group) => group.items.flatMap((item) => [item, ...(item.children ?? [])]));
+}
+
 export function visibleGroups(groups: NavGroup[], principal: Principal | null): NavGroup[] {
   return groups
     .map((group) => ({
       ...group,
-      items: group.items.filter(
-        (item) => !item.capabilities || canAny(principal, item.capabilities),
-      ),
+      items: filterItems(group.items, principal),
     }))
     .filter((group) => group.items.length > 0);
 }

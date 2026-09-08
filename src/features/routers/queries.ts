@@ -1,6 +1,7 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { PAGE_SIZE_DEFAULT } from '@/app/config/constants';
 import { dashboardKeys } from '@/features/dashboard/queries';
+import { settingsKeys } from '@/features/settings/queries';
 import type {
   NasDeviceCreate,
   NasDeviceUpdate,
@@ -115,6 +116,7 @@ function useInvalidateRouter() {
     Promise.all([
       client.invalidateQueries({ queryKey: routerKeys.all }),
       client.invalidateQueries({ queryKey: dashboardKeys.all }),
+      ...(!id ? [client.invalidateQueries({ queryKey: settingsKeys.subscription() })] : []),
       ...(id ? [client.invalidateQueries({ queryKey: routerKeys.detail(id) })] : []),
     ]);
 }

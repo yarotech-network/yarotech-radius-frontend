@@ -36,6 +36,8 @@ export const storefrontApi = {
   buy: (payload: PublicBuyRequest, idempotencyKey = newIdempotencyKey('buy')) =>
     http.post<CheckoutStart>('/buy/', payload, { anonymous: true, tenantId: null, idempotencyKey }),
   /** Paystack return handler: status, plan and — while the voucher is unused — its access code. */
+  verify: (reference: string) =>
+    http.post<PaymentCallbackResponse>('/payments/verify/', { reference }, { anonymous: true, tenantId: null }),
   result: (reference: string) =>
     http.get<PaymentCallbackResponse>(
       '/payments/callback/',

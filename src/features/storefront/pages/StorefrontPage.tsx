@@ -29,7 +29,7 @@ export default function StorefrontPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-4xl">
+    <div className="public-storefront">
       <Routes>
         <Route
           index
@@ -72,14 +72,14 @@ function Catalogue({
   );
   return (
     <>
-      <header className="mb-6 text-center sm:text-left">
+      <header className="public-storefront-heading">
         <div className="mx-auto mb-3 flex size-12 items-center justify-center rounded-full bg-brand-50 text-brand-700 sm:mx-0">
           <Wifi className="size-6" aria-hidden />
         </div>
         {tenantLoading ? (
           <div className="mx-auto h-7 w-48 animate-pulse rounded bg-slate-200 sm:mx-0" />
         ) : (
-          <h1 className="text-2xl font-semibold text-brand-950">{tenantName ?? 'Buy Wi-Fi'}</h1>
+          <h1 className="public-section-title">{tenantName ?? 'Buy Wi-Fi'}</h1>
         )}
         <p className="mt-1 text-sm text-ink-500">
           Choose a plan, pay securely with Paystack, and get connected.

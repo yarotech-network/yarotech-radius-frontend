@@ -32,24 +32,32 @@ export default function PlatformOverviewPage() {
   }, []);
 
   return (
-    <div className="space-y-6">
+    <div className="overview-page min-w-0 space-y-6">
       <PageHeader
         title="Platform overview"
-        description="Your operators, network and payments in one place."
+        description="Oversee your operators, review network activity and manage platform revenue."
+        meta={<span className="overview-role">Administrator</span>}
         actions={
-          <Button
-            variant="secondary"
-            disabled={refreshing}
-            leadingIcon={
-              <RefreshCw className={refreshing ? 'animate-spin motion-reduce:animate-none' : ''} />
-            }
-            onClick={() => {
-              void stats.refetch();
-              void recent.refetch();
-            }}
-          >
-            {refreshing ? 'Refreshing…' : 'Refresh overview'}
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="secondary"
+              disabled={refreshing}
+              leadingIcon={
+                <RefreshCw
+                  className={refreshing ? 'animate-spin motion-reduce:animate-none' : ''}
+                />
+              }
+              onClick={() => {
+                void stats.refetch();
+                void recent.refetch();
+              }}
+            >
+              {refreshing ? 'Refreshing…' : 'Refresh overview'}
+            </Button>
+            <ButtonLink to="/platform/tenants" leadingIcon={<Building2 />}>
+              Manage operators
+            </ButtonLink>
+          </div>
         }
       />
 
@@ -80,15 +88,15 @@ export default function PlatformOverviewPage() {
             </Alert>
           )}
           <Section title="Platform at a glance" description="Current totals across the platform.">
-            <div className="grid grid-cols-1 gap-3 min-[400px]:grid-cols-2 xl:grid-cols-4">
+            <div className="overview-metrics">
               <Stat
                 label="Tenants"
                 value={number(s?.tenants)}
                 hint={s ? `${number(s.active_tenants)} active` : 'Registered businesses'}
                 icon={<Building2 />}
                 loading={stats.isPending}
-                tone="brand"
-                className="min-w-0 rounded-2xl p-5 [overflow-wrap:anywhere] shadow-subtle"
+                tone="default"
+                className="overview-metric overview-metric-blue"
               />
               <Stat
                 label="Routers"
@@ -96,7 +104,7 @@ export default function PlatformOverviewPage() {
                 hint={s ? `${number(s.onboarded_routers)} onboarded` : 'Registered network devices'}
                 icon={<Radio />}
                 loading={stats.isPending}
-                className="min-w-0 rounded-2xl p-5 [overflow-wrap:anywhere] shadow-subtle"
+                className="overview-metric overview-metric-blue"
               />
               <Stat
                 label="Agents"
@@ -104,7 +112,7 @@ export default function PlatformOverviewPage() {
                 hint="Resellers across all tenants"
                 icon={<Users />}
                 loading={stats.isPending}
-                className="min-w-0 rounded-2xl p-5 [overflow-wrap:anywhere] shadow-subtle"
+                className="overview-metric overview-metric-blue"
               />
               <Stat
                 label="Vouchers issued"
@@ -112,43 +120,11 @@ export default function PlatformOverviewPage() {
                 hint="Total access vouchers"
                 icon={<Ticket />}
                 loading={stats.isPending}
-                className="min-w-0 rounded-2xl p-5 [overflow-wrap:anywhere] shadow-subtle"
+                className="overview-metric overview-metric-blue"
               />
             </div>
           </Section>
 
-          <Section
-            title="Payment overview"
-            description="Cumulative successful payments in naira, kept separate by source."
-          >
-            <div className="grid gap-4 xl:grid-cols-3">
-              <PaymentCard
-                title="Voucher sales"
-                value={s ? formatKobo(s.successful_payment_amount) : null}
-                description="Customer purchases of internet access."
-                to="/platform/payments?source=vouchers"
-                icon={<Ticket />}
-                loading={stats.isPending}
-                prominent
-              />
-              <PaymentCard
-                title="Agent wallet top-ups"
-                value={s ? formatKobo(s.successful_wallet_funding_amount) : null}
-                description="Successful funding of reseller wallets."
-                to="/platform/payments?source=wallet"
-                icon={<Wallet />}
-                loading={stats.isPending}
-              />
-              <PaymentCard
-                title="Subscriptions"
-                value={s ? formatKobo(s.successful_subscription_amount) : null}
-                description="Payments for operator platform plans."
-                to="/platform/payments?source=subscriptions"
-                icon={<Building2 />}
-                loading={stats.isPending}
-              />
-            </div>
-          </Section>
           {s && s.pending_payments > 0 && (
             <Alert
               tone="warning"
@@ -170,7 +146,7 @@ export default function PlatformOverviewPage() {
         </>
       )}
 
-      <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,1.8fr)_minmax(0,1fr)]">
+      <div className="overview-columns">
         <Section
           title="Newest tenants"
           description="The latest operator businesses to join your platform."
@@ -258,8 +234,14 @@ export default function PlatformOverviewPage() {
             </ul>
           )}
         </Section>
-        <Section title="Manage your platform" description="Go directly to your operational tools.">
+        <Section title="Quick deployment" description="Go directly to your operational tools.">
           <div className="space-y-3">
+            <QuickLink
+              to="/platform/business-plans"
+              title="Business plans"
+              text="Manage platform packages and limits."
+              icon={<Building2 />}
+            />
             <QuickLink
               to="/platform/routers"
               title="Router fleet"
@@ -287,6 +269,43 @@ export default function PlatformOverviewPage() {
           </div>
         </Section>
       </div>
+      {(!stats.isError || s) && (
+        <div className="overview-finance">
+          {' '}
+          <Section
+            title="Payment overview"
+            description="Cumulative successful payments in naira, kept separate by source."
+          >
+            <div className="grid gap-4 xl:grid-cols-3">
+              <PaymentCard
+                title="Voucher sales"
+                value={s ? formatKobo(s.successful_payment_amount) : null}
+                description="Customer purchases of internet access."
+                to="/platform/payments?source=vouchers"
+                icon={<Ticket />}
+                loading={stats.isPending}
+                prominent
+              />
+              <PaymentCard
+                title="Agent wallet top-ups"
+                value={s ? formatKobo(s.successful_wallet_funding_amount) : null}
+                description="Successful funding of reseller wallets."
+                to="/platform/payments?source=wallet"
+                icon={<Wallet />}
+                loading={stats.isPending}
+              />
+              <PaymentCard
+                title="Subscriptions"
+                value={s ? formatKobo(s.successful_subscription_amount) : null}
+                description="Payments for operator platform plans."
+                to="/platform/payments?source=subscriptions"
+                icon={<Building2 />}
+                loading={stats.isPending}
+              />
+            </div>
+          </Section>
+        </div>
+      )}
     </div>
   );
 }
@@ -349,10 +368,7 @@ function QuickLink({
   icon: ReactNode;
 }) {
   return (
-    <Link
-      to={to}
-      className="group flex items-center gap-3 rounded-2xl border border-border bg-surface p-4 shadow-subtle transition-colors hover:border-brand-300 hover:bg-brand-50/40 focus-visible:outline-brand-600"
-    >
+    <Link to={to} className="overview-quick-link">
       <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-ink-600 group-hover:bg-brand-100 group-hover:text-brand-700 [&>svg]:size-5">
         {icon}
       </span>

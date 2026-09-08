@@ -44,7 +44,14 @@ export function DeviceDialog({
           : 'Devices with a registered MAC address connect without a voucher, on the plan you choose, until the expiry date.'
       }
     >
-      {open && <DeviceForm {...(device ? { device } : {})} onCancel={onClose} onSaved={onSaved} />}
+      {open && (
+        <DeviceForm
+          key={device?.id ?? 'new'}
+          {...(device ? { device } : {})}
+          onCancel={onClose}
+          onSaved={onSaved}
+        />
+      )}
     </Dialog>
   );
 }
@@ -103,7 +110,19 @@ function DeviceForm({
     <form onSubmit={(e) => void submit(e)} noValidate className="flex flex-col gap-4">
       {message && <Alert tone="danger">{message}</Alert>}
       {plans.isError && (
-        <Alert tone="warning">
+        <Alert
+          tone="warning"
+          actions={
+            <Button
+              type="button"
+              size="sm"
+              variant="secondary"
+              onClick={() => void plans.refetch()}
+            >
+              Retry plans
+            </Button>
+          }
+        >
           Plans could not be loaded — you can still fill in the other fields.
         </Alert>
       )}

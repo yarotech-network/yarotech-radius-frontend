@@ -37,18 +37,18 @@ export default function LandingPage() {
   }, []);
 
   return (
-    <div className="space-y-16 py-6 sm:space-y-20">
+    <div className="public-landing">
       {/* hero */}
-      <section className="grid items-center gap-8 lg:grid-cols-2">
+      <section className="public-hero">
         <div>
-          <p className="inline-flex items-center gap-2 rounded-full border border-border bg-surface px-3 py-1 text-xs font-medium text-ink-600">
+          <p className="public-eyebrow">
             <Wifi className="size-3.5 text-brand-600" aria-hidden />
             Hotspot &amp; voucher management platform
           </p>
-          <h1 className="mt-4 text-3xl font-semibold tracking-tight text-brand-950 sm:text-4xl">
-            Run your Wi-Fi business.
+          <h1 className="public-hero-title">
+            Run your <span className="whitespace-nowrap">Wi-Fi</span> business.
             <br />
-            Sell access codes online.
+            <span>Sell access codes online.</span>
           </h1>
           <p className="mt-4 max-w-lg text-base leading-relaxed text-ink-600">
             Yarotech RADIUS gives hotspot operators one workspace for plans, vouchers, routers,
@@ -68,27 +68,82 @@ export default function LandingPage() {
             New workspaces start with an email verification code — no credit card required.
           </p>
         </div>
-        <div className="relative hidden lg:block">
-          <div className="overflow-hidden rounded-card border border-border bg-surface shadow-lg shadow-brand-950/5">
+        <div className="public-preview">
+          <div className="public-preview-frame">
+            <div className="public-preview-bar">
+              <span className="flex items-center gap-2">
+                <Radio className="size-4" aria-hidden /> Your workspace
+              </span>
+              <span>Dashboard preview</span>
+            </div>
             <img
               src={dashboardPreview}
               alt="The Yarotech RADIUS workspace dashboard"
               className="aspect-[16/10] w-full object-cover"
-              loading="lazy"
+              fetchPriority="high"
               decoding="async"
             />
           </div>
         </div>
       </section>
 
+      <div className="public-capabilities" aria-label="Platform capabilities">
+        {[
+          [Ticket, 'Voucher management'],
+          [Radio, 'MikroTik routers'],
+          [CreditCard, 'Paystack payments'],
+          [Users, 'Agent sales'],
+        ].map(([Icon, label]) => {
+          const CapabilityIcon = Icon as typeof Ticket;
+          return (
+            <span key={String(label)}>
+              <CapabilityIcon className="size-5" aria-hidden />
+              {String(label)}
+            </span>
+          );
+        })}
+      </div>
+      <About />
+      <section className="public-process" aria-labelledby="getting-started">
+        <SectionHeading
+          id="getting-started"
+          eyebrow="A clear path to launch"
+          title="Your business. Connected."
+          description="Bring your day-to-day hotspot operations together, from the first plan to the next customer."
+        />
+        <ol>
+          {[
+            ['Create your workspace', 'Register your business and verify your email address.'],
+            [
+              'Set up your service',
+              'Connect your routers, configure plans and prepare your storefront.',
+            ],
+            ['Start selling access', 'Share your storefront or let your agents sell vouchers.'],
+          ].map(([title, copy], index) => (
+            <li key={title}>
+              <span>0{index + 1}</span>
+              <h3>{title}</h3>
+              <p>{copy}</p>
+            </li>
+          ))}
+        </ol>
+      </section>
       {/* customers: featured storefront plans */}
       {featuredSlug && <FeaturedStorefront slug={featuredSlug} />}
 
       {/* businesses: subscription plans */}
       <BusinessPlans />
 
-      {/* about */}
-      <About />
+      <section className="public-cta">
+        <div>
+          <p className="public-eyebrow">Built around your business</p>
+          <h2>Make the next connection simpler.</h2>
+          <p>Manage your hotspot and give customers a straightforward way to buy access.</p>
+        </div>
+        <ButtonLink to="/register" size="lg">
+          Start your workspace <ArrowRight className="size-4" aria-hidden />
+        </ButtonLink>
+      </section>
     </div>
   );
 }
@@ -203,10 +258,7 @@ function BusinessPlans() {
       ) : (
         <ul className="grid gap-4 sm:grid-cols-2">
           {pricing.data.slice(0, 4).map((plan) => (
-            <li
-              key={plan.id}
-              className="flex flex-col rounded-card border border-border bg-surface p-5"
-            >
+            <li key={plan.id} className="public-plan">
               <h3 className="text-lg font-semibold text-brand-950">{plan.name}</h3>
               <p className="mt-1 text-3xl font-semibold text-ink-900 tabular-nums">
                 {formatKobo(plan.price)}{' '}
@@ -283,16 +335,16 @@ const ABOUT_FEATURES = [
 
 function About() {
   return (
-    <section aria-labelledby="about">
+    <section id="features" className="public-features" aria-labelledby="about">
       <SectionHeading
         id="about"
         eyebrow="About"
         title="Built for West African hotspot businesses"
         description="Yarotech RADIUS is a product of Yarotech Network — built with the workflows of cyber cafés, hotels, estates and ISPs in mind."
       />
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="public-feature-grid">
         {ABOUT_FEATURES.map((feature) => (
-          <article key={feature.title} className="rounded-card border border-border bg-surface p-5">
+          <article key={feature.title} className="public-feature">
             <feature.icon className="size-5 text-brand-600" aria-hidden />
             <h3 className="mt-3 font-semibold text-brand-950">{feature.title}</h3>
             <p className="mt-1.5 text-sm leading-relaxed text-ink-600">{feature.description}</p>
@@ -325,9 +377,9 @@ function SectionHeading({
   description: string;
 }) {
   return (
-    <header className="mb-6 max-w-2xl">
+    <header className="public-section-heading">
       <p className="text-xs font-semibold tracking-wider text-brand-600 uppercase">{eyebrow}</p>
-      <h2 id={id} className="mt-1 text-2xl font-semibold tracking-tight text-brand-950">
+      <h2 id={id} className="public-section-title">
         {title}
       </h2>
       <p className="mt-2 text-sm leading-relaxed text-ink-600">{description}</p>

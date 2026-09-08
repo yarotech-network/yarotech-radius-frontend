@@ -6,7 +6,7 @@ Requested on 7 September 2026: use the supplied logo and plan improvements to th
 
 The supplied PNG is now the shared brand mark and browser icon. The original artwork is preserved at `src/assets/brand/yarotech-logo.png`; it is displayed proportionally inside a white tile. Existing application naming stays controlled by `VITE_APP_NAME`. Because `BrandMark` is shared, the logo also appears on authentication, public and agent layouts. The source image is approximately 1.37 MB; producing smaller approved web/icon assets is a future asset optimisation task, and the JavaScript bundle budget does not measure that image transfer.
 
-The header/sidebar refresh and initial tenant Storefront page have already been implemented. Admin overview (step 1) and Tenant overview (step 2) are now implemented and checked with sample data. Storefront refinement (step 3) is implemented with automated checks; browser and live payment verification remain pending. The remaining page improvements are **planned**. Each numbered step is a separate reviewable change. Internet plans (step 4) is implemented; see its validation record below. Vouchers (step 5) is implemented; see its validation record below. Generate vouchers (step 6) is implemented; see its validation record below. Voucher details (step 7) is implemented; see its validation record below. Admin tenants (step 8) is implemented; see its validation record below. Admin tenant details (step 9) is implemented; see its validation record below. Tenant payments (step 10) is implemented; see its validation record below. Payment recovery (step 11) is implemented; see its validation record below. Admin payments (step 12) and the payment filter alignment follow-up are implemented; see the validation record below. Tenant routers (step 13) is implemented; see its validation record below. Register router (step 14) is implemented; see its validation record below. Router details (step 15) is implemented; see its validation record below. Router operations (step 16) is implemented; see its validation record below. Live sessions (step 17) is implemented; see its validation record below. Admin router fleet (step 18) is implemented; see its validation record below. Agents (step 19) is implemented; see its validation record below. Agent details (step 20) is implemented; see its validation record below. The next page is **21: Devices**.
+The header/sidebar refresh and initial tenant Storefront page have already been implemented. Admin overview (step 1) and Tenant overview (step 2) are now implemented and checked with sample data. Storefront refinement (step 3) is implemented with automated checks; browser and live payment verification remain pending. The remaining page improvements are **planned**. Each numbered step is a separate reviewable change. Internet plans (step 4) is implemented; see its validation record below. Vouchers (step 5) is implemented; see its validation record below. Generate vouchers (step 6) is implemented; see its validation record below. Voucher details (step 7) is implemented; see its validation record below. Admin tenants (step 8) is implemented; see its validation record below. Admin tenant details (step 9) is implemented; see its validation record below. Tenant payments (step 10) is implemented; see its validation record below. Payment recovery (step 11) is implemented; see its validation record below. Admin payments (step 12) and the payment filter alignment follow-up are implemented; see the validation record below. Tenant routers (step 13) is implemented; see its validation record below. Register router (step 14) is implemented; see its validation record below. Router details (step 15) is implemented; see its validation record below. Router operations (step 16) is implemented; see its validation record below. Live sessions (step 17) is implemented; see its validation record below. Admin router fleet (step 18) is implemented; see its validation record below. Agents (step 19) is implemented; see its validation record below. Agent details (step 20) is implemented; see its validation record below. Devices (step 21) is implemented; see its validation record below. General settings (step 22) is implemented; see its validation record below. Billing and payouts (step 23) is implemented; see its validation record below. Team settings (step 24) is implemented; see its validation record below. The next page is **25: Subscription**.
 
 ## Design direction
 
@@ -257,3 +257,68 @@ Validation: seven agent frontend tests passed; the new backend filter test passe
 ### Business-plan completion and Paystack recovery - 7 September 2026
 
 The user resumed the business-plan work. Admin CRUD, structured public/tenant limits, purchased-term preservation and enforcement are now locally validated. The tenant subscription tracker verifies pending payments with Paystack on opening and Check now, then refreshes subscription terms on success. Backend checks: 112 passed. Relevant frontend checks: 46 passed. Scoped lint, TypeScript/build, and bundle budgets passed. Local migrations through 0005 are applied. One Paystack-confirmed pending test subscription was safely activated; unverifiable payments remain unchanged. Production deployment and browser checkout smoke test remain unverified. Next dashboard enhancement remains step 21, Devices.
+
+
+### Step 21 scope - Devices
+
+Enhance the existing MAC-device directory with the shared blue/white overview, inline search/status/plan filters, query-scoped record count, refresh with retained records on failure, plan-option retry, mobile expiry details and keyboard-accessible editing. Keep the active flag distinct from expiry and connectivity, preserve API payloads and role permissions, and reset the edit form by device identity. Validate existing registration/removal and staff restrictions plus filtering and failed-refresh recovery. The storefront verification work was paused by the user before test completion; it remains unfinished and separate from this page enhancement.
+
+
+### Step 21 delivery - Devices (7 September 2026)
+
+Enhanced the MAC-device directory with a blue/white equipment overview, inline search/status/plan filters, query-scoped counts and manual refresh. Loaded records remain visible when refresh fails; plan filters and the device form offer a retry for failed plan loading. Device names are keyboard-accessible edit buttons, long identities wrap, mobile rows retain expiry details, and edit forms reset by device ID. Existing role permissions and API payloads are preserved. Registration status is explicitly distinguished from expiry and network availability.
+
+Validation: six focused component/schema tests passed for registration, removal, read-only staff, filter requests, retained rows and plan retry. Chromium with sample API responses passed desktop filter alignment, keyboard edit/dismissal and 390px page overflow checks. Scoped ESLint, TypeScript/production build and bundle budgets passed (134.8 kB initial JS gzip; 36.7 kB largest lazy chunk). No live device connectivity test was performed. Next delivery: step 22, General settings.
+
+
+### Step 22 scope - General settings
+
+Add the shared branded overview and section shortcuts, separate business profile from account security, show the existing storefront address and saved timestamp, preserve drafts on failed profile refresh, and clarify save/discard state. Keep slug read-only, role permissions and password behavior unchanged. Send only dirty profile fields so a refreshed server response cannot cause untouched draft fields to overwrite newer values. Validate profile patch, draft/error recovery, staff restrictions and existing password reauthentication before completing this page.
+
+
+### Step 22 delivery - General settings (7 September 2026)
+
+Enhanced General settings with the shared blue/white overview, section shortcuts, a read-only storefront link, saved timestamp and manual profile refresh. Business identity/contact editing remains permission-gated; personal account and password sections remain available to staff. Failed refreshes keep the loaded form and draft visible. The form shows unsaved/saving feedback, disables fields during submission and sends only dirty fields, preserving newer server values in untouched fields. Long storefront slugs and account identifiers wrap. Existing password reauthentication remains unchanged.
+
+Validation: six focused schema/component tests passed, including partial PATCH, staff restrictions, password reauthentication and failed-refresh draft preservation followed by a newer server response. Eight unrelated settings cases were skipped. Chromium with sample API responses passed desktop profile/link behavior, draft preservation, 390px document overflow and keyboard section shortcuts. Scoped lint and whitespace checks passed. Live profile changes and password changes were not performed. Next delivery: step 23, Billing and payouts.
+
+Final step 22 validation: TypeScript/production build and bundle budgets passed (134.8 kB initial JS gzip; 36.7 kB largest lazy chunk).
+
+
+### Step 23 scope - Billing and payouts
+
+Apply the shared branded overview and shortcuts; distinguish customer-payment credentials from business subscription billing; clarify write-only key fields without claiming configuration or provider validation. Add refresh recovery, retained drafts, unsaved/saving feedback and grouped credential/business-rule inputs. Preserve key replacement semantics and send only dirty fields after refetch. Validate partial patches, secret-field clearing, draft recovery and discard; run focused lint/build and browser layout checks with fixtures. No saved provider keys or live payment configuration will be changed for QA.
+
+
+### Step 23 delivery - Billing and payouts (7 September 2026)
+
+Added the branded payment-preferences overview, section shortcuts and a business-subscription link. Credential replacement and voucher/agent rules are grouped clearly; write-only key fields do not imply saved configuration or provider verification. Failed refreshes retain entered values, saves send only dirty fields, and save/discard feedback is visible. Fixed existing commission/wallet field labels by using the shared Input adornment API so labels and validation target the actual controls. Existing API payloads, key-clearing after save and role guards remain intact.
+
+Validation: four focused billing/schema tests passed (11 unrelated settings cases skipped), including partial PATCH, replacement-key preservation on failure, protection of untouched refreshed fields and discard. Chromium with sample API responses passed draft/masking/keyboard-discard checks and final responsive/label checks at 1440, 768 and 390 pixels. Scoped lint, whitespace, TypeScript/production build and bundle budgets passed (134.8 kB initial JS gzip; 36.7 kB largest lazy chunk). No real credentials or live payment configuration were changed. Next delivery: step 24, Team settings.
+
+
+### Step 24 scope - Team settings
+
+Improve the existing membership directory with the shared overview, expandable role guide, inline role filter, query-scoped count and refresh recovery. Keep long member identities readable; retain owner-only controls and the existing last-owner guard. Clarify numeric user-ID entry, reset add-form identity by tenant and disable inputs during submission. No user search, email invitations or backend contract changes. Validate current owner workflows/read-only manager behavior, role filtering and retained records on failed refresh; check responsive and keyboard behavior.
+
+
+### Step 24 delivery - Team settings (7 September 2026)
+
+Enhanced the membership page with the shared branded overview, expandable role guide, inline role filtering, matching-member count and manual refresh. Refresh failures retain the directory and show a warning. Long member names wrap; joined dates have full timestamp tooltips. Owner-only role/removal actions and the existing last-owner guard remain in place; conflicting pending actions are disabled. The add-member form explains numeric user IDs, retains role guidance and disables fields during submission. No API changes, user search or invitation delivery were introduced.
+
+Validation: three focused Team component tests passed (13 unrelated settings cases skipped), covering owner actions, read-only manager behavior, server errors, role filtering and retained rows on failed refresh. Chromium with sample API responses passed last-owner control, add-dialog role guidance, keyboard dismissal, refresh warning and 1440/768/390px layout checks. No real team memberships were changed. Next delivery: step 25, Subscription page enhancement.
+
+Final step 24 validation: scoped ESLint, whitespace, TypeScript/production build and bundle budgets passed (134.8 kB initial JS gzip; 36.7 kB largest lazy chunk).
+
+## Screenshot-led roadmap, 8 September 2026
+
+The new dashboard request is planned in [DASHBOARD_REDESIGN_ROADMAP.md](DASHBOARD_REDESIGN_ROADMAP.md). Follow that sequence for subsequent screenshot-led work, preserving the implementation and validation history above. The previously next Subscription page is included in its phase 9. No application implementation is performed by this planning update.
+
+Phase 1 of the screenshot-led roadmap is now implemented: light grouped sidebar, nested permitted links, pinned account controls, responsive shell and focus handling. Validation and the next step (phase 2 overview dashboards) are recorded in DASHBOARD_REDESIGN_ROADMAP.md. This preserves the prior page-level work above.
+
+Phase 2 of the screenshot-led roadmap is implemented: tenant/platform overviews and an API-backed subscription banner. The delivery record in DASHBOARD_REDESIGN_ROADMAP.md includes 68 passing tests, five-width fixture browser checks, lint/build and bundle validation. Next: phase 3 router fleet and existing detail tools.
+
+
+### Screenshot dashboard phase 3 - 8 September 2026
+
+Completed router fleet/detail/operations presentation, setup/status filters and authoritative router allowance handling. See DASHBOARD_REDESIGN_ROADMAP.md for implementation and validation evidence. Next is phase 4, the MikroTik smart-script wizard and its backend inventory/configuration contract.

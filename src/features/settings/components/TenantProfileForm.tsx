@@ -35,6 +35,10 @@ export function TenantProfileForm({ profile }: { profile: TenantProfile }) {
   const submit = form.handleSubmit(async (values) => {
     resetErrors();
     const patch = profileFormToPatch(values, profile);
+    // A background refresh must not turn untouched draft fields into writes.
+    for (const field of FIELDS) {
+      if (!form.formState.dirtyFields[field]) delete patch[field];
+    }
     if (Object.keys(patch).length === 0) {
       toast.info('Nothing to save');
       return;
@@ -56,43 +60,61 @@ export function TenantProfileForm({ profile }: { profile: TenantProfile }) {
       aria-label="Business profile"
     >
       {message && <Alert tone="danger">{message}</Alert>}
-      <FormField label="Business name" required error={errors.name?.message}>
-        <Input autoComplete="organization" {...form.register('name')} />
-      </FormField>
-      <div className="grid gap-4 sm:grid-cols-2">
-        <FormField label="Contact email" optionalLabel error={errors.email?.message}>
-          <Input type="email" inputMode="email" autoComplete="email" {...form.register('email')} />
+      <fieldset disabled={update.isPending} className="flex min-w-0 flex-col gap-4">
+        <legend className="sr-only">Business contact details</legend>
+        <FormField label="Business name" required error={errors.name?.message}>
+          <Input autoComplete="organization" {...form.register('name')} />
         </FormField>
-        <FormField label="Contact phone" optionalLabel error={errors.phone?.message}>
-          <Input
-            type="tel"
-            inputMode="tel"
-            autoComplete="tel"
-            placeholder="+234 803 000 0000"
-            {...form.register('phone')}
-          />
+        <div className="grid gap-4 sm:grid-cols-2">
+          <FormField label="Contact email" optionalLabel error={errors.email?.message}>
+            <Input
+              type="email"
+              inputMode="email"
+              autoComplete="email"
+              {...form.register('email')}
+            />
+          </FormField>
+          <FormField label="Contact phone" optionalLabel error={errors.phone?.message}>
+            <Input
+              type="tel"
+              inputMode="tel"
+              autoComplete="tel"
+              placeholder="+234 803 000 0000"
+              {...form.register('phone')}
+            />
+          </FormField>
+        </div>
+        <FormField
+          label="Address"
+          optionalLabel
+          hint="Business location or correspondence address."
+          error={errors.address?.message}
+        >
+          <Textarea rows={3} autoComplete="street-address" {...form.register('address')} />
         </FormField>
-      </div>
-      <FormField
-        label="Address"
-        optionalLabel
-        hint="Shown on printed vouchers and your storefront."
-        error={errors.address?.message}
-      >
-        <Textarea rows={3} autoComplete="street-address" {...form.register('address')} />
-      </FormField>
+      </fieldset>
+      <p role="status" className="text-xs text-ink-500">
+        {update.isPending
+          ? 'Saving business details...'
+          : form.formState.isDirty
+            ? 'You have unsaved changes.'
+            : 'No unsaved changes.'}
+      </p>
       <div className="flex flex-col-reverse gap-2 border-t border-border pt-4 sm:flex-row sm:items-center sm:justify-between">
         <dl className="text-xs text-ink-500">
-          <span className="inline-flex gap-1">
+          <span className="inline-flex min-w-0 flex-wrap gap-1">
             <dt>Storefront slug:</dt>
-            <dd className="font-mono text-ink-700">{profile.slug}</dd>
+            <dd className="font-mono break-all text-ink-700">{profile.slug}</dd>
           </span>
         </dl>
         <div className="flex gap-2 sm:justify-end">
           <Button
             type="button"
             variant="secondary"
-            onClick={() => form.reset(profileToForm(profile))}
+            onClick={() => {
+              resetErrors();
+              form.reset(profileToForm(profile));
+            }}
             disabled={!form.formState.isDirty || update.isPending}
           >
             Discard

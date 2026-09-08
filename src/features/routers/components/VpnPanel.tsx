@@ -187,7 +187,7 @@ export function OperationRow({
   showRouter?: string | undefined;
 }) {
   return (
-    <li className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3 text-sm">
+    <li className="router-operation-row flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-4 text-sm">
       <StatusBadge status={op.status} />
       <span className="font-medium text-ink-900 capitalize">{op.action}</span>
       {showRouter && (

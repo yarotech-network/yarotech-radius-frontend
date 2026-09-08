@@ -43,6 +43,8 @@ function mount(path: string) {
                 children: [
                   { index: true, element: <h1>Dashboard page</h1> },
                   { path: 'plans', element: <h1>Plans page</h1> },
+                  { path: 'routers/:id', element: <h1>Router detail page</h1> },
+                  { path: 'settings/subscription', element: <h1>Subscription page</h1> },
                 ],
               },
             ],
@@ -78,6 +80,11 @@ function mount(path: string) {
 }
 
 beforeEach(() => {
+  server.use(
+    mswHttp.get(`${API}/subscriptions/`, () =>
+      HttpResponse.json({ detail: 'No subscription' }, { status: 404 }),
+    ),
+  );
   tokenStore.set({ access: 'A', refresh: 'R' });
   window.localStorage.clear();
   window.localStorage.setItem('yr.auth.refresh', 'R');
@@ -106,7 +113,7 @@ describe('workspace shell', () => {
     const drawer = within(screen.getByRole('dialog', { name: 'Navigation' }));
     expect(drawer.getByRole('button', { name: 'Close' })).toHaveFocus();
     await user.tab({ shift: true });
-    expect(drawer.getByRole('link', { name: 'Settings' })).toHaveFocus();
+    expect(drawer.getByRole('button', { name: 'Sign out' })).toHaveFocus();
     await user.tab();
     expect(drawer.getByRole('button', { name: 'Close' })).toHaveFocus();
     await user.keyboard('{Escape}');
@@ -132,6 +139,66 @@ describe('workspace shell', () => {
     await userEvent.click(within(drawer).getByRole('link', { name: 'Plans' }));
     expect(await screen.findByRole('heading', { name: 'Plans page' })).toBeInTheDocument();
     expect(screen.queryByRole('dialog', { name: 'Navigation' })).not.toBeInTheDocument();
+  });
+
+  it('expands supported router links and keeps restricted actions hidden for staff', async () => {
+    server.use(mswHttp.get(`${API}/auth/user/`, () => HttpResponse.json(makeUser('staff'))));
+    mount('/');
+    await screen.findByRole('heading', { name: 'Dashboard page' });
+    const sidebar = within(screen.getByRole('complementary'));
+    await userEvent.click(sidebar.getByRole('button', { name: 'Expand Routers Management' }));
+    expect(sidebar.getByRole('link', { name: 'All Routers' })).toHaveAttribute('href', '/routers');
+    expect(sidebar.queryByRole('link', { name: 'Add Router' })).not.toBeInTheDocument();
+    expect(sidebar.queryByRole('link', { name: 'Operations' })).not.toBeInTheDocument();
+    expect(sidebar.getByRole('link', { name: 'Team' })).toHaveAttribute('href', '/settings/team');
+    expect(sidebar.getByRole('link', { name: 'Billing & Subscription' })).toBeInTheDocument();
+    expect(sidebar.queryByRole('link', { name: 'Settings' })).not.toBeInTheDocument();
+  });
+
+  it('allows an owner to open and close nested router navigation', async () => {
+    server.use(mswHttp.get(`${API}/auth/user/`, () => HttpResponse.json(makeUser('owner'))));
+    mount('/');
+    await screen.findByRole('heading', { name: 'Dashboard page' });
+    const sidebar = within(screen.getByRole('complementary'));
+    await userEvent.click(sidebar.getByRole('button', { name: 'Expand Routers Management' }));
+    expect(sidebar.getByRole('link', { name: 'Add Router' })).toHaveAttribute(
+      'href',
+      '/routers/new',
+    );
+    expect(sidebar.getByRole('link', { name: 'Operations' })).toHaveAttribute(
+      'href',
+      '/routers/operations',
+    );
+    await userEvent.click(sidebar.getByRole('button', { name: 'Collapse Routers Management' }));
+    expect(sidebar.queryByRole('link', { name: 'Add Router' })).not.toBeInTheDocument();
+    expect(sidebar.getByRole('button', { name: 'Sign out' })).toBeInTheDocument();
+  });
+
+  it('opens the router branch for a direct detail URL', async () => {
+    server.use(mswHttp.get(`${API}/auth/user/`, () => HttpResponse.json(makeUser('owner'))));
+    mount('/routers/7');
+    await screen.findByRole('heading', { name: 'Router detail page' });
+    const sidebar = within(screen.getByRole('complementary'));
+    expect(sidebar.getByRole('button', { name: 'Collapse Routers Management' })).toHaveAttribute(
+      'aria-expanded',
+      'true',
+    );
+    expect(sidebar.getByRole('link', { name: 'Operations' })).toBeInTheDocument();
+  });
+
+  it('keeps subscription selected without opening the settings branch', async () => {
+    server.use(mswHttp.get(`${API}/auth/user/`, () => HttpResponse.json(makeUser('owner'))));
+    mount('/settings/subscription');
+    await screen.findByRole('heading', { name: 'Subscription page' });
+    const sidebar = within(screen.getByRole('complementary'));
+    expect(sidebar.getByRole('link', { name: 'Billing & Subscription' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
+    expect(sidebar.getByRole('button', { name: 'Expand Settings' })).toHaveAttribute(
+      'aria-expanded',
+      'false',
+    );
   });
 
   it('remembers the collapsed sidebar preference', async () => {

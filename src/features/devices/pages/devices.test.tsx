@@ -97,7 +97,7 @@ describe('DevicesPage', () => {
     renderPage(<DevicesPage />, { path: '/devices' });
     const table = await screen.findByRole('table', { name: 'Devices' });
     expect(await within(table).findByText('Lobby TV')).toBeInTheDocument();
-    expect(within(table).getByText(/Expired/)).toBeInTheDocument();
+    expect(within(table).getAllByText(/Expired/).length).toBeGreaterThan(0);
 
     await userEvent.click(screen.getByRole('button', { name: 'Register device' }));
     const dialog = await screen.findByRole('dialog', { name: 'Register device' });
@@ -130,5 +130,63 @@ describe('DevicesPage', () => {
     expect(await within(table).findByText('Lobby TV')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Register device' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Actions for/ })).not.toBeInTheDocument();
+  });
+});
+
+describe('Device directory recovery', () => {
+  it('keeps filters together and retains records when refresh fails', async () => {
+    let failed = false;
+    const requests: URLSearchParams[] = [];
+    server.use(
+      http.get(`${API}/plans/`, () => HttpResponse.json(paginated([plan]))),
+      http.get(`${API}/iot-devices/`, ({ request }) => {
+        requests.push(new URL(request.url).searchParams);
+        return failed
+          ? HttpResponse.json({ detail: 'Unavailable' }, { status: 503 })
+          : HttpResponse.json(paginated([device()]));
+      }),
+    );
+    renderPage(<DevicesPage />, { path: '/devices' });
+    const table = await screen.findByRole('table', { name: 'Devices' });
+    await within(table).findByRole('button', { name: 'Lobby TV' });
+    expect(screen.getByText('1 matching device')).toBeInTheDocument();
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Status' }), 'false');
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Plan' }), '1');
+    await userEvent.type(screen.getByRole('searchbox', { name: 'Search devices' }), 'Lobby');
+    await waitFor(() =>
+      expect(
+        requests.some(
+          (p) =>
+            p.get('is_active') === 'false' && p.get('plan') === '1' && p.get('search') === 'Lobby',
+        ),
+      ).toBe(true),
+    );
+    failed = true;
+    await userEvent.click(screen.getByRole('button', { name: 'Refresh devices' }));
+    expect(await screen.findByText('Devices could not be refreshed')).toBeInTheDocument();
+    expect(within(table).getByRole('button', { name: 'Lobby TV' })).toBeInTheDocument();
+    await userEvent.click(within(table).getByRole('button', { name: 'Lobby TV' }));
+    expect(await screen.findByRole('dialog', { name: 'Edit Lobby TV' })).toBeInTheDocument();
+  });
+
+  it('retries failed plan options while the device directory remains visible', async () => {
+    let failed = true;
+    server.use(
+      http.get(`${API}/plans/`, () =>
+        failed
+          ? HttpResponse.json({ detail: 'Unavailable' }, { status: 503 })
+          : HttpResponse.json(paginated([plan])),
+      ),
+      http.get(`${API}/iot-devices/`, () => HttpResponse.json(paginated([device()]))),
+    );
+    renderPage(<DevicesPage />, { path: '/devices', role: 'staff' });
+    expect(await screen.findByText('Plan filters unavailable')).toBeInTheDocument();
+    expect(within(screen.getByRole('table', { name: 'Devices' })).getByText('Lobby TV')).toBeInTheDocument();
+    failed = false;
+    await userEvent.click(screen.getByRole('button', { name: 'Retry plans' }));
+    await waitFor(() =>
+      expect(screen.getByRole('combobox', { name: 'Plan' })).toHaveTextContent('Daily 1GB'),
+    );
+    expect(screen.queryByText('Plan filters unavailable')).not.toBeInTheDocument();
   });
 });

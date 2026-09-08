@@ -27,7 +27,7 @@ export function PageHeader({
   className?: string;
 }) {
   return (
-    <header className={cn('mb-5 flex flex-col gap-3', className)}>
+    <header className={cn('dashboard-page-header mb-5 flex flex-col gap-3', className)}>
       {(crumbs || backTo) && (
         <nav aria-label="Breadcrumb" className="flex items-center gap-1 text-xs text-ink-500">
           {backTo && (
@@ -62,7 +62,11 @@ export function PageHeader({
           </div>
           {description && <p className="mt-1 max-w-2xl text-sm text-ink-500">{description}</p>}
         </div>
-        {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}
+        {actions && (
+          <div className="dashboard-page-actions flex shrink-0 flex-wrap items-center gap-2">
+            {actions}
+          </div>
+        )}
       </div>
     </header>
   );

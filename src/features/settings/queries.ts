@@ -84,9 +84,13 @@ export function useRemoveMember() {
 }
 
 /** `null` data means "no subscription yet" (server 404) — not an error. */
-export function useSubscription() {
+export function useSubscription(enabled = true) {
   return useQuery({
     queryKey: settingsKeys.subscription(),
+    enabled,
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+    refetchIntervalInBackground: false,
     queryFn: async () => {
       try {
         return await settingsApi.subscription();

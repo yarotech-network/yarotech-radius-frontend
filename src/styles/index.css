@@ -1,4 +1,5 @@
 @import 'tailwindcss';
+@import './public.css';
 
 /* Tablet navigation is an icon rail regardless of the saved desktop preference. */
 @media (min-width: 48rem) and (max-width: 63.999rem) {

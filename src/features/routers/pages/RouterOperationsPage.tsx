@@ -1,4 +1,4 @@
-import { Activity, RefreshCw } from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
 import { PageHeader } from '@/components/layout';
 import { Button, Card, Select, Skeleton } from '@/components/ui';
 import { Alert, EmptyState, ErrorState } from '@/components/feedback';
@@ -37,7 +37,7 @@ export default function RouterOperationsPage() {
   const live = query.data?.results.some(isOperationOpen) ?? false;
 
   return (
-    <div className="space-y-6">
+    <div className="router-page space-y-6">
       <PageHeader
         title="Provisioning operations"
         actions={
@@ -62,23 +62,23 @@ export default function RouterOperationsPage() {
           )
         }
       />
-      <Card className="border-brand-100 bg-gradient-to-br from-brand-50 via-white to-sky-50">
-        <div className="flex items-start gap-4">
-          <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-brand-600 text-white">
-            <Activity className="size-5" aria-hidden />
-          </span>
-          <div className="min-w-0">
-            <h2 className="text-lg font-semibold text-brand-950">Follow router provisioning</h2>
-            <p className="mt-1 text-sm leading-relaxed text-ink-600">
-              Review provision and suspend requests, their attempts and recorded failures. Open the
-              router to inspect its configuration and available management actions.
-            </p>
-            <p className="mt-3 text-xs font-medium text-brand-700">
-              Pending and running operations stay open until the server reports their outcome.
-            </p>
-          </div>
+      <div className="router-workflow" aria-label="Operation lifecycle">
+        <div>
+          <span>01 / QUEUED</span>
+          <strong>Pending</strong>
+          <p>Waiting for the provisioning worker.</p>
         </div>
-      </Card>
+        <div>
+          <span>02 / EXECUTING</span>
+          <strong>Running</strong>
+          <p>The server is applying the request.</p>
+        </div>
+        <div>
+          <span>03 / RESULT</span>
+          <strong>Succeeded or failed</strong>
+          <p>Review the outcome and recorded attempts.</p>
+        </div>
+      </div>
       <section aria-labelledby="operation-history-title" className="space-y-4">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h2 id="operation-history-title" className="text-lg font-semibold text-brand-950">
@@ -93,6 +93,18 @@ export default function RouterOperationsPage() {
                   ? 'Operation count unavailable'
                   : 'Loading operations...'}
           </p>
+        </div>
+        <div className="router-status-filters" role="group" aria-label="Quick operation filters">
+          {STATUS_OPTIONS.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              aria-pressed={(filters.status ?? '') === option.value}
+              onClick={() => list.setFilter('status', option.value || undefined)}
+            >
+              {option.label}
+            </button>
+          ))}
         </div>
         <FilterBar
           inline

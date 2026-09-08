@@ -14,11 +14,10 @@ export default function PricingPage() {
     document.title = 'Pricing · Yarotech RADIUS';
   }, []);
   return (
-    <div className="mx-auto w-full max-w-4xl py-4">
-      <header className="mb-8 text-center">
-        <h1 className="text-3xl font-semibold text-brand-950">
-          Simple pricing for hotspot operators
-        </h1>
+    <div className="public-pricing">
+      <header className="public-page-heading">
+        <p className="public-eyebrow">Business plans</p>
+        <h1 className="public-section-title">Simple pricing for hotspot operators</h1>
         <p className="mt-2 text-sm text-ink-500">
           Run vouchers, routers, agents and payments from one workspace. Choose the duration that
           fits your business and pay with Paystack.
@@ -43,10 +42,7 @@ export default function PricingPage() {
       ) : (
         <ul className="grid gap-4 sm:grid-cols-2">
           {pricing.data.map((plan) => (
-            <li
-              key={plan.id}
-              className="flex flex-col rounded-card border border-border bg-surface p-5"
-            >
+            <li key={plan.id} className="public-plan">
               <h2 className="text-lg font-semibold text-brand-950">{plan.name}</h2>
               <p className="mt-1 text-3xl font-semibold text-ink-900 tabular-nums">
                 {formatKobo(plan.price)}{' '}
@@ -72,7 +68,7 @@ export default function PricingPage() {
           ))}
         </ul>
       )}
-      <p className="mt-8 text-center text-xs text-ink-400">
+      <p className="mt-8 text-center text-sm text-ink-600">
         Already have a workspace?{' '}
         <a href="/login" className="font-medium text-brand-600 hover:underline">
           Sign in

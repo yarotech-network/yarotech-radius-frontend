@@ -287,46 +287,55 @@ describe('sign in and landing per role', () => {
     expect(tokenStore.hasSession()).toBe(false);
   });
 
-  it('new tenant registers, confirms the emailed OTP and lands in the workspace', async () => {
+  it('verifies email before workspace creation and presents the ready screen before sign in', async () => {
     const user = makeUser('owner');
     const seenCodes: string[] = [];
+    let registrationBody: Record<string, unknown> | undefined;
     mockSession(user);
     server.use(
-      mswHttp.post(`${API}/auth/register/`, () =>
-        HttpResponse.json(
-          { user, detail: 'Verification code sent to your email.' },
-          { status: 201 },
-        ),
+      mswHttp.post(`${API}/auth/registration/email/`, () =>
+        HttpResponse.json({ message: 'Code sent', resend_after: 60 }),
       ),
-      mswHttp.post(`${API}/auth/verify-email/`, async ({ request }) => {
+      mswHttp.post(`${API}/auth/registration/email/verify/`, async ({ request }) => {
         seenCodes.push(String(((await request.json()) as { code: string }).code));
-        return HttpResponse.json({ access: 'A', refresh: 'R', user });
+        return HttpResponse.json({ registration_token: 'temporary-proof', expires_in: 1800 });
+      }),
+      mswHttp.post(`${API}/auth/registration/`, async ({ request }) => {
+        registrationBody = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json(
+          { workspace: { name: 'New Network', slug: 'new-network' }, username: 'newowner' },
+          { status: 201 },
+        );
       }),
     );
-
     const router = renderApp('/register');
+    expect(screen.queryByLabelText(/business name/i)).not.toBeInTheDocument();
+    await userEvent.type(await screen.findByLabelText(/email address/i), 'new@example.com');
+    await userEvent.click(screen.getByRole('button', { name: /send email verification code/i }));
+    await userEvent.type(await screen.findByLabelText(/^verification code/i), '123456');
+    await userEvent.click(screen.getByRole('button', { name: /verify email & continue/i }));
     await userEvent.type(await screen.findByLabelText(/business name/i), 'New Network');
+    expect(screen.getByLabelText(/workspace id/i)).toHaveValue('new-network');
+    await userEvent.type(screen.getByLabelText(/first name/i), 'Ada');
+    await userEvent.type(screen.getByLabelText(/last name/i), 'Lovelace');
     await userEvent.type(screen.getByLabelText(/username/i), 'newowner');
-    await userEvent.type(screen.getByLabelText(/phone/i), '08012345678');
-    await userEvent.type(screen.getByLabelText(/^email/i), 'new@example.com');
-    await userEvent.type(screen.getAllByLabelText(/^password/i)[0]!, 'StrongPass-4821');
-    await userEvent.type(screen.getAllByLabelText(/confirm password/i)[0]!, 'StrongPass-4821');
+    await userEvent.type(screen.getByLabelText(/contact phone/i), '08012345678');
+    await userEvent.type(screen.getByLabelText(/^password/i), 'StrongPass-4821');
+    await userEvent.type(screen.getByLabelText(/confirm password/i), 'StrongPass-4821');
     await userEvent.click(screen.getByRole('button', { name: 'Create workspace' }));
-
-    // Registration withholds tokens and moves to the OTP step.
-    expect(await screen.findByRole('heading', { name: /verify your email/i })).toBeInTheDocument();
-    expect(router.state.location.pathname).toBe('/verify-email');
-    expect(screen.getByDisplayValue('new@example.com')).toBeInTheDocument();
-    expect(tokenStore.hasSession()).toBe(false);
-
-    for (let i = 0; i < 6; i++) {
-      await userEvent.type(screen.getByLabelText(`Digit ${i + 1} of 6`), String(i + 1));
-    }
-
-    expect(await screen.findByRole('heading', { name: 'Dashboard page' })).toBeInTheDocument();
-    expect(router.state.location.pathname).toBe('/dashboard');
+    expect(await screen.findByRole('heading', { name: 'Workspace ready!' })).toBeInTheDocument();
+    expect(registrationBody).toMatchObject({
+      email: 'new@example.com',
+      workspace_id: 'new-network',
+      registration_token: 'temporary-proof',
+      first_name: 'Ada',
+    });
     expect(seenCodes).toEqual(['123456']);
-    expect(tokenStore.getRefresh()).toBe('R');
+    expect(tokenStore.hasSession()).toBe(false);
+    expect(screen.queryByText(/telegram|what best describes/i)).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /user guide/i })).toHaveAttribute('href', '/guide');
+    await userEvent.click(screen.getByRole('link', { name: /access dashboard/i }));
+    expect(router.state.location.pathname).toBe('/login');
   });
 
   it('login with an unverified email is redirected to the verification step', async () => {

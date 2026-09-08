@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { AGENT_NAV, PLATFORM_NAV, WORKSPACE_NAV } from './navConfig';
+import { AGENT_NAV, flattenNavItems, PLATFORM_NAV, WORKSPACE_NAV } from './navConfig';
 import { prefetchRoute, QUERY_ROUTE_PATHS, ROUTE_CHUNK_PATHS } from './prefetch';
 import { queryPrefetchers } from './routeQueries';
 import { http, HttpResponse } from 'msw';
@@ -33,7 +33,7 @@ describe('navigation prefetch registry (phase 9)', () => {
   });
   it('covers every primary nav destination with a route chunk loader', () => {
     const navPaths = [
-      ...[...WORKSPACE_NAV, ...PLATFORM_NAV].flatMap((group) => group.items.map((i) => i.to)),
+      ...flattenNavItems([...WORKSPACE_NAV, ...PLATFORM_NAV]).map((item) => item.to),
       ...AGENT_NAV.map((i) => i.to),
     ];
     for (const path of navPaths) expect(ROUTE_CHUNK_PATHS).toContain(path);
