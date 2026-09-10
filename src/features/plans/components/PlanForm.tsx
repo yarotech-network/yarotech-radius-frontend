@@ -15,9 +15,11 @@ import {
   type PlanFormInput,
   type PlanFormOutput,
 } from '../planSchema';
+import { BandwidthPicker } from './BandwidthPicker';
 import { useCreatePlan, useUpdatePlan } from '../queries';
 
 const FIELDS = [
+  'bandwidth_profile',
   'name',
   'price',
   'duration_hours',
@@ -50,6 +52,8 @@ export function PlanForm({
     reset: resetErrors,
     captureError,
   } = useFormSubmit(form.setError, FIELDS, ALIASES);
+  const profileId = useWatch({ control: form.control, name: 'bandwidth_profile' });
+  const [chooseProfile, setChooseProfile] = useState(!!plan?.bandwidth_profile);
   const duration = useWatch({ control: form.control, name: 'duration_hours' });
   const presetValue = useMemo(
     () =>
@@ -64,6 +68,12 @@ export function PlanForm({
 
   const submit = form.handleSubmit(async (values) => {
     resetErrors();
+    if (chooseProfile && !values.bandwidth_profile) {
+      form.setError('bandwidth_profile', {
+        message: 'Choose a profile, or switch to custom speed.',
+      });
+      return;
+    }
     try {
       const saved = plan
         ? await update.mutateAsync({ id: plan.id, payload: formToPlan(values) })
@@ -151,14 +161,59 @@ export function PlanForm({
       </fieldset>
       <fieldset className="min-w-0 space-y-4 rounded-xl border border-border p-4">
         <legend className="px-2 text-sm font-semibold text-brand-950">Connection limits</legend>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            type="button"
+            size="sm"
+            variant={chooseProfile ? 'primary' : 'secondary'}
+            onClick={() => setChooseProfile(true)}
+          >
+            Use bandwidth profile
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant={!chooseProfile ? 'primary' : 'secondary'}
+            onClick={() => {
+              setChooseProfile(false);
+              form.setValue('bandwidth_profile', null, { shouldDirty: true });
+            }}
+          >
+            Use custom speed
+          </Button>
+        </div>
+        {chooseProfile && (
+          <BandwidthPicker
+            value={profileId}
+            onChange={(profile) => {
+              form.setValue('bandwidth_profile', profile?.id ?? null, { shouldDirty: true });
+              if (profile)
+                form.setValue('rate_limit', profile.rate_limit, {
+                  shouldDirty: true,
+                  shouldValidate: true,
+                });
+            }}
+          />
+        )}
+        {form.formState.errors.bandwidth_profile && (
+          <p role="alert" className="text-sm text-danger-700">
+            {form.formState.errors.bandwidth_profile.message}
+          </p>
+        )}
+
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <FormField
             label="Speed limit"
             required
-            hint="Upload/download as MikroTik rate-limit, e.g. 5M/10M."
+            hint="Upload/download, e.g. 5M/10M. Select a profile to write speed limits to RADIUS for newly issued vouchers."
             error={form.formState.errors.rate_limit?.message}
           >
-            <Input placeholder="5M/10M" className="font-mono" {...form.register('rate_limit')} />
+            <Input
+              placeholder="5M/10M"
+              readOnly={chooseProfile && !!profileId}
+              className="font-mono"
+              {...form.register('rate_limit')}
+            />
           </FormField>
           <FormField
             label="Data cap"

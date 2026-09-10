@@ -322,3 +322,8 @@ Phase 2 of the screenshot-led roadmap is implemented: tenant/platform overviews 
 ### Screenshot dashboard phase 3 - 8 September 2026
 
 Completed router fleet/detail/operations presentation, setup/status filters and authoritative router allowance handling. See DASHBOARD_REDESIGN_ROADMAP.md for implementation and validation evidence. Next is phase 4, the MikroTik smart-script wizard and its backend inventory/configuration contract.
+
+
+### Screenshot dashboard phase 4 progress - 8 September 2026
+
+Added a backend-persisted Hotspot configuration review workflow and three-step frontend workspace. Phase 4 is not complete: executable scripts, automatic discovery and hardware validation remain pending. Continue this phase using PHASE_4_IMPLEMENTATION.md and DASHBOARD_REDESIGN_ROADMAP.md; do not move to phase 5 yet.

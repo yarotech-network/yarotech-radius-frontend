@@ -36,7 +36,10 @@ const SelectTenantPage = lazyRoute(lazy(() => import('@/features/auth/pages/Sele
 const NoAccessPage = lazyRoute(lazy(() => import('@/features/auth/pages/NoAccessPage')));
 
 const DashboardPage = lazyRoute(lazy(() => import('@/features/dashboard/pages/DashboardPage')));
+const CustomersPage = lazyRoute(lazy(() => import('@/features/customers/CustomersPage')));
 const SessionsPage = lazyRoute(lazy(() => import('@/features/sessions/pages/SessionsPage')));
+const BandwidthPage = lazyRoute(lazy(() => import('@/features/plans/pages/BandwidthPage')));
+const PPPoEPlansPage = lazyRoute(lazy(() => import('@/features/plans/pages/PPPoEPlansPage')));
 const PlansPage = lazyRoute(lazy(() => import('@/features/plans/pages/PlansPage')));
 const VouchersPage = lazyRoute(lazy(() => import('@/features/vouchers/pages/VouchersPage')));
 const GenerateVouchersPage = lazyRoute(
@@ -117,6 +120,14 @@ const devRoutes: RouteObject[] = import.meta.env.DEV
 const workspaceRoutes: RouteObject[] = [
   { path: 'dashboard', Component: DashboardPage },
   {
+    element: <RequireCapability capability="pppoe.view" />,
+    children: [{ path: 'plans/pppoe', Component: PPPoEPlansPage }],
+  },
+  {
+    element: <RequireCapability capability="customers.view" />,
+    children: [{ path: 'customers', Component: CustomersPage }],
+  },
+  {
     element: <RequireCapability capability="settings.profile" />,
     children: [{ path: 'storefront', Component: StorefrontManagementPage }],
   },
@@ -126,7 +137,10 @@ const workspaceRoutes: RouteObject[] = [
   },
   {
     element: <RequireCapability capability="plans.view" />,
-    children: [{ path: 'plans', Component: PlansPage }],
+    children: [
+      { path: 'plans', Component: PlansPage },
+      { path: 'plans/bandwidth', Component: BandwidthPage },
+    ],
   },
   {
     element: <RequireCapability capability="vouchers.view" />,

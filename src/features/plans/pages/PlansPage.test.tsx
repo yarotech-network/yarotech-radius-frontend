@@ -45,7 +45,7 @@ describe('PlansPage', () => {
       }),
     );
     renderPage(<PlansPage />, { role: 'manager', path: '/plans' });
-    expect(screen.getByRole('heading', { name: 'Plans' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Hotspot Plans' })).toBeInTheDocument();
     // DataTable renders a table (≥md) and a card list (<md); assert inside the table.
     const table = await screen.findByRole('table', { name: 'Internet plans' });
     expect(await within(table).findByText('Daily 1GB')).toBeInTheDocument();

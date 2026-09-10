@@ -29,6 +29,7 @@ import { errorMessage } from '@/services/api/errors';
 import { can } from '@/services/auth/principal';
 import { usePrincipal } from '@/app/auth/useAuth';
 import type { InternetPlan, PlanListParams } from '@/types/api';
+import { ServicePlansNav } from '../components/ServicePlansNav';
 import { PlanDialog } from '../components/PlanDialog';
 import { PlanSummary } from '../components/PlanSummary';
 import { PLANS_DEFAULT_ORDERING, useDeletePlan, usePlans, useUpdatePlan } from '../queries';
@@ -81,6 +82,11 @@ export default function PlansPage() {
             />
           </div>
           <PlanSummary plan={plan} className="mt-1" />
+          <p className="mt-1 text-xs text-ink-500">
+            {plan.bandwidth_profile_name
+              ? `Profile: ${plan.bandwidth_profile_name}`
+              : 'Custom speed'}
+          </p>
         </div>
       ),
     },
@@ -118,7 +124,7 @@ export default function PlansPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Plans"
+        title="Hotspot Plans"
         description="Internet packages your customers buy. Every voucher is generated from a plan."
         actions={
           <div className="flex flex-wrap gap-2">
@@ -141,6 +147,7 @@ export default function PlansPage() {
           </div>
         }
       />
+      <ServicePlansNav />
       <Card className="border-brand-100 bg-gradient-to-br from-brand-50 via-white to-sky-50">
         <div className="flex flex-wrap items-start justify-between gap-5">
           <div className="flex min-w-0 flex-1 gap-4">
@@ -314,6 +321,32 @@ export default function PlansPage() {
         )}
       </section>
 
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Card>
+          <h2 className="font-semibold text-ink-900">Free Hotspot access</h2>
+          <span className="mt-2 inline-block rounded-full bg-surface-muted px-2 py-1 text-xs text-ink-600">
+            Not available
+          </span>
+          <p className="mt-2 text-sm text-ink-500">
+            Free access needs enforced time limits, repeat-visit cooldowns and router support. A
+            zero-price plan is not an automatic free-access policy.
+          </p>
+        </Card>
+        <Card>
+          <h2 className="font-semibold text-ink-900">
+            <Link to="/plans/pppoe" className="hover:underline">
+              PPPoE service plans
+            </Link>
+          </h2>
+          <span className="mt-2 inline-block rounded-full bg-surface-muted px-2 py-1 text-xs text-ink-600">
+            Subscriber services
+          </span>
+          <p className="mt-2 text-sm text-ink-500">
+            Manage fixed subscriber service periods separately from Hotspot vouchers. PAP
+            authentication requires the dedicated FreeRADIUS integration.
+          </p>
+        </Card>
+      </div>
       <PlanDialog
         open={editor.open}
         {...(editor.plan ? { plan: editor.plan } : {})}

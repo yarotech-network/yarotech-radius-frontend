@@ -298,6 +298,8 @@ describe('NewRouterPage', () => {
     await userEvent.click(screen.getByRole('button', { name: /Continue/ }));
     expect(await screen.findByText('Give the router a name')).toBeInTheDocument();
     await userEvent.type(screen.getByLabelText(/^Name/), 'mikrotik-garki-01');
+    await userEvent.type(screen.getByLabelText(/MikroTik model/), 'RB5009UG');
+    await userEvent.type(screen.getByLabelText(/RouterOS version/), '7.20.1');
     await userEvent.type(screen.getByLabelText(/NAS IP address/), '10.100.100.14');
     await userEvent.click(screen.getByRole('button', { name: /Continue/ }));
     await userEvent.type(await screen.findByLabelText(/RADIUS shared secret/), 'sharedsecret123');
@@ -311,6 +313,8 @@ describe('NewRouterPage', () => {
     expect(requests[0]?.key).toMatch(/^[A-Za-z0-9_.:-]{16,128}$/);
     expect(requests[0]?.body).toMatchObject({
       name: 'mikrotik-garki-01',
+      model: 'RB5009UG',
+      routeros_version: '7.20.1',
       ip_address: '10.100.100.14',
       nas_secret: 'sharedsecret123',
       wireguard_port: 51820,

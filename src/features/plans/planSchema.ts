@@ -22,6 +22,7 @@ export const DURATION_PRESETS = [
 ] as const;
 
 export const planFormSchema = z.object({
+  bandwidth_profile: z.number().int().positive().nullable().optional(),
   name: z.string().trim().min(1, 'Give the plan a name').max(LIMITS.planNameMax),
   price: nairaAmountSchema({ minKobo: 0 }),
   duration_hours: positiveIntSchema('Duration'),
@@ -36,6 +37,7 @@ export type PlanFormOutput = z.output<typeof planFormSchema>;
 
 export function planToForm(plan?: InternetPlan): PlanFormInput {
   return {
+    bandwidth_profile: plan?.bandwidth_profile,
     name: plan?.name ?? '',
     price: plan ? koboToNairaInput(plan.price) : '',
     duration_hours: plan?.duration_hours ?? 24,
@@ -48,6 +50,9 @@ export function planToForm(plan?: InternetPlan): PlanFormInput {
 
 export function formToPlan(values: PlanFormOutput): InternetPlanWrite {
   return {
+    ...(values.bandwidth_profile !== undefined
+      ? { bandwidth_profile: values.bandwidth_profile }
+      : {}),
     name: values.name,
     price: values.price,
     duration_hours: values.duration_hours,

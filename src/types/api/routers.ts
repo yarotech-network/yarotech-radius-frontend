@@ -30,6 +30,8 @@ export const ROUTER_TRANSITIONS: Readonly<Record<OnboardingState, readonly Onboa
 
 /** Secrets (`nas_secret`, `routeros_password_encrypted`) are write-only. */
 export interface NasDevice {
+  model?: string;
+  routeros_version?: string;
   id: string;
   name: string;
   ip_address: string;
@@ -49,6 +51,8 @@ export interface NasDevice {
 }
 
 export interface NasDeviceCreate {
+  model?: string;
+  routeros_version?: string;
   name: string;
   ip_address: string;
   nas_secret: string;

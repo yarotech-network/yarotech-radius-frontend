@@ -1,6 +1,6 @@
 import { useForm, type UseFormRegister, type FieldErrors, type Control } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Button } from '@/components/ui';
+import { Button, FormField, Input } from '@/components/ui';
 import { Alert } from '@/components/feedback';
 import { Section } from '@/components/layout';
 import { useFormSubmit } from '@/lib/forms/useFormSubmit';
@@ -17,6 +17,8 @@ import {
 import { RouterBasicsFields, RouterOsUsernameField, RouterWireGuardFields } from './RouterFields';
 
 const FIELDS = [
+  'model',
+  'routeros_version',
   'name',
   'ip_address',
   'location',
@@ -68,6 +70,18 @@ export function RouterEditForm({
       {message && <Alert tone="danger">{message}</Alert>}
       <Section title="Basics">
         <RouterBasicsFields register={register} errors={errors} control={control} />
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          <FormField label="MikroTik model" error={errors.model?.message}>
+            <Input maxLength={80} {...register('model')} />
+          </FormField>
+          <FormField
+            label="RouterOS version"
+            error={errors.routeros_version?.message}
+            hint="Update after verifying the installed version. Existing discovery becomes stale after saving."
+          >
+            <Input maxLength={40} {...register('routeros_version')} />
+          </FormField>
+        </div>
       </Section>
       <Section
         title="WireGuard"

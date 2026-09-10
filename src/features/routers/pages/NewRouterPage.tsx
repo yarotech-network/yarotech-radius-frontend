@@ -4,7 +4,7 @@ import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Check, ChevronLeft, ChevronRight, Radio } from 'lucide-react';
 import { PageHeader } from '@/components/layout';
-import { Button, Card, FormField, PasswordInput } from '@/components/ui';
+import { Button, Card, FormField, Input, PasswordInput } from '@/components/ui';
 import { Alert, useToast } from '@/components/feedback';
 import { useFormSubmit } from '@/lib/forms/useFormSubmit';
 import { newIdempotencyKey } from '@/lib/utilities/idempotency';
@@ -24,6 +24,8 @@ import {
 } from '../components/RouterFields';
 
 const FIELDS = [
+  'model',
+  'routeros_version',
   'name',
   'ip_address',
   'location',
@@ -41,7 +43,7 @@ const STEPS = [
   {
     key: 'basics',
     title: 'Basics',
-    fields: ['name', 'ip_address', 'location', 'is_active'] as const,
+    fields: ['name', 'ip_address', 'location', 'is_active', 'model', 'routeros_version'] as const,
   },
   { key: 'radius', title: 'RADIUS secret', fields: ['nas_secret'] as const },
   {
@@ -64,6 +66,7 @@ export default function NewRouterPage() {
   const create = useCreateRouter();
   const [idempotencyKey] = useState(() => newIdempotencyKey('router'));
   const [step, setStep] = useState(0);
+  const [hotspotSetup, setHotspotSetup] = useState(false);
   const form = useForm<RouterCreateInput, unknown, RouterCreateOutput>({
     resolver: zodResolver(routerCreateSchema),
     defaultValues: CREATE_DEFAULTS,
@@ -82,6 +85,20 @@ export default function NewRouterPage() {
   const last = step === STEPS.length - 1;
 
   async function next() {
+    if (step === 0 && hotspotSetup) {
+      let missing = false;
+      for (const field of ['model', 'routeros_version'] as const) {
+        if (!form.getValues(field)?.trim()) {
+          form.setError(
+            field,
+            { type: 'required', message: 'Required for Hotspot configuration review' },
+            { shouldFocus: !missing },
+          );
+          missing = true;
+        }
+      }
+      if (missing) return;
+    }
     const valid = await form.trigger([...current.fields], { shouldFocus: true });
     if (valid) setStep((s) => Math.min(s + 1, STEPS.length - 1));
   }
@@ -89,13 +106,23 @@ export default function NewRouterPage() {
   const submit = form.handleSubmit(
     async (values) => {
       resetErrors();
+      if (hotspotSetup && (!values.model || !values.routeros_version)) {
+        if (!values.model)
+          form.setError('model', { message: 'Required for Hotspot configuration review' });
+        if (!values.routeros_version)
+          form.setError('routeros_version', {
+            message: 'Required for Hotspot configuration review',
+          });
+        setStep(0);
+        return;
+      }
       try {
         const router = await create.mutateAsync({
           payload: createFormToPayload(values),
           idempotencyKey,
         });
         toast.success('Router registered', `${router.name} is pending review.`);
-        navigate(`/routers/${router.id}`, { replace: true });
+        navigate(`/routers/${router.id}${hotspotSetup ? '?tab=setup' : ''}`, { replace: true });
       } catch (error) {
         captureError(error);
         // Jump to the first step that has an error so the user sees it.
@@ -137,6 +164,21 @@ export default function NewRouterPage() {
           </div>
         </div>
       </Card>
+      <label className="flex items-start gap-3 rounded-xl border border-brand-100 bg-brand-50 p-4 text-sm">
+        <input
+          type="checkbox"
+          checked={hotspotSetup}
+          onChange={(event) => setHotspotSetup(event.target.checked)}
+          className="mt-1"
+        />
+        <span>
+          <strong className="block">Continue to Hotspot configuration review</strong>
+          <span className="mt-1 block text-ink-600">
+            After registration, select actual interfaces and review a saved setup plan. Executable
+            smart scripts require hardware validation.
+          </span>
+        </span>
+      </label>
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -231,7 +273,35 @@ export default function NewRouterPage() {
           </div>
 
           {current.key === 'basics' && (
-            <RouterBasicsFields register={form.register} errors={errors} control={form.control} />
+            <>
+              <RouterBasicsFields register={form.register} errors={errors} control={form.control} />
+              <div className="grid gap-4 sm:grid-cols-2">
+                <FormField
+                  label="MikroTik model"
+                  required={hotspotSetup}
+                  error={errors.model?.message}
+                  hint="Enter the exact model from System Resources."
+                >
+                  <Input
+                    placeholder="Your router model"
+                    maxLength={80}
+                    {...form.register('model')}
+                  />
+                </FormField>
+                <FormField
+                  label="RouterOS version"
+                  required={hotspotSetup}
+                  error={errors.routeros_version?.message}
+                  hint="The installed version; different routers can use different versions."
+                >
+                  <Input
+                    placeholder="For example 7.20.1"
+                    maxLength={40}
+                    {...form.register('routeros_version')}
+                  />
+                </FormField>
+              </div>
+            </>
           )}
           {current.key === 'radius' && (
             <FormField

@@ -92,6 +92,10 @@ export function surfaceOf(principal: Principal): Surface | null {
  * viewset actions. THIS IS NOT A SECURITY BOUNDARY — every request is authorised server-side.
  */
 export type Capability =
+  | 'pppoe.view'
+  | 'pppoe.manage'
+  | 'customers.view'
+  | 'customers.manage'
   | 'dashboard.view'
   | 'plans.view'
   | 'plans.manage'
@@ -124,6 +128,8 @@ export type Capability =
 
 const MEMBER_CAPS: Record<MembershipRole, Set<Capability>> = (() => {
   const staff: Capability[] = [
+    'pppoe.view',
+    'customers.view',
     'dashboard.view',
     'plans.view',
     'vouchers.view',
@@ -138,6 +144,8 @@ const MEMBER_CAPS: Record<MembershipRole, Set<Capability>> = (() => {
   ];
   const manager: Capability[] = [
     ...staff,
+    'pppoe.manage',
+    'customers.manage',
     'plans.manage',
     'vouchers.generate',
     'vouchers.manage',

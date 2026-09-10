@@ -1,6 +1,9 @@
 import type { IsoDateTime, Kobo, PageParams } from './common';
 
 export interface InternetPlan {
+  bandwidth_profile?: number | null;
+  bandwidth_profile_name?: string | null;
+  service_type?: 'hotspot';
   id: number;
   name: string;
   price: Kobo;
@@ -17,6 +20,8 @@ export interface InternetPlan {
 }
 
 export interface InternetPlanWrite {
+  bandwidth_profile?: number | null;
+  service_type?: 'hotspot';
   name: string;
   price: Kobo;
   duration_hours: number;

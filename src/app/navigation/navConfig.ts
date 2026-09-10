@@ -97,10 +97,34 @@ export const WORKSPACE_NAV: NavGroup[] = [
       },
       {
         key: 'plans',
-        label: 'Plans',
+        label: 'Service Plans',
         to: '/plans',
         icon: ListChecks,
         capabilities: ['plans.view'],
+        children: [
+          {
+            key: 'hotspot-plans',
+            label: 'Hotspot Plans',
+            to: '/plans',
+            end: true,
+            icon: ListChecks,
+            capabilities: ['plans.view'],
+          },
+          {
+            key: 'pppoe-plans',
+            label: 'PPPoE Plans',
+            to: '/plans/pppoe',
+            icon: ListChecks,
+            capabilities: ['pppoe.view'],
+          },
+          {
+            key: 'bandwidth',
+            label: 'Bandwidth Control',
+            to: '/plans/bandwidth',
+            icon: Activity,
+            capabilities: ['plans.view'],
+          },
+        ],
       },
     ],
   },
@@ -108,6 +132,13 @@ export const WORKSPACE_NAV: NavGroup[] = [
     key: 'operations',
     label: 'Customers & Operations',
     items: [
+      {
+        key: 'customers',
+        label: 'Customers',
+        to: '/customers',
+        icon: Users,
+        capabilities: ['customers.view'],
+      },
       {
         key: 'sessions',
         label: 'Live sessions',

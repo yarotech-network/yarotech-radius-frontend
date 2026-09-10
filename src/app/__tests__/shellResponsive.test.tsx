@@ -96,7 +96,7 @@ describe('workspace shell', () => {
     mount('/plans');
     await screen.findByRole('heading', { name: 'Plans page' });
     const header = within(screen.getByRole('banner'));
-    expect(header.getByText('Plans')).toBeInTheDocument();
+    expect(header.getByText('Service Plans')).toBeInTheDocument();
     expect(header.getByText('Tenant workspace')).toBeInTheDocument();
     await userEvent.click(header.getByRole('button', { name: 'Account menu' }));
     expect(screen.getByRole('menuitem', { name: 'Profile' })).toBeInTheDocument();
@@ -136,7 +136,8 @@ describe('workspace shell', () => {
       '/storefront',
     );
     expect(within(drawer).getByRole('link', { name: 'Audit log' })).toBeInTheDocument();
-    await userEvent.click(within(drawer).getByRole('link', { name: 'Plans' }));
+    await userEvent.click(within(drawer).getByRole('button', { name: 'Expand Service Plans' }));
+    await userEvent.click(within(drawer).getByRole('link', { name: 'Hotspot Plans' }));
     expect(await screen.findByRole('heading', { name: 'Plans page' })).toBeInTheDocument();
     expect(screen.queryByRole('dialog', { name: 'Navigation' })).not.toBeInTheDocument();
   });

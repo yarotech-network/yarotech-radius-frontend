@@ -27,10 +27,12 @@ import { ChecksPanel } from '../components/ChecksPanel';
 import { VpnPanel } from '../components/VpnPanel';
 import { SecretsPanel } from '../components/SecretsPanel';
 import { RadiusTestPanel } from '../components/RadiusTestPanel';
+import { HotspotSetupPanel } from '../components/HotspotSetupPanel';
 import { HistoryPanel } from '../components/HistoryPanel';
 
-type Tab = 'onboarding' | 'vpn' | 'secrets' | 'test' | 'history';
+type Tab = 'setup' | 'onboarding' | 'vpn' | 'secrets' | 'test' | 'history';
 const TAB_ITEMS: { value: Tab; label: string; capability: Capability | null }[] = [
+  { value: 'setup', label: 'Hotspot setup', capability: 'routers.manage' },
   { value: 'onboarding', label: 'Onboarding', capability: null },
   { value: 'vpn', label: 'VPN & provisioning', capability: null },
   { value: 'secrets', label: 'Secrets', capability: 'routers.manage' },
@@ -202,57 +204,59 @@ function RouterDetail({
         </Alert>
       )}
 
-      <Card className="router-device-overview">
-        <div className="mb-5 flex items-start gap-3">
-          <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-brand-600 text-white">
-            <Radio className="size-5" aria-hidden />
-          </span>
-          <div>
-            <h2 className="text-lg font-semibold text-brand-950">Device overview</h2>
-            <p className="mt-1 text-sm text-ink-600">
-              Setup state, network identity and the latest available observations.
-            </p>
+      {tab !== 'setup' && (
+        <Card className="router-device-overview">
+          <div className="mb-5 flex items-start gap-3">
+            <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-brand-600 text-white">
+              <Radio className="size-5" aria-hidden />
+            </span>
+            <div>
+              <h2 className="text-lg font-semibold text-brand-950">Device overview</h2>
+              <p className="mt-1 text-sm text-ink-600">
+                Setup state, network identity and the latest available observations.
+              </p>
+            </div>
           </div>
-        </div>
-        <DescriptionList
-          columns={3}
-          items={[
-            { label: 'NAS IP', value: router.ip_address, mono: true },
-            { label: 'VPN IP', value: router.wireguard_ip || 'Not configured', mono: true },
-            { label: 'Location', value: router.location || 'Not provided' },
-            { label: 'Onboarding', value: ONBOARDING_LABELS[router.onboarding_state] },
-            {
-              label: 'Reachability',
-              value: !canDiagnose ? (
-                <span className="text-ink-400">—</span>
-              ) : health.isPending ? (
-                <Skeleton className="h-4 w-32" />
-              ) : health.isError ? (
-                <span className="text-ink-400">Unknown</span>
-              ) : health.data.telemetry_available && health.data.online !== null ? (
-                <StatusBadge status={health.data.online ? 'online' : 'offline'} />
-              ) : (
-                <span className="text-ink-500">Telemetry not available</span>
-              ),
-            },
-            {
-              label: 'Last seen',
-              value: router.last_seen_at ? (
-                <time dateTime={router.last_seen_at} title={formatDateTime(router.last_seen_at)}>
-                  {formatRelative(router.last_seen_at)}
-                </time>
-              ) : (
-                <span className="text-ink-400">No observation recorded</span>
-              ),
-            },
-            ...(canDiagnose && health.data
-              ? [{ label: 'Health observed', value: formatDateTime(health.data.observed_at) }]
-              : []),
-            { label: 'Registered', value: formatDateTime(router.created_at) },
-            { label: 'Updated', value: formatDateTime(router.updated_at) },
-          ]}
-        />
-      </Card>
+          <DescriptionList
+            columns={3}
+            items={[
+              { label: 'NAS IP', value: router.ip_address, mono: true },
+              { label: 'VPN IP', value: router.wireguard_ip || 'Not configured', mono: true },
+              { label: 'Location', value: router.location || 'Not provided' },
+              { label: 'Onboarding', value: ONBOARDING_LABELS[router.onboarding_state] },
+              {
+                label: 'Reachability',
+                value: !canDiagnose ? (
+                  <span className="text-ink-400">—</span>
+                ) : health.isPending ? (
+                  <Skeleton className="h-4 w-32" />
+                ) : health.isError ? (
+                  <span className="text-ink-400">Unknown</span>
+                ) : health.data.telemetry_available && health.data.online !== null ? (
+                  <StatusBadge status={health.data.online ? 'online' : 'offline'} />
+                ) : (
+                  <span className="text-ink-500">Telemetry not available</span>
+                ),
+              },
+              {
+                label: 'Last seen',
+                value: router.last_seen_at ? (
+                  <time dateTime={router.last_seen_at} title={formatDateTime(router.last_seen_at)}>
+                    {formatRelative(router.last_seen_at)}
+                  </time>
+                ) : (
+                  <span className="text-ink-400">No observation recorded</span>
+                ),
+              },
+              ...(canDiagnose && health.data
+                ? [{ label: 'Health observed', value: formatDateTime(health.data.observed_at) }]
+                : []),
+              { label: 'Registered', value: formatDateTime(router.created_at) },
+              { label: 'Updated', value: formatDateTime(router.updated_at) },
+            ]}
+          />
+        </Card>
+      )}
 
       <div className="router-section-heading">
         <h2>Device workspace</h2>
@@ -268,6 +272,7 @@ function RouterDetail({
         />
       </div>
       <Card className="router-section-content">
+        {tab === 'setup' && <HotspotSetupPanel router={router} />}
         {tab === 'onboarding' && (
           <div className="flex flex-col gap-8">
             <OnboardingPanel router={router} canManage={canManage} />

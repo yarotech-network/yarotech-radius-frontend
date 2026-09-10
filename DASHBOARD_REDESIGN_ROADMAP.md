@@ -1,6 +1,6 @@
 # Dashboard redesign and feature roadmap
 
-Date: 8 September 2026. Status: phases 1-3 implemented and locally verified; phases 4-12 not started.
+Updated: 9 September 2026. Status: phases 1-3 implemented and locally verified; phase 4 remains deferred with hardware/bootstrap/migration gates open; phase 5 core plans and bandwidth implemented and locally verified, with free-access and live-router gates pending; phase 6A customer directory and phase 6B PAP application lifecycle implemented and locally verified; live integration and phases 6C-12 pending. See PHASE_6_IMPLEMENTATION.md and PHASE_5_IMPLEMENTATION.md for current delivery and rollout evidence.
 
 This is the active sequence for the new screenshot-led dashboard request. Preserve the completed work and validation history in DASHBOARD_ENHANCEMENT_PLAN.md. Its previously next Subscription step is incorporated into phase 9 here. Public pages and registration remain outside this dashboard redesign.
 
@@ -204,7 +204,7 @@ These do not block phase 1. Before phase 4, establish target RouterOS versions/m
 
 ## Progress ledger
 
-Planning: complete. Phases 1-3: implemented and locally verified on 8 September 2026. Phases 4-12: not started. Earlier implementations remain available and will be improved incrementally. Next action: phase 4 MikroTik smart-script wizard, beginning with the supported inventory and configuration contract.
+Planning: complete. Phases 1-3: implemented and locally verified on 8 September 2026. Phase 4 remains incomplete; retain its detailed delivery history below. The user explicitly authorized moving to Phase 5 while deferring real-router testing, overriding the earlier sequencing restriction. Phase 5 core plans and bandwidth is implemented and locally verified; free-access enforcement and live-router verification remain open. Phase 6A customer directory is implemented and locally verified; Phase 6B PAP application lifecycle is implemented and locally verified; actual FreeRADIUS/router enforcement remains unverified. Next action: Phase 6C service-aware sessions and bounded PPPoE migration, as recorded in PHASE_6_IMPLEMENTATION.md. See PHASE_5_IMPLEMENTATION.md for validation, deployment order and remaining gates; do not interpret this delivery as completion of Phase 4 or all Phase 5 acceptance criteria.
 
 ### Phase 1 delivery record
 
@@ -260,3 +260,25 @@ Validation:
 - Confirmed the backend health response still returns online=null and telemetry_available=false. No fabricated online/offline, CPU, RAM or Winbox values were introduced. Smart-script generation and migration execution remain phase 4.
 - Validation: 17 focused router tests passed, including access restrictions, state transitions, provisioning/secrets conflicts, RADIUS failures, allowance limits/unavailability and filter preservation. Lint and TypeScript/production build passed; existing third-party Zod annotation warnings remain.
 - Chromium with isolated API fixtures: router list, details and operations passed 1440/1024/768/390/320px overflow checks (15 combinations) with no JavaScript errors. Reviewed desktop fleet and mobile details screenshots. This does not verify live router hardware or production provisioning.
+
+
+### Phase 4 progress - 8 September 2026 (not complete)
+
+Implemented the review portion across frontend and backend:
+- Optional continuation from /routers/new to the manager-only Hotspot setup tab at /routers/:id?tab=setup. Existing registration remains compatible. Three screens cover identity/services, configuration review and verification.
+- Explicit operator-confirmed Ethernet/wireless/VLAN/bond/custom interface names and roles. No ports are preselected. The current review contract requires separate WAN and management interfaces; more complex/shared-uplink topologies are not yet supported.
+- POST/GET /api/v1/routers/:id/hotspot-setup/ and POST hotspot-setup/revoke/ preserve tenant scope and manager authorization. Bounded inputs reject unknown fields, unsafe names, conflicting bridges, unsupported services, stale versions and active provisioning. Requests are throttled.
+- Immutable review records reuse RouterAuditEvent; no schema migration. Identical current submissions reuse the latest valid record under a router lock. Reviews expire after one hour, can be revoked and become stale after router changes. Responses use no-store. This is a review lifecycle, not bootstrap credential expiry.
+- The candidate artifact begins with an unconditional error and all candidate commands are comments. Copy/download produces a non-executable .txt review without credentials. Previously downloaded files cannot be recalled. No router changes or credential issuance occur.
+- Existing-mode review preserves bridge memberships but does not constitute a full migration. Live hardware verification of inventory discovery, complete network configuration/diff, executable generation, bootstrap security, repeat/partial-execution recovery and fresh/migration lab validation remain outstanding. No validated hardware targets are advertised.
+- Verification displays fresh connection/authentication/accounting checks, but cannot mark a draft deployed or ready.
+
+Validation details and continuing implementation plan: PHASE_4_IMPLEMENTATION.md. Phase 4 remains open until the execution and hardware acceptance criteria above pass.
+
+
+Phase 4 clarification: the ISP user supplies the MikroTik model and RouterOS version for each router at creation. These values are now persisted and carried into setup; no single global model/OS is required from the product owner. Supported execution must later be resolved per target and installed capabilities, with an explicit unsupported/unverified state. See PHASE_4_IMPLEMENTATION.md for migration and validation details.
+
+
+Phase 4 discovery progress: read-only HTTPS inventory collection, tenant-manager discovery action, expiring snapshots, protected WAN/management validation and explicit UI adoption are implemented. Model/OS declarations remain per router and are editable. All 52 backend router tests, 26 frontend tests, scoped lint, build and bundle gates passed; fixture responsive checks covered five widths. Real hardware was not exercised. Executable generation, bootstrap/recovery and hardware acceptance remain outstanding. See PHASE_4_IMPLEMENTATION.md and backend docs/ROUTER_DISCOVERY.md.
+
+Phase 4 laboratory generator progress: fresh-install stage/activate/cleanup exports are implemented with per-router discovery binding and manager-only access. Real RouterOS execution is unverified, and production readiness remains false. Local checks passed: 60 backend router tests, 31 frontend tests, lint/build/bundle gates and five browser widths including downloads. See HOTSPOT_LAB_TEST_GUIDE.md. Secure credential bootstrap, existing-network migration and hardware acceptance remain outstanding.

@@ -22,7 +22,7 @@ export function PlanDialog({
       title={plan ? `Edit ${plan.name}` : 'New plan'}
       description={
         plan
-          ? 'Changes apply to vouchers generated from now on.'
+          ? 'Existing vouchers remain linked to this plan. Their saved bandwidth stays unchanged; review other changes carefully.'
           : 'Plans define what a voucher gives the customer.'
       }
     >

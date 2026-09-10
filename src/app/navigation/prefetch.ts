@@ -20,8 +20,11 @@ const routeChunks: Record<string, () => Promise<unknown>> = {
   /* workspace */
   '/dashboard': () => import('@/features/dashboard/pages/DashboardPage'),
   '/storefront': () => import('@/features/storefront/pages/StorefrontManagementPage'),
+  '/customers': () => import('@/features/customers/CustomersPage'),
   '/sessions': () => import('@/features/sessions/pages/SessionsPage'),
   '/plans': () => import('@/features/plans/pages/PlansPage'),
+  '/plans/pppoe': () => import('@/features/plans/pages/PPPoEPlansPage'),
+  '/plans/bandwidth': () => import('@/features/plans/pages/BandwidthPage'),
   '/vouchers': () => import('@/features/vouchers/pages/VouchersPage'),
   '/payments': () => import('@/features/payments/pages/PaymentsPage'),
   '/agents': () => import('@/features/agents/pages/AgentsPage'),

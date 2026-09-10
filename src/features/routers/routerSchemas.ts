@@ -11,6 +11,27 @@ const secretSchema = z
   .refine((v) => !v.startsWith('enc:v1:'), 'Enter the plain secret, not stored ciphertext');
 
 const baseShape = {
+  model: optional(
+    z
+      .string()
+      .trim()
+      .regex(/^[A-Za-z0-9][A-Za-z0-9 +_.-]{0,79}$/, 'Enter the model as shown on the router'),
+  )
+    .optional()
+    .default(''),
+  routeros_version: optional(
+    z
+      .string()
+      .trim()
+      .max(40)
+      .regex(
+        /^[0-9]+\.[0-9]+(?:\.[0-9]+)?(?:[a-zA-Z0-9.-]*)?$/,
+        'Enter an exact RouterOS version, for example 7.20.1',
+      ),
+  )
+    .optional()
+    .default(''),
+
   name: z.string().trim().min(1, 'Give the router a name').max(100, 'At most 100 characters'),
   ip_address: ipv4Schema,
   location: z.string().trim().max(200, 'At most 200 characters'),
@@ -35,6 +56,8 @@ export type RouterEditOutput = z.output<typeof routerEditSchema>;
 
 export const CREATE_DEFAULTS: RouterCreateInput = {
   name: '',
+  model: '',
+  routeros_version: '',
   ip_address: '',
   location: '',
   wireguard_ip: '',
@@ -49,6 +72,8 @@ export const CREATE_DEFAULTS: RouterCreateInput = {
 export function routerToEditForm(router: NasDevice): RouterEditInput {
   return {
     name: router.name,
+    model: router.model ?? '',
+    routeros_version: router.routeros_version ?? '',
     ip_address: router.ip_address,
     location: router.location,
     wireguard_ip: router.wireguard_ip ?? '',
@@ -62,6 +87,8 @@ export function routerToEditForm(router: NasDevice): RouterEditInput {
 export function createFormToPayload(v: RouterCreateOutput): NasDeviceCreate {
   return {
     name: v.name,
+    ...(v.model ? { model: v.model } : {}),
+    ...(v.routeros_version ? { routeros_version: v.routeros_version } : {}),
     ip_address: v.ip_address,
     nas_secret: v.nas_secret,
     location: v.location,
@@ -77,6 +104,9 @@ export function createFormToPayload(v: RouterCreateOutput): NasDeviceCreate {
 /** Only send fields that changed (PATCH); the API rejects secrets on this endpoint anyway. */
 export function editFormToPatch(v: RouterEditOutput, router: NasDevice): NasDeviceUpdate {
   const patch: NasDeviceUpdate = {};
+  if (v.model !== (router.model ?? '')) patch.model = v.model;
+  if (v.routeros_version !== (router.routeros_version ?? ''))
+    patch.routeros_version = v.routeros_version;
   if (v.name !== router.name) patch.name = v.name;
   if (v.ip_address !== router.ip_address) patch.ip_address = v.ip_address;
   if (v.location !== router.location) patch.location = v.location;
