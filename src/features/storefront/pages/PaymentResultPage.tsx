@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { CheckCircle2, Clock, RefreshCw, XCircle } from 'lucide-react';
-import { Button, ButtonLink, CopyButton } from '@/components/ui';
+import { Button, ButtonLink } from '@/components/ui';
 import { Alert, EmptyState, ErrorState } from '@/components/feedback';
 import { cn } from '@/lib/utilities/cn';
 import { errorMessage, isApiError } from '@/services/api/errors';
-import { usePaymentResult, useVerifyPaymentResult } from '../queries';
+import { paymentFulfilled, usePaymentResult, useVerifyPaymentResult } from '../queries';
 import { pendingCheckout } from '../pendingCheckout';
 import { AccessCodePanel } from '../components/AccessCodePanel';
 
@@ -14,7 +14,7 @@ import { AccessCodePanel } from '../components/AccessCodePanel';
  * Falls back to the locally remembered checkout when the reference is missing.
  *
  * On success the backend returns the voucher's access code only while the voucher is unused; once
- * the customer has logged in, the page shows the username alone and points at the email copy.
+ * the customer has logged in, the page shows fulfillment status without repeating credentials.
  */
 export default function PaymentResultPage() {
   const [params] = useSearchParams();
@@ -29,7 +29,7 @@ export default function PaymentResultPage() {
   const { mutate: verify } = verification;
   const attempted = useRef<string | null>(null);
   useEffect(() => {
-    if (reference && result.data && (result.data.status === 'pending' || (result.data.status === 'success' && !result.data.voucher)) && attempted.current !== reference) {
+    if (reference && result.data && (result.data.status === 'pending' || (result.data.status === 'success' && !paymentFulfilled(result.data))) && attempted.current !== reference) {
       attempted.current = reference;
       verify(reference);
     }
@@ -39,7 +39,7 @@ export default function PaymentResultPage() {
     document.title = 'Payment result · Yarotech RADIUS';
   }, []);
   useEffect(() => {
-    if (result.data && ((result.data.status === 'success' && result.data.voucher) || ['failed', 'abandoned'].includes(result.data.status))) pendingCheckout.clear();
+    if (result.data && ((result.data.status === 'success' && paymentFulfilled(result.data)) || ['failed', 'abandoned'].includes(result.data.status))) pendingCheckout.clear();
   }, [result.data]);
 
   if (!reference) {
@@ -88,31 +88,21 @@ export default function PaymentResultPage() {
               <CheckCircle2 className="size-6" aria-hidden />
               <h2 className="text-lg font-semibold">Payment successful</h2>
             </div>
-            {result.data.access_code ? (
+            {result.data.code_revealed === true && result.data.access_code ? (
               <AccessCodePanel
                 code={result.data.access_code}
                 tenantName={result.data.tenant_name}
                 plan={result.data.plan ?? null}
                 emailMasked={result.data.customer_email_masked}
               />
-            ) : result.data.voucher ? (
+            ) : paymentFulfilled(result.data) ? (
               <>
                 <p className="mt-3 text-sm text-ink-700">
-                  This access code has already been used to log in, so it is no longer shown here.
-                  Your Wi-Fi username:
-                </p>
-                <p className="mt-1 flex items-center gap-2">
-                  <code className="rounded bg-white px-3 py-2 font-mono text-xl font-semibold tracking-wide text-ink-900">
-                    {result.data.voucher}
-                  </code>
-                  <CopyButton value={result.data.voucher} label="Copy username" />
+                  Your voucher has been issued. Its credentials are not shown on this page.
                 </p>
                 <p className="mt-3 text-sm text-ink-600">
-                  {result.data.customer_email_masked
-                    ? `The full access code was emailed to ${result.data.customer_email_masked}. `
-                    : ''}
-                  If you did not log in yourself, contact{' '}
-                  {result.data.tenant_name ?? 'the business'} with this reference.
+                  Check your purchase email, or contact{' '}
+                  {result.data.tenant_name ?? 'the business'} with this reference for help.
                 </p>
               </>
             ) : (
@@ -167,10 +157,10 @@ export default function PaymentResultPage() {
           </section>
         )}
       </div>
-      {result.data?.status === 'success' && !result.data.voucher && (
+      {result.data?.status === 'success' && !paymentFulfilled(result.data) && (
         <Button className="mt-4" variant="secondary" onClick={() => verify(reference)} loading={verification.isPending}>Check again</Button>
       )}
-      {verification.isError && result.data && !result.data.voucher && (
+      {verification.isError && result.data && !paymentFulfilled(result.data) && (
         <Alert tone="warning" className="mt-4">{errorMessage(verification.error)}</Alert>
       )}
       <div className="mt-6 flex flex-wrap gap-3">

@@ -163,9 +163,21 @@ describe('checkout', () => {
 });
 
 describe('payment result', () => {
-  it('polls while pending and then shows the access code with connection steps', async () => {
+  it('verifies a pending payment and then shows the access code with connection steps', async () => {
     let calls = 0;
+    let verificationCalls = 0;
     server.use(
+      http.post(`${API}/payments/verify/`, () => {
+        verificationCalls += 1;
+        return HttpResponse.json(verificationCalls === 1
+          ? { status: 'pending', reference: 'yarotech-abc', voucher: null, fulfilled: false }
+          : {
+            status: 'success', reference: 'yarotech-abc', fulfilled: true,
+            voucher: 'WH84QRKP', access_code: 'WH84QRKP', code_revealed: true,
+            plan: { name: 'Daily 1GB', duration_hours: 24, data_limit: 1024 },
+            tenant_name: 'Wuse Hotspot', customer_email_masked: 'a\u2022\u2022\u2022@example.com',
+          });
+      }),
       http.get(`${API}/payments/callback/`, ({ request }) => {
         const ref = new URL(request.url).searchParams.get('reference');
         calls += 1;
@@ -189,6 +201,8 @@ describe('payment result', () => {
     const user = userEvent.setup();
     renderStore('/pay/result?reference=yarotech-abc');
     expect(await screen.findByText('Waiting for confirmation')).toBeInTheDocument();
+    await waitFor(() => expect(verificationCalls).toBe(1));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Check again' })).toBeEnabled());
     await user.click(screen.getByRole('button', { name: 'Check again' }));
     expect(await screen.findByText('Payment successful')).toBeInTheDocument();
     expect(screen.getByRole('status', { name: 'Access code' })).toHaveTextContent('WH84QRKP');
@@ -205,14 +219,17 @@ describe('payment result', () => {
     await waitFor(() => expect(pendingCheckout.load()).toBeNull());
   });
 
-  it('shows only the username once the backend stops revealing the code', async () => {
+  it.each([null, 'WH84QRKP'])('hides fulfilled credentials including legacy voucher value %s', async (voucher) => {
+    const verify = vi.fn(() => HttpResponse.json({}));
     server.use(
+      http.post(`${API}/payments/verify/`, verify),
       http.get(`${API}/payments/callback/`, ({ request }) =>
         HttpResponse.json({
           status: 'success',
           reference: new URL(request.url).searchParams.get('reference'),
-          voucher: 'WH84QRKP',
-          access_code: null,
+          voucher,
+          fulfilled: true,
+          access_code: 'WH84QRKP',
           code_revealed: false,
           plan: { name: 'Daily 1GB', duration_hours: 24, data_limit: 1024 },
           tenant_name: 'Wuse Hotspot',
@@ -220,16 +237,38 @@ describe('payment result', () => {
         }),
       ),
     );
+    pendingCheckout.save({ kind: 'voucher', reference: 'yarotech-used', slug: 'wuse-hotspot' });
     renderStore('/pay/result?reference=yarotech-used');
     expect(await screen.findByText('Payment successful')).toBeInTheDocument();
-    expect(screen.getByText('WH84QRKP')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Copy username' })).toBeInTheDocument();
+    expect(screen.queryByText('WH84QRKP')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Copy username' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Check again' })).not.toBeInTheDocument();
+    expect(screen.getByText(/Your voucher has been issued/)).toBeInTheDocument();
+    await waitFor(() => expect(pendingCheckout.load()).toBeNull());
+    expect(verify).not.toHaveBeenCalled();
     expect(screen.queryByRole('status', { name: 'Access code' })).not.toBeInTheDocument();
-    expect(screen.getByText(/already been used to log in/)).toBeInTheDocument();
-    expect(screen.getByText(/emailed to a•••@example.com/)).toBeInTheDocument();
   });
 
-  it('keeps working against the pre-change callback shape (username only)', async () => {
+  it('recovers an unfulfilled payment and settles without exposing credentials', async () => {
+    const verify = vi.fn(() => HttpResponse.json({
+      status: 'success', reference: 'recover-order', fulfilled: true,
+      voucher: null, access_code: null, code_revealed: false,
+    }));
+    server.use(
+      http.get(`${API}/payments/callback/`, () => HttpResponse.json({
+        status: 'success', reference: 'recover-order', fulfilled: false, voucher: null,
+      })),
+      http.post(`${API}/payments/verify/`, verify),
+    );
+    pendingCheckout.save({ kind: 'voucher', reference: 'recover-order' });
+    renderStore('/pay/result?reference=recover-order');
+    expect(await screen.findByText(/Your voucher has been issued/)).toBeInTheDocument();
+    expect(verify).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('button', { name: 'Check again' })).not.toBeInTheDocument();
+    await waitFor(() => expect(pendingCheckout.load()).toBeNull());
+  });
+
+  it('handles an older callback without displaying its username', async () => {
     server.use(
       http.get(`${API}/payments/callback/`, ({ request }) =>
         HttpResponse.json({
@@ -241,7 +280,7 @@ describe('payment result', () => {
     );
     renderStore('/pay/result?reference=yarotech-legacy');
     expect(await screen.findByText('Payment successful')).toBeInTheDocument();
-    expect(screen.getByText('legacyuser')).toBeInTheDocument();
+    expect(screen.queryByText('legacyuser')).not.toBeInTheDocument();
     expect(screen.getByText(/contact the business with this reference/)).toBeInTheDocument();
   });
 

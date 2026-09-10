@@ -60,6 +60,7 @@ export interface PaymentCallbackPlan {
  * shared or logged reference stops being a usable credential after the first login.
  */
 export interface PaymentCallbackResponse {
+  fulfilled?: boolean;
   payment_verified?: boolean;
   status: PaymentStatus;
   reference: string;

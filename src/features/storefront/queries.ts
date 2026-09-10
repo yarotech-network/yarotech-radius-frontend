@@ -1,5 +1,5 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { PublicBuyRequest } from '@/types/api';
+import type { PaymentCallbackResponse, PublicBuyRequest } from '@/types/api';
 import { storefrontApi, type PublicPlanParams } from './api';
 
 export const storefrontKeys = {
@@ -10,6 +10,11 @@ export const storefrontKeys = {
   result: (reference: string) => [...storefrontKeys.all, 'result', reference] as const,
   pricing: () => [...storefrontKeys.all, 'pricing'] as const,
 };
+
+/** Older servers signal fulfillment through voucher; never render that legacy value. */
+export function paymentFulfilled(result: PaymentCallbackResponse) {
+  return result.fulfilled ?? Boolean(result.voucher);
+}
 
 export function usePublicTenant(slug: string | null) {
   return useQuery({
@@ -44,7 +49,7 @@ export function usePaymentResult(reference: string | null) {
     enabled: Boolean(reference),
     refetchInterval: (query) => {
       const result = query.state.data;
-      return result && (result.status === 'pending' || (result.status === 'success' && !result.voucher)) ? 5_000 : false;
+      return result && (result.status === 'pending' || (result.status === 'success' && !paymentFulfilled(result))) ? 5_000 : false;
     },
   });
 }
