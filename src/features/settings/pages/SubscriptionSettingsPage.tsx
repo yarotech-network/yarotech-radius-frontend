@@ -232,7 +232,7 @@ function CurrentPlan({ subscription }: { subscription: TenantSubscription }) {
       />
       {subscription.entitlements && (
         <div className="rounded-xl border border-border p-4">
-          <h3 className="font-semibold text-brand-950">Your purchased allowances</h3>
+          <h3 className="font-semibold text-brand-950">{subscription.is_trial ? 'Your trial allowances' : 'Your purchased allowances'}</h3>
           <PlanLimits plan={subscription.entitlements.terms} />
           <p className="mt-3 text-sm text-ink-600">
             {subscription.entitlements.routers_used} routers registered.{' '}

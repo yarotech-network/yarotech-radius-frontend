@@ -328,6 +328,30 @@ describe('TeamSettingsPage', () => {
 });
 
 describe('SubscriptionSettingsPage', () => {
+  it('shows the new tenant trial and its actual allowances', async () => {
+    const started = new Date();
+    const expires = new Date(started.getTime() + 15 * 24 * 60 * 60 * 1000);
+    server.use(
+      http.get(`${API}/subscriptions/`, () => HttpResponse.json({
+        id: 7, tenant: 5, plan: 9, plan_name: '15-day trial', status: 'trial',
+        is_trial: true, is_expired: false, started_at: started.toISOString(), expires_at: expires.toISOString(),
+        entitlements: {
+          plan_id: 9, enabled: true, routers_used: 0, vouchers_prepared_today: 0,
+          day: started.toISOString().slice(0, 10), timezone: 'Africa/Lagos', upcoming: [],
+          terms: { name: '15-day trial', price: 0, duration_days: 15, max_routers: 1,
+            daily_voucher_print_limit: 50, whatsapp_enabled: false, version: 1 },
+        },
+      })),
+      http.get(`${API}/pricing/`, () => HttpResponse.json(paginated([]))),
+    );
+    renderPage(<SubscriptionSettingsPage />, { path: '/settings/subscription', role: 'owner' });
+    expect(await screen.findByText('15-day trial')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Your trial allowances' })).toBeInTheDocument();
+    expect(screen.getByText('1 registered routers')).toBeInTheDocument();
+    expect(screen.getByText('50 vouchers prepared for printing per day')).toBeInTheDocument();
+    expect(screen.getByText('WhatsApp not included')).toBeInTheDocument();
+  });
+
   it('treats 404 as "no subscription", lists plans and handles a 503 checkout by tracking the reference', async () => {
     const posts: Record<string, unknown>[] = [];
     const paymentPolls: string[] = [];
