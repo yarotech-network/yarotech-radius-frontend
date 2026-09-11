@@ -151,9 +151,9 @@ describe('workspace shell', () => {
     expect(sidebar.getByRole('link', { name: 'All Routers' })).toHaveAttribute('href', '/routers');
     expect(sidebar.queryByRole('link', { name: 'Add Router' })).not.toBeInTheDocument();
     expect(sidebar.queryByRole('link', { name: 'Operations' })).not.toBeInTheDocument();
-    expect(sidebar.getByRole('link', { name: 'Team' })).toHaveAttribute('href', '/settings/team');
-    expect(sidebar.getByRole('link', { name: 'Billing & Subscription' })).toBeInTheDocument();
-    expect(sidebar.queryByRole('link', { name: 'Settings' })).not.toBeInTheDocument();
+    expect(sidebar.queryByRole('link', { name: 'Team' })).not.toBeInTheDocument();
+    expect(sidebar.queryByRole('link', { name: 'Billing & Subscription' })).not.toBeInTheDocument();
+    expect(sidebar.getByRole('link', { name: 'Settings' })).toBeInTheDocument();
   });
 
   it('allows an owner to open and close nested router navigation', async () => {
@@ -187,18 +187,15 @@ describe('workspace shell', () => {
     expect(sidebar.getByRole('link', { name: 'Operations' })).toBeInTheDocument();
   });
 
-  it('keeps subscription selected without opening the settings branch', async () => {
+  it('keeps subscription accessible through the settings branch', async () => {
     server.use(mswHttp.get(`${API}/auth/user/`, () => HttpResponse.json(makeUser('owner'))));
     mount('/settings/subscription');
     await screen.findByRole('heading', { name: 'Subscription page' });
     const sidebar = within(screen.getByRole('complementary'));
-    expect(sidebar.getByRole('link', { name: 'Billing & Subscription' })).toHaveAttribute(
-      'aria-current',
-      'page',
-    );
-    expect(sidebar.getByRole('button', { name: 'Expand Settings' })).toHaveAttribute(
+    expect(sidebar.queryByRole('link', { name: 'Billing & Subscription' })).not.toBeInTheDocument();
+    expect(sidebar.getByRole('button', { name: 'Collapse Settings' })).toHaveAttribute(
       'aria-expanded',
-      'false',
+      'true',
     );
   });
 

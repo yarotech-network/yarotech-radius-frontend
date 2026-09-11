@@ -50,7 +50,7 @@ export const WORKSPACE_NAV: NavGroup[] = [
     items: [
       {
         key: 'dashboard',
-        label: 'Overview',
+        label: 'Dashboard',
         to: '/dashboard',
         icon: LayoutDashboard,
         end: true,
@@ -214,13 +214,6 @@ export const WORKSPACE_NAV: NavGroup[] = [
         icon: Activity,
         capabilities: ['payments.recovery.view'],
       },
-      {
-        key: 'subscription',
-        label: 'Billing & Subscription',
-        to: '/settings/subscription',
-        icon: BadgeDollarSign,
-        capabilities: ['subscription.view'],
-      },
     ],
   },
   {
@@ -228,19 +221,12 @@ export const WORKSPACE_NAV: NavGroup[] = [
     label: 'System',
     items: [
       {
-        key: 'team',
-        label: 'Team',
-        to: '/settings/team',
-        icon: Users,
-        capabilities: ['team.view'],
-      },
-      {
         key: 'settings',
         label: 'Settings',
         to: '/settings',
-        end: true,
+        end: false,
         icon: Settings,
-        capabilities: ['settings.profile', 'settings.billing'],
+        capabilities: ['settings.profile', 'settings.billing', 'subscription.view'],
         children: [
           {
             key: 'general',
@@ -275,7 +261,7 @@ export const PLATFORM_NAV: NavGroup[] = [
     items: [
       {
         key: 'overview',
-        label: 'Overview',
+        label: 'Dashboard',
         to: '/platform',
         icon: LayoutDashboard,
         end: true,

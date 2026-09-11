@@ -1,4 +1,4 @@
-﻿.dashboard-shell {
+.dashboard-shell {
   --color-canvas: #fff;
   --color-surface-muted: #f7f9fc;
   --radius-card: 1rem;
@@ -15,16 +15,16 @@
   flex: 1;
   min-height: 0;
   flex-direction: column;
-  gap: 1.75rem;
+  gap: 1.35rem;
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-width: thin;
-  scrollbar-color: #dce4ee transparent;
-  padding: 1.5rem 0.75rem;
+  scrollbar-color: #344966 transparent;
+  padding: 1.25rem 0.75rem;
 }
 .sidebar-group-label {
   padding: 0 0.75rem 0.65rem;
-  color: #677a94;
+  color: #97acc8;
   font-size: 0.625rem;
   font-weight: 600;
   letter-spacing: 0.15em;
@@ -35,16 +35,16 @@
   align-items: center;
   border: 1px solid transparent;
   border-radius: 0.8rem;
-  color: #526782;
+  color: #bccce1;
   transition: background-color 150ms;
 }
 .sidebar-row:hover {
-  background: #edf2f9;
+  background: #ffffff0b;
 }
 .sidebar-row-active {
-  background: #eaf2ff;
-  border-color: #c9ddff;
-  color: #1d4ed8;
+  background: #203c63;
+  border-color: #365782;
+  color: #bcdcff;
 }
 .sidebar-link {
   display: flex;
@@ -54,7 +54,7 @@
   min-height: 44px;
   gap: 0.75rem;
   padding: 0.6rem 0.75rem;
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   font-weight: 550;
   border-radius: 0.75rem;
 }
@@ -77,39 +77,39 @@
   cursor: pointer;
 }
 .sidebar-expand:hover {
-  background: #dceaff;
+  background: #ffffff12;
 }
 .sidebar-children {
   margin: 0.45rem 0 0.25rem 2.3rem;
   padding-left: 0.35rem;
-  border-left: 1px solid #dce4ee;
+  border-left: 1px solid #344966;
 }
 .sidebar-child {
   display: block;
   border-radius: 0.65rem;
   padding: 0.7rem 0.7rem;
   margin: 0.2rem 0;
-  color: #526782;
-  font-size: 0.7rem;
+  color: #bccce1;
+  font-size: 0.75rem;
   line-height: 1.4;
 }
 .sidebar-child:hover {
-  background: #edf2f9;
+  background: #ffffff0b;
 }
 .sidebar-child-active {
   color: white;
-  background: #2563eb;
+  background: #285bc0;
   font-weight: 600;
-  box-shadow: 0 3px 7px #2563eb20;
+  box-shadow: 0 3px 7px #285bc020;
 }
 .sidebar-child-active:hover {
-  background: #1d4ed8;
+  background: #bcdcff;
 }
 .sidebar-account {
   flex-shrink: 0;
-  border-top: 1px solid #e3e8ef;
+  border-top: 1px solid #ffffff12;
   padding: 1rem 0.8rem;
-  background: #fafbfd;
+  background: #0b1729;
 }
 .sidebar-identity {
   display: flex;
@@ -124,11 +124,11 @@
   height: 40px;
   flex-shrink: 0;
   place-items: center;
-  background: #eaf2ff;
-  color: #1d4ed8;
-  border: 1px solid #c9ddff;
+  background: #203c63;
+  color: #bcdcff;
+  border: 1px solid #365782;
   border-radius: 0.75rem;
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   font-weight: 600;
 }
 .sidebar-account-details {
@@ -138,44 +138,44 @@
   gap: 2px;
 }
 .sidebar-account-name {
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   font-weight: 600;
-  color: #0f172a;
+  color: #edf4ff;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .sidebar-account-role {
   font-size: 0.6rem;
-  color: #1d4ed8;
+  color: #bcdcff;
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }
 .sidebar-account-email {
   font-size: 0.625rem;
-  color: #526782;
+  color: #bccce1;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .sidebar-signout {
   display: flex;
-  min-height: 40px;
+  min-height: 44px;
   width: 100%;
   margin-top: 0.9rem;
   justify-content: center;
   align-items: center;
   gap: 0.6rem;
-  border: 1px solid #e3e8ef;
+  border: 1px solid #ffffff12;
   border-radius: 0.75rem;
-  color: #526782;
-  font-size: 0.7rem;
-  box-shadow: 0 2px 3px #0f172a05;
+  color: #bccce1;
+  font-size: 0.75rem;
+  box-shadow: 0 2px 3px #edf4ff05;
   cursor: pointer;
 }
 .sidebar-signout:hover {
-  color: #1d4ed8;
-  background: #eff6ff;
+  color: #bcdcff;
+  background: #1c3555;
 }
 .sidebar-collapse {
   position: absolute;
@@ -185,13 +185,13 @@
   place-items: center;
   width: 30px;
   height: 30px;
-  border: 1px solid #c9ddff;
+  border: 1px solid #365782;
   border-radius: 50%;
-  color: #1d4ed8;
-  background: #fff;
+  color: #bcdcff;
+  background: #18304e;
   box-shadow:
-    0 0 0 4px #eff6ff,
-    0 3px 9px #0f172a10;
+    0 0 0 4px #1c3555,
+    0 3px 9px #edf4ff10;
   cursor: pointer;
 }
 .sidebar-account-collapsed .sidebar-identity {
@@ -217,13 +217,13 @@
   line-height: 1.65;
 }
 @media (min-width: 48rem) and (max-width: 63.999rem) {
-  .dashboard-sidebar .sidebar-expand,
-  .dashboard-sidebar .sidebar-children,
-  .dashboard-sidebar .sidebar-account-details,
-  .dashboard-sidebar .sidebar-signout-label {
+  .dashboard-sidebar:not(.sidebar-drawer) .sidebar-expand,
+  .dashboard-sidebar:not(.sidebar-drawer) .sidebar-children,
+  .dashboard-sidebar:not(.sidebar-drawer) .sidebar-account-details,
+  .dashboard-sidebar:not(.sidebar-drawer) .sidebar-signout-label {
     display: none;
   }
-  .dashboard-sidebar .sidebar-identity {
+  .dashboard-sidebar:not(.sidebar-drawer) .sidebar-identity {
     justify-content: center;
   }
 }
@@ -827,4 +827,152 @@
   line-height: 1.8;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+}
+
+/* Deep navy navigation; scoped to both shared dashboard navigation surfaces. */
+.dashboard-sidebar {
+  background: linear-gradient(165deg, #10233e, #0b1729 55%, #0d1b2e);
+  color: #bccce1;
+  border-color: #23344d;
+  box-shadow: 6px 0 24px #0b172908;
+}
+.dashboard-sidebar > div:first-child {
+  border-color: #ffffff10;
+}
+.dashboard-sidebar :is(a, button):focus-visible {
+  outline-color: #93c5fd;
+}
+.dashboard-sidebar .sidebar-workspace {
+  margin-top: 1rem;
+  background: #ffffff05;
+  border-color: #ffffff12;
+  color: #edf4ff;
+}
+.sidebar-workspace > span {
+  background: #263e5e;
+  color: #a8ceff;
+}
+.sidebar-workspace p:first-child {
+  color: #99aecb;
+}
+.sidebar-row {
+  position: relative;
+}
+.sidebar-row:hover {
+  color: #fff;
+}
+.sidebar-row-active {
+  color: #fff;
+  background: linear-gradient(100deg, #213f6c, #182e50);
+}
+.sidebar-row-active::before {
+  content: '';
+  position: absolute;
+  left: -1px;
+  top: 12px;
+  bottom: 12px;
+  width: 3px;
+  border-radius: 3px;
+  background: #8cc4ff;
+}
+.sidebar-link {
+  min-height: 46px;
+}
+.sidebar-link svg {
+  color: #8fb5df;
+}
+.sidebar-row-active .sidebar-link svg {
+  color: #bcddff;
+}
+.sidebar-children {
+  margin-left: 1.35rem;
+  padding-left: 0.9rem;
+}
+.sidebar-child {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+}
+.sidebar-child-active:hover {
+  background: #326bd8;
+}
+.sidebar-account {
+  padding: 0.85rem 0.75rem;
+}
+.sidebar-identity {
+  padding: 0.75rem;
+  border: 1px solid #ffffff0c;
+  border-radius: 0.85rem;
+  background: #ffffff05;
+}
+a.sidebar-identity:hover {
+  background: #ffffff0b;
+}
+.sidebar-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+}
+.sidebar-account-role {
+  text-transform: capitalize;
+  font-size: 0.625rem;
+}
+.sidebar-account-email {
+  font-size: 0.6875rem;
+}
+.sidebar-signout {
+  justify-content: flex-start;
+  padding-inline: 0.85rem;
+  margin-top: 0.5rem;
+  color: #ffb6ba;
+  border-color: transparent;
+  box-shadow: none;
+}
+.sidebar-signout:hover {
+  color: #ffd9dc;
+  background: #fb718510;
+  border-color: #fb718525;
+}
+.sidebar-collapse {
+  box-shadow: 0 3px 9px #0b172930;
+  border-radius: 9px;
+}
+.sidebar-account-collapsed .sidebar-identity {
+  padding: 0.35rem 0;
+  border-color: transparent;
+  background: transparent;
+}
+.sidebar-account-collapsed .sidebar-signout {
+  justify-content: center;
+  padding-inline: 0;
+}
+.dashboard-sidebar .sidebar-drawer-close {
+  color: #c4d2e7;
+}
+.dashboard-sidebar .sidebar-drawer-close:hover {
+  background: #ffffff10;
+}
+@media (min-width: 48rem) and (max-width: 63.999rem) {
+  .dashboard-sidebar:not(.sidebar-drawer) .sidebar-link {
+    justify-content: center;
+    padding-inline: 0;
+  }
+  .dashboard-sidebar:not(.sidebar-drawer) .sidebar-link-label,
+  .dashboard-sidebar:not(.sidebar-drawer) .sidebar-group-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  .dashboard-sidebar:not(.sidebar-drawer) .sidebar-identity {
+    padding: 0.35rem 0;
+    background: transparent;
+    border-color: transparent;
+  }
+  .dashboard-sidebar:not(.sidebar-drawer) .sidebar-signout {
+    justify-content: center;
+    padding-inline: 0;
+  }
 }

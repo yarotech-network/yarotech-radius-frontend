@@ -188,12 +188,12 @@ export function AppShell({
         >
           <Link to={homePath} className="rounded focus-visible:outline-brand-600" aria-label="Home">
             {/* Full wordmark only when the sidebar is expanded on desktop; the rail shows the icon. */}
-            <BrandMark hideText className={cn(!collapsed && 'lg:hidden')} />
-            {!collapsed && <BrandMark className="hidden lg:inline-flex" />}
+            <BrandMark inverse hideText className={cn(!collapsed && 'lg:hidden')} />
+            {!collapsed && <BrandMark inverse className="hidden lg:inline-flex" />}
           </Link>
         </div>
-        {!collapsed && (
-          <div className="mx-3 mt-5 mb-2 hidden items-center gap-3 rounded-xl border border-border bg-white p-3 lg:flex">
+        {!collapsed && accent !== 'platform' && homePath !== '/dashboard' && (
+          <div className="sidebar-workspace mx-3 mt-5 mb-2 hidden items-center gap-3 rounded-xl border border-border bg-white p-3 lg:flex">
             <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-600">
               <WorkspaceIcon className="size-5" aria-hidden />
             </span>
@@ -376,29 +376,34 @@ export function AppShell({
           />
           <div
             ref={drawerPanelRef}
-            className="absolute inset-y-0 left-0 flex w-[86vw] max-w-xs flex-col bg-surface-muted text-ink-700 shadow-2xl"
+            className="dashboard-sidebar sidebar-drawer absolute inset-y-0 left-0 flex w-[86vw] max-w-xs flex-col bg-surface-muted text-ink-700 shadow-2xl"
           >
             <div className="flex h-20 shrink-0 items-center justify-between border-b border-border px-4">
-              <BrandMark />
+              <BrandMark inverse />
               <Button
                 ref={drawerCloseRef}
                 variant="ghost"
                 size="icon"
                 aria-label="Close"
                 onClick={() => closeDrawer(true)}
-                className="text-ink-700 hover:bg-brand-50"
+                className="sidebar-drawer-close text-ink-700 hover:bg-brand-50"
               >
                 <X className="size-5" />
               </Button>
             </div>
-            <div className="mx-3 mt-4 rounded-xl border border-border bg-white p-3">
-              <p className="text-[10px] font-semibold tracking-wider text-ink-500 uppercase">
-                {workspaceLabel}
-              </p>
-              <p className="mt-1 truncate text-sm font-medium">{workspaceName}</p>
-              {sidebarBadge && <div className="mt-2">{sidebarBadge}</div>}
-              {principal?.kind === 'platform_staff' && <div className="mt-2">{topBarStart}</div>}
-            </div>
+            {accent !== 'platform' && homePath !== '/dashboard' && (
+              <div className="sidebar-workspace mx-3 mt-4 rounded-xl border border-border bg-white p-3">
+                <p className="text-[10px] font-semibold tracking-wider text-ink-500 uppercase">
+                  {workspaceLabel}
+                </p>
+                <p className="mt-1 truncate text-sm font-medium">{workspaceName}</p>
+                {sidebarBadge && <div className="mt-2">{sidebarBadge}</div>}
+                {principal?.kind === 'platform_staff' && <div className="mt-2">{topBarStart}</div>}
+              </div>
+            )}
+            {homePath === '/dashboard' && principal?.kind === 'platform_staff' && topBarStart && (
+              <div className="mx-3 mt-4 rounded-xl bg-white p-3 text-ink-700">{topBarStart}</div>
+            )}
             <SidebarNav
               groups={visible}
               collapsed={false}

@@ -7,7 +7,6 @@ import { can, canAny, type Capability } from '@/services/auth/principal';
 const TABS: { to: string; label: string; caps: Capability[] }[] = [
   { to: '/settings/general', label: 'General', caps: ['settings.profile', 'team.view'] },
   { to: '/settings/billing', label: 'Billing & payouts', caps: ['settings.billing'] },
-  { to: '/settings/team', label: 'Team', caps: ['team.view'] },
   { to: '/settings/subscription', label: 'Subscription', caps: ['subscription.view'] },
 ];
 
@@ -22,8 +21,8 @@ export default function SettingsLayout() {
         title="Settings"
         description={
           canEditProfile
-            ? 'Your business details, payment configuration, team and subscription.'
-            : 'Your account, team and subscription.'
+            ? 'Your business details, payment configuration and subscription.'
+            : 'Your account and subscription.'
         }
       />
       <nav
