@@ -109,7 +109,7 @@ function Catalogue({
         <EmptyState
           icon={<Wifi className="size-6" aria-hidden />}
           title="No plans available right now"
-          description="This business has not published any internet plans yet. Please check back later."
+          description="New purchases are temporarily unavailable. Existing vouchers can still be used. Please check back later."
         />
       ) : (
         <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

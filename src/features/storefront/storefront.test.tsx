@@ -349,9 +349,52 @@ describe('pricing', () => {
     expect(await screen.findByRole('heading', { name: 'Starter' })).toBeInTheDocument();
     expect(screen.getByText('₦15,000.00')).toBeInTheDocument();
     expect(screen.getByText('1 router')).toBeInTheDocument();
-    expect(screen.getByText('1 registered routers')).toBeInTheDocument();
+    expect(screen.getByText('1 active routers')).toBeInTheDocument();
     expect(screen.getByText('WhatsApp not included')).toBeInTheDocument();
     expect(screen.getByText('75 vouchers prepared for printing per day')).toBeInTheDocument();
     expect(screen.queryByText('Legacy')).not.toBeInTheDocument();
   });
+});
+
+it('shows the device total and remembers the authoritative reserved price', async () => {
+  mockStore();
+  let posted: Record<string, unknown> | null = null;
+  server.use(
+    http.get(`${API}/public/tenants/wuse-hotspot/plans/`, () => HttpResponse.json(paginated([{...plans[0], max_devices:10}]))),
+    http.post(`${API}/buy/`, async ({request}) => {
+      posted = await request.json() as Record<string, unknown>;
+      return HttpResponse.json({authorization_url:'https://checkout.paystack.com/devices', reference:'device-order', amount:180000, device_limit:3});
+    }),
+  );
+  const assign = vi.fn();
+  vi.spyOn(window, 'location', 'get').mockReturnValue({...window.location, assign} as unknown as Location);
+  renderStore('/s/wuse-hotspot/checkout/1');
+  await userEvent.selectOptions(await screen.findByLabelText('Devices per voucher'), '3');
+  expect(screen.getByText(/1,500/)).toBeInTheDocument();
+  await userEvent.type(screen.getByLabelText(/Email address/), 'buyer@example.com');
+  await userEvent.click(screen.getByRole('button', {name:/Pay with Paystack/}));
+  await waitFor(()=>expect(assign).toHaveBeenCalled());
+  expect(posted).toMatchObject({plan_id:1, device_limit:3});
+  expect(pendingCheckout.load()).toMatchObject({amount:180000, deviceLimit:3});
+});
+
+it('uses a new request key when the selected device count changes after rejection', async () => {
+  mockStore();
+  const keys: (string | null)[] = [];
+  server.use(
+    http.get(`${API}/public/tenants/wuse-hotspot/plans/`, () => HttpResponse.json(paginated([{...plans[0], max_devices:10}]))),
+    http.post(`${API}/buy/`, ({request}) => {
+      keys.push(request.headers.get('Idempotency-Key'));
+      return HttpResponse.json({device_limit:['Try another device count.']}, {status:400});
+    }),
+  );
+  renderStore('/s/wuse-hotspot/checkout/1');
+  await userEvent.selectOptions(await screen.findByLabelText('Devices per voucher'), '2');
+  await userEvent.type(screen.getByLabelText(/Email address/), 'buyer@example.com');
+  await userEvent.click(screen.getByRole('button', {name:/Pay with Paystack/}));
+  await screen.findByText('Try another device count.');
+  await userEvent.selectOptions(screen.getByLabelText('Devices per voucher'), '3');
+  await userEvent.click(screen.getByRole('button', {name:/Pay with Paystack/}));
+  await waitFor(()=>expect(keys).toHaveLength(2));
+  expect(keys[0]).not.toBe(keys[1]);
 });

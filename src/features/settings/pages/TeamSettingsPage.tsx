@@ -1,3 +1,4 @@
+import { MembershipStatusControl } from '@/features/settings/components/MembershipStatusControl';
 import { useEffect, useMemo, useState } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -91,6 +92,11 @@ export default function TeamSettingsPage() {
   }
 
   const columns: Column<TenantMembership>[] = [
+    {
+      key: 'status',
+      header: 'Access',
+      cell: (m) => <MembershipStatusControl member={m} disabled={!canManage || query.isFetching} />,
+    },
     {
       key: 'user',
       header: 'Member',

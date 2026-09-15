@@ -9,7 +9,7 @@ import type {
   AgentFundingPayment,
   AgentProfile,
   AgentVoucherAllocation,
-  PublicPlan,
+  AgentPlan,
 } from '@/types/api';
 import AgentHomePage from './pages/AgentHomePage';
 import AgentSellPage from './pages/AgentSellPage';
@@ -33,11 +33,12 @@ const profile: AgentProfile = {
   wallet_balance: 250000,
   created_at: '2026-09-01T07:27:11Z',
 };
-const plans: PublicPlan[] = [
+const plans: AgentPlan[] = [
   {
     id: 1,
     name: 'Daily 1GB',
     price: 50000,
+    agent_cost: 45000, commission_amount: 5000, commission_rate: "10.00",
     duration_hours: 24,
     rate_limit: '5M/10M',
     data_limit: 1024,
@@ -46,6 +47,7 @@ const plans: PublicPlan[] = [
     id: 3,
     name: 'Monthly 20GB',
     price: 800000,
+    agent_cost: 720000, commission_amount: 80000, commission_rate: "10.00",
     duration_hours: 720,
     rate_limit: '20M/50M',
     data_limit: 20480,
@@ -65,6 +67,7 @@ const allocation = (extra: Partial<AgentVoucherAllocation> = {}): AgentVoucherAl
 
 function mockAgent(balance = 250000) {
   server.use(
+    http.get(`${API}/agent/wallet/policy/`, () => HttpResponse.json({ minimum: 50000, maximum: 1000000, fee_percent: '0.00', flat_fee: 0, currency: 'NGN' })),
     http.get(`${API}/agents/me/`, () => HttpResponse.json({ ...profile, wallet_balance: balance })),
     http.get(`${API}/agent/dashboard/`, () =>
       HttpResponse.json({
@@ -77,6 +80,7 @@ function mockAgent(balance = 250000) {
     http.get(`${API}/agent/wallet/balance/`, () =>
       HttpResponse.json({ id: 1, agent: 1, balance, updated_at: '2026-09-06T10:00:00Z' }),
     ),
+    http.get(`${API}/agent/wallet/transactions/`, () => HttpResponse.json(paginated([]))),
     http.get(`${API}/agent/wallet/payments/`, () => HttpResponse.json(paginated([]))),
     http.get(`${API}/agent/vouchers/history/`, () =>
       HttpResponse.json(
@@ -86,7 +90,7 @@ function mockAgent(balance = 250000) {
     http.get(`${API}/public/tenants/wuse-hotspot/`, () =>
       HttpResponse.json({ id: 5, slug: 'wuse-hotspot', name: 'Wuse Hotspot' }),
     ),
-    http.get(`${API}/public/tenants/wuse-hotspot/plans/`, () =>
+    http.get(`${API}/agent/plans/`, () =>
       HttpResponse.json(paginated(plans)),
     ),
     http.get(`${API}/public/tenants/:slug/`, () =>
@@ -97,6 +101,7 @@ function mockAgent(balance = 250000) {
 
 beforeEach(() => {
   localStorage.clear();
+  sessionStorage.clear();
 });
 afterEach(() => {
   vi.restoreAllMocks();
@@ -131,7 +136,7 @@ describe('store slug helpers', () => {
 });
 
 describe('agent home', () => {
-  it('shows balance, sales counters, recent sales and hides the (never computed) commission card', async () => {
+  it('shows balance, sales counters, recent sales and the retained margin', async () => {
     mockAgent();
     storeSlugStore.write('wuse-hotspot');
     renderPage(<AgentHomePage />, { role: 'agent', path: '/agent' });
@@ -139,7 +144,7 @@ describe('agent home', () => {
     expect(await screen.findByText('₦2,500.00')).toBeInTheDocument();
     expect(screen.getByText('Sold today')).toBeInTheDocument();
     expect(screen.getByText('12')).toBeInTheDocument();
-    expect(screen.queryByText('Commission this month')).not.toBeInTheDocument();
+    expect(screen.getByText('Retail margin this month')).toBeInTheDocument();
     expect(await screen.findByText('WH84OQ0oKp')).toBeInTheDocument();
     expect(screen.queryByRole('form', { name: 'Connect storefront' })).not.toBeInTheDocument();
   });
@@ -164,7 +169,60 @@ describe('agent home', () => {
 });
 
 describe('agent sell', () => {
-  it('sells from the public catalogue, previews the wallet charge and shows the access codes', async () => {
+  it('retains the original sale key across an uncertain response and a page remount', async () => {
+    mockAgent();
+    const keys: (string | null)[] = [];
+    server.use(http.post(`${API}/agent/vouchers/generate/`, ({ request }) => {
+      keys.push(request.headers.get('Idempotency-Key'));
+      return keys.length === 1
+        ? HttpResponse.json({ error: 'Sale result unavailable' }, { status: 503 })
+        : HttpResponse.json({ vouchers: [allocation({ amount_charged: 45000, commission_earned: 5000 })] }, { status: 201 });
+    }));
+    const user = userEvent.setup();
+    const first = renderPage(<AgentSellPage />, { role: 'agent', path: '/agent/sell' });
+    await user.click(await screen.findByRole('radio', { name: 'Daily 1GB' }));
+    await user.click(screen.getByRole('button', { name: 'Sell voucher' }));
+    expect(await screen.findByText('Sale result unavailable')).toBeInTheDocument();
+    first.unmount();
+    mockAgent(0);
+    renderPage(<AgentSellPage />, { role: 'agent', path: '/agent/sell' });
+    expect(await screen.findByText(/This sale has not been confirmed/)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Sell voucher' }));
+    expect(await screen.findByRole('heading', { name: '1 voucher sold' })).toBeInTheDocument();
+    expect(keys).toHaveLength(2);
+    expect(keys[0]).toBe(keys[1]);
+    expect(screen.getByText('Retail margin retained: ₦50.00.')).toBeInTheDocument();
+  });
+
+  it('blocks changed quantities while an earlier sale is unresolved', async () => {
+    mockAgent();
+    let calls = 0;
+    server.use(http.post(`${API}/agent/vouchers/generate/`, () => {
+      calls++;
+      return HttpResponse.json({ error: 'Awaiting confirmation' }, { status: 503 });
+    }));
+    const user = userEvent.setup();
+    renderPage(<AgentSellPage />, { role: 'agent', path: '/agent/sell' });
+    await user.click(await screen.findByRole('radio', { name: 'Daily 1GB' }));
+    await user.click(screen.getByRole('button', { name: 'Sell voucher' }));
+    expect(await screen.findByText('Awaiting confirmation')).toBeInTheDocument();
+    await user.clear(screen.getByLabelText(/how many/i));
+    await user.type(screen.getByLabelText(/how many/i), '2');
+    await user.click(screen.getByRole('button', { name: 'Sell 2 vouchers' }));
+    expect(await screen.findByText(/Retry the original sale before changing/)).toBeInTheDocument();
+    expect(calls).toBe(1);
+  });
+
+  it('permits a sale when the balance covers discounted cost but not retail', async () => {
+    mockAgent(45000);
+    const user = userEvent.setup();
+    renderPage(<AgentSellPage />, { role: 'agent', path: '/agent/sell' });
+    await user.click(await screen.findByRole('radio', { name: 'Daily 1GB' }));
+    expect(screen.getByRole('button', { name: 'Sell voucher' })).toBeEnabled();
+    expect(screen.getByText(/Your margin: ₦50.00/)).toBeInTheDocument();
+  });
+
+  it('sells from the agent catalogue without a storefront link, previews the wallet charge and shows the access codes', async () => {
     mockAgent();
     storeSlugStore.write('wuse-hotspot');
     let received: { body: unknown; key: string | null } | null = null;
@@ -184,13 +242,13 @@ describe('agent sell', () => {
     );
     const user = userEvent.setup();
     renderPage(<AgentSellPage />, { role: 'agent', path: '/agent/sell' });
-    expect(await screen.findByText('Wuse Hotspot')).toBeInTheDocument();
+    expect(await screen.findByText("Your operator's enabled plans")).toBeInTheDocument();
     const sell = screen.getByRole('button', { name: 'Sell voucher' });
     expect(sell).toBeDisabled();
     await user.click(await screen.findByRole('radio', { name: 'Daily 1GB' }));
     await user.clear(screen.getByLabelText(/how many/i));
     await user.type(screen.getByLabelText(/how many/i), '2');
-    expect(screen.getByText('₦1,000.00')).toBeInTheDocument();
+    expect(screen.getByText('₦900.00')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Sell 2 vouchers' }));
     expect(await screen.findByRole('heading', { name: '2 vouchers sold' })).toBeInTheDocument();
     expect(received!.body).toEqual({ plan_id: 1, quantity: 2 });
@@ -223,7 +281,7 @@ describe('agent sell', () => {
     const user = userEvent.setup();
     renderPage(<AgentSellPage />, { role: 'agent', path: '/agent/sell' });
     await user.click(await screen.findByRole('radio', { name: 'Monthly 20GB' }));
-    expect(await screen.findByText(/Exceeds your balance by ₦7,400.00/)).toBeInTheDocument();
+    expect(await screen.findByText(/Exceeds your balance by ₦6,600.00/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Sell voucher' })).toBeDisabled();
   });
 
@@ -261,10 +319,68 @@ describe('agent sell', () => {
     expect(await screen.findByText(/Plan not found or inactive/)).toBeInTheDocument();
   });
 
-  it('asks for the storefront first when none is connected', async () => {
+  it('loads enabled agent plans without a connected storefront', async () => {
     mockAgent();
     renderPage(<AgentSellPage />, { role: 'agent', path: '/agent/sell' });
-    expect(await screen.findByRole('form', { name: 'Connect storefront' })).toBeInTheDocument();
+    expect(await screen.findByRole('radio', { name: 'Daily 1GB' })).toBeInTheDocument();
+    expect(screen.queryByRole('form', { name: 'Connect storefront' })).not.toBeInTheDocument();
+  });
+});
+
+describe('wallet movements', () => {
+  it('shows configured funding fees separately and submits the displayed total', async () => {
+    mockAgent();
+    let payload: unknown;
+    server.use(
+      http.get(`${API}/agent/wallet/policy/`, () => HttpResponse.json({ minimum: 50000, maximum: 1000000, fee_percent: '1.50', flat_fee: 1000, currency: 'NGN' })),
+      http.post(`${API}/agent/wallet/fund/`, async ({ request }) => {
+        payload = await request.json();
+        return HttpResponse.json({ error: 'Quote requires refresh' }, { status: 400 });
+      }),
+    );
+    const user = userEvent.setup();
+    renderPage(<AgentWalletPage />, { role: 'agent', path: '/agent/wallet/*', route: '/agent/wallet?fund=1' });
+    const dialog = await screen.findByRole('dialog', { name: 'Fund wallet' });
+    await user.type(within(dialog).getByLabelText(/^Amount/), '500');
+    expect(await within(dialog).findByText(/Wallet credit: ₦500.00. Funding fee: ₦17.50. Total: ₦517.50/)).toBeInTheDocument();
+    await user.click(within(dialog).getByRole('button', { name: 'Pay ₦517.50' }));
+    expect(await screen.findByText('Quote requires refresh')).toBeInTheDocument();
+    expect(payload).toEqual({ amount: 50000, expected_total: 51750 });
+  });
+
+  it('keeps the known funding reference when provider verification is unavailable', async () => {
+    mockAgent();
+    server.use(
+      http.get(`${API}/agent/wallet/payments/`, () => HttpResponse.json(paginated([{
+        id: 99, reference: 'keep-reference', amount: 50000, status: 'pending',
+        created_at: '2026-09-15T10:00:00Z', completed_at: null,
+      }]))),
+      http.post(`${API}/agent/wallet/verify/`, () => HttpResponse.json({ detail: 'Verification unavailable; retry this reference.' }, { status: 503 })),
+    );
+    const user = userEvent.setup();
+    renderPage(<AgentWalletPage />, { role: 'agent', path: '/agent/wallet/*', route: '/agent/wallet?reference=keep-reference' });
+    await user.click(await screen.findByRole('button', { name: 'Check now' }));
+    expect(await screen.findByText('Verification unavailable; retry this reference.')).toBeInTheDocument();
+    expect(screen.getByText('Waiting for Paystack to confirm your top-up')).toBeInTheDocument();
+  });
+
+  it('displays debit history and loads the next page', async () => {
+    mockAgent();
+    server.use(http.get(`${API}/agent/wallet/transactions/`, ({ request }) => {
+      const page = Number(new URL(request.url).searchParams.get('page'));
+      return HttpResponse.json({ ...paginated([{
+        id: page, reference: `movement-${page}`, category: page === 1 ? 'voucher_sale' : 'funding',
+        amount: 12300, previous_balance: 20000, new_balance: page === 1 ? 7700 : 32300,
+        created_at: '2026-09-15T10:00:00Z',
+      }]), count: 21, total_pages: 2, current_page: page });
+    }));
+    const user = userEvent.setup();
+    renderPage(<AgentWalletPage />, { role: 'agent', path: '/agent/wallet' });
+    expect((await screen.findAllByText('Voucher sale')).length).toBeGreaterThan(0);
+    expect(screen.getAllByText('-₦123.00').length).toBeGreaterThan(0);
+    await user.click(screen.getByRole('button', { name: 'Next page' }));
+    expect((await screen.findAllByText('Wallet funding')).length).toBeGreaterThan(0);
+    expect(screen.getAllByText('+₦123.00').length).toBeGreaterThan(0);
   });
 });
 
@@ -324,7 +440,7 @@ describe('agent wallet', () => {
     expect(within(dialog).getByRole('button', { name: 'Pay ₦2,000.00' })).toBeInTheDocument();
     await user.click(within(dialog).getByRole('button', { name: 'Pay ₦2,000.00' }));
     await waitFor(() => expect(assign).toHaveBeenCalledWith('https://checkout.paystack.com/fund'));
-    expect(received!.body).toEqual({ amount: 200000 });
+    expect(received!.body).toEqual({ amount: 200000, expected_total: 200000 });
     expect(received!.key).toMatch(/^fund-/);
     expect(pendingCheckout.load()).toMatchObject({ kind: 'wallet', reference: 'agent-fund-new' });
     // the tracker for the new reference appears and resolves via ?reference= lookup
@@ -362,6 +478,12 @@ describe('agent wallet', () => {
     mockAgent();
     let calls = 0;
     server.use(
+      http.post(`${API}/agent/wallet/verify/`, async ({ request }) => {
+        const body = await request.json() as { reference: string };
+        expect(body.reference).toBe('agent-fund-back');
+        calls = 2;
+        return HttpResponse.json(funding({ reference: body.reference, status: 'success', completed_at: '2026-09-06T10:10:00Z' }));
+      }),
       http.get(`${API}/agent/wallet/payments/`, ({ request }) => {
         const ref = new URL(request.url).searchParams.get('reference');
         if (!ref) return HttpResponse.json(paginated([]));

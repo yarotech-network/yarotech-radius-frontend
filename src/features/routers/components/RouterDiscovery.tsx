@@ -21,6 +21,14 @@ export type RouterInventory = {
   state: 'current' | 'stale' | 'changed';
   observed_at: string;
   source: 'routeros_https';
+  connection_mode?: 'wireguard' | 'local_lan';
+  management_ip?: string;
+  preparation?: {
+    management_interface: string;
+    wan_interface: string;
+    steps: string[];
+    ports: { name: string; bridge: string; protected_reasons: string[]; state: string }[];
+  };
   version: string;
   model: string;
   routeros_version: string;
@@ -46,11 +54,15 @@ export function RouterDiscovery({
   disabled?: boolean;
 }) {
   const client = useQueryClient();
+  const [connectionMode, setConnectionMode] = useState<'wireguard' | 'local_lan'>(
+    data.discovery?.connection_mode ?? (data.local_lan_available ? 'local_lan' : 'wireguard'),
+  );
   const [confirm, setConfirm] = useState(false);
   const discover = useMutation({
     mutationFn: () =>
       http.post<HotspotSetupResult>(`/routers/${router.id}/hotspot-setup/discover/`, {
         expected_updated_at: router.updated_at,
+        ...(connectionMode === 'local_lan' ? { connection_mode: connectionMode } : {}),
       }),
     onSuccess: (result) => {
       client.setQueryData(['routers', 'hotspot-setup', router.id], result);
@@ -58,7 +70,10 @@ export function RouterDiscovery({
     },
   });
   const inventory = data.discovery;
-  const unavailable = router.deployment_status !== 'deployed' || !router.wireguard_ip;
+  const unavailable =
+    connectionMode === 'local_lan'
+      ? !data.local_lan_available
+      : router.deployment_status !== 'deployed' || !router.wireguard_ip;
   const canAdopt = inventory?.state === 'current' && inventory.interfaces.length <= 64;
   return (
     <section
@@ -72,8 +87,8 @@ export function RouterDiscovery({
             Discover this router
           </h3>
           <p className="mt-1 text-sm text-ink-600">
-            Read its model, OS, interfaces and Hotspot configuration through the management VPN.
-            Discovery makes no router changes.
+            Read its model, OS, interfaces and Hotspot configuration through the selected
+            connection. Discovery makes no router changes.
           </p>
         </div>
         <Button
@@ -85,7 +100,33 @@ export function RouterDiscovery({
           {discover.isPending ? 'Discovering...' : 'Discover router'}
         </Button>
       </div>
-      {unavailable && (
+      <label className="setup-field">
+        Discovery connection
+        <select
+          value={connectionMode}
+          disabled={disabled || discover.isPending}
+          onChange={(event) => {
+            setConnectionMode(event.target.value as 'wireguard' | 'local_lan');
+            discover.reset();
+          }}
+        >
+          <option value="wireguard">WireGuard VPN</option>
+          <option value="local_lan">Local LAN laboratory</option>
+        </select>
+      </label>
+      {connectionMode === 'local_lan' && (
+        <p className="text-sm text-ink-600">
+          Uses the registered LAN address with verified HTTPS and saved RouterOS credentials. The
+          server operator must approve this exact router and its protected ports. No WireGuard
+          deployment is created or marked successful.
+        </p>
+      )}
+      {unavailable && connectionMode === 'local_lan' && (
+        <Alert tone="warning">
+          Local LAN access has not been approved for this router on the backend.
+        </Alert>
+      )}
+      {unavailable && connectionMode === 'wireguard' && (
         <p className="text-sm text-ink-600">
           First provision the management VPN in VPN &amp; provisioning. Discovery also needs saved
           RouterOS credentials, HTTPS access and a trusted router certificate.
@@ -98,6 +139,34 @@ export function RouterDiscovery({
       )}
       {inventory ? (
         <>
+          <p className="text-sm font-medium">
+            Inventory connection:{' '}
+            {inventory.connection_mode === 'local_lan' ? 'Local LAN' : 'WireGuard VPN'}
+            {inventory.management_ip ? ` (${inventory.management_ip})` : ''}
+          </p>
+          {inventory.preparation && (
+            <section
+              className="space-y-3 rounded-lg border p-3"
+              aria-label="Local LAN port preparation review"
+            >
+              <h4 className="font-semibold">Review customer-port preparation</h4>
+              <p className="text-sm">
+                This checklist makes no router changes. Protected ports cannot be selected as
+                customers.
+              </p>
+              <ol className="list-decimal space-y-2 pl-5 text-sm">
+                {inventory.preparation.steps.map((step) => (
+                  <li key={step}>{step}</li>
+                ))}
+              </ol>
+              {inventory.preparation.ports.map((port) => (
+                <p key={port.name} className="text-sm">
+                  {port.name}: {port.bridge ? `currently in ${port.bridge}` : 'unbridged'} ?{' '}
+                  {port.state.replaceAll('_', ' ')}
+                </p>
+              ))}
+            </section>
+          )}
           <div className="grid gap-3 sm:grid-cols-3">
             <div className="setup-port">
               <span className="router-eyebrow">Reported model</span>

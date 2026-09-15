@@ -104,7 +104,7 @@ describe('PlansPage', () => {
             { status: 400 },
           );
         return HttpResponse.json(
-          { ...plans[0], id: 9, name: String(posted.name) },
+          { ...plans[0]!, id: 9, name: String(posted.name) },
           { status: 201 },
         );
       }),
@@ -114,18 +114,26 @@ describe('PlansPage', () => {
     const dialog = await screen.findByRole('dialog');
     await userEvent.type(within(dialog).getByLabelText(/Plan name/), 'dup');
     await userEvent.type(within(dialog).getByLabelText(/Price/), '500');
+    await userEvent.selectOptions(within(dialog).getByLabelText('Voucher code format'), 'numeric');
     await userEvent.click(within(dialog).getByRole('button', { name: 'Create plan' }));
     expect(
       await within(dialog).findByText('Plan with this name already exists.'),
     ).toBeInTheDocument();
     await userEvent.clear(within(dialog).getByLabelText(/Plan name/));
     await userEvent.type(within(dialog).getByLabelText(/Plan name/), 'Night Owl');
+    await userEvent.click(within(dialog).getByRole('checkbox', {name: /Public sales/}));
+    await userEvent.click(within(dialog).getByRole('checkbox', {name: /Agent sales/}));
+    await userEvent.selectOptions(within(dialog).getByRole('combobox', { name: /Duration/i }), '0.5');
+    await userEvent.selectOptions(within(dialog).getByLabelText('Voucher code format'), 'numeric');
     await userEvent.click(within(dialog).getByRole('button', { name: 'Create plan' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(posted).toMatchObject({
       name: 'Night Owl',
+      voucher_code_format: 'numeric',
       price: 50000,
-      duration_hours: 24,
+      duration_hours: 0.5,
+      is_public: false,
+      agent_enabled: false,
       rate_limit: '5M/10M',
       data_limit: 0,
       is_active: true,
@@ -154,4 +162,41 @@ describe('PlansPage', () => {
     expect(await screen.findByText('Plans could not be refreshed')).toBeInTheDocument();
     expect(within(table).getByText('Daily 1GB')).toBeInTheDocument();
   });
+});
+
+it('archives a plan and exposes its retained read-only history', async () => {
+  let archived = false;
+  server.use(
+    http.get(`${API}/plans/`, ({ request }) => {
+      const history = new URL(request.url).searchParams.get('archived') === 'true';
+      return HttpResponse.json(
+        paginated(
+          history
+            ? archived
+              ? [{ ...plans[0]!, is_active: false, archived_at: '2026-09-14T10:00:00Z' }]
+              : []
+            : archived
+              ? []
+              : [plans[0]!],
+        ),
+      );
+    }),
+    http.delete(`${API}/plans/1/`, () => {
+      archived = true;
+      return new HttpResponse(null, { status: 204 });
+    }),
+  );
+  renderPage(<PlansPage />, { role: 'owner', path: '/plans' });
+  const table = await screen.findByRole('table', { name: 'Internet plans' });
+  await userEvent.click(
+    await within(table).findByRole('button', { name: 'Actions for Daily 1GB' }),
+  );
+  await userEvent.click(await screen.findByRole('menuitem', { name: 'Archive' }));
+  const dialog = await screen.findByRole('dialog', {name: 'Archive Daily 1GB?'});
+  await userEvent.click(within(dialog).getByRole('button', { name: 'Archive plan' }));
+  expect(await screen.findByText('Plan archived')).toBeInTheDocument();
+  await userEvent.selectOptions(screen.getByLabelText('Status'), 'archived');
+  const history = await screen.findByRole('table', { name: 'Internet plans' });
+  expect(await within(history).findByText('Archived')).toBeInTheDocument();
+  expect(within(history).queryByRole('button', { name: /Edit/ })).not.toBeInTheDocument();
 });

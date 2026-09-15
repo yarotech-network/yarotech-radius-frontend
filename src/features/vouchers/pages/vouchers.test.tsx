@@ -365,3 +365,19 @@ it('shows quota errors without loading or printing a partial batch', async () =>
   expect(credentialsRequested).toBe(false);
   expect(printed).toHaveLength(0);
 });
+
+it('submits device capacity separately from voucher batch quantity', async () => {
+  let posted: Record<string, unknown> | null = null;
+  server.use(
+    http.get(`${API}/plans/`, () => HttpResponse.json(paginated([{...plan, max_devices:10}]))),
+    http.post(`${API}/vouchers/generate/`, async ({request}) => {
+      posted = await request.json() as Record<string, unknown>;
+      return HttpResponse.json([voucher(123, {device_limit:3})], {status:201});
+    }),
+  );
+  renderPage(<GenerateVouchersPage />, {role:'manager',path:'/vouchers/generate',route:'/vouchers/generate?plan=1'});
+  await screen.findByRole('radio', {name:/Daily 1GB/});
+  await userEvent.selectOptions(screen.getByLabelText('Devices per voucher'), '3');
+  await userEvent.click(screen.getByRole('button', {name:/Generate 20 vouchers/}));
+  await waitFor(()=>expect(posted).toMatchObject({plan_id:1,quantity:20,device_limit:3}));
+});

@@ -12,6 +12,8 @@ import type { AgentFundingPayment, FundingListParams, FundingStatus } from '@/ty
 import { useAgentWallet, useFundings } from '../queries';
 import { FundWalletDialog } from '../components/FundWalletDialog';
 import { FundingTracker } from '../components/FundingTracker';
+import { WalletTransactions } from '../components/WalletTransactions';
+import { AgentCreditSummary } from '../components/AgentCreditSummary';
 
 const FILTERS = ['status'] as const;
 const STATUS_OPTIONS = [
@@ -196,6 +198,8 @@ function WalletScreen({ returning = false }: { returning?: boolean }) {
         )}
       </section>
 
+      <WalletTransactions />
+      <AgentCreditSummary />
       <FundWalletDialog
         open={fundOpen}
         onClose={() => patch({ fund: null })}

@@ -22,7 +22,12 @@ export function derivePrincipal(
   user: User,
   assignments: StaffAssignment[] = [],
   activeTenantId: number | null = null,
+  context: 'platform' | 'workspace' = 'platform',
 ): Principal {
+  if (user.role === 'platform_admin' && context === 'workspace' && user.membership_active && user.workspace_role && user.tenant_id) {
+    return { kind: 'member', user, role: user.workspace_role, tenantId: user.tenant_id, tenantName: user.tenant_name ?? '' };
+  }
+  if (user.membership_active === false && ['owner', 'manager', 'staff'].includes(user.role)) return { kind: 'none', user };
   switch (user.role) {
     case 'platform_admin':
       return { kind: 'platform_admin', user };

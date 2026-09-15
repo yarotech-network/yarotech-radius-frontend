@@ -116,9 +116,11 @@ function mockSession(
 }
 
 beforeEach(() => {
+  server.use(mswHttp.get(`${API}/subscriptions/access/`, () => HttpResponse.json({required:false,can_renew:true,status:"active",expires_at:null})));
   tokenStore.clear();
   setActiveTenantHeader(null);
   window.localStorage.clear();
+  window.sessionStorage.clear();
 });
 
 describe('sign in and landing per role', () => {
@@ -162,7 +164,9 @@ describe('sign in and landing per role', () => {
     await userEvent.type(await screen.findByLabelText(/username/i), 'ada');
     await userEvent.type(screen.getByLabelText(/^password/i), 'wrong');
     await userEvent.click(screen.getByRole('button', { name: 'Sign in' }));
-    expect(await screen.findByRole('alert')).toHaveTextContent('Incorrect username or password.');
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Incorrect username/email or password.',
+    );
 
     server.use(
       mswHttp.post(`${API}/auth/login/`, () =>
@@ -376,5 +380,26 @@ describe('sign in and landing per role', () => {
     const router = renderApp('/');
     expect(await screen.findByRole('heading', { name: 'Sign in' })).toBeInTheDocument();
     expect(router.state.location.pathname).toBe('/login');
+  });
+});
+
+describe('combined platform and workspace access', () => {
+  it('switches the same account in both directions', async () => {
+    tokenStore.set({ access: 'A', refresh: 'R' });
+    mockSession(
+      makeUser('platform_admin', {
+        is_platform_admin: true,
+        membership_active: true,
+        workspace_role: 'owner',
+        tenant_id: 5,
+      }),
+    );
+    const router = renderApp('/platform');
+    await userEvent.click(await screen.findByRole('button', { name: 'My workspace' }));
+    expect(await screen.findByRole('heading', { name: 'Dashboard page' })).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe('/dashboard');
+    await userEvent.click(screen.getByRole('button', { name: 'Platform' }));
+    expect(await screen.findByRole('heading', { name: 'Platform overview' })).toBeInTheDocument();
+    expect(tokenStore.getRefresh()).toBe('R');
   });
 });

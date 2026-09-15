@@ -1,269 +1,312 @@
-import { ServicePanel } from './ServicePanel';
 import { useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router';
-import { Users, Plus, Upload, ArrowRight } from 'lucide-react';
+import { Users, Ticket, RefreshCw } from 'lucide-react';
 import { PageHeader } from '@/components/layout';
-import { Button, Card, Dialog, ConfirmDialog, Select } from '@/components/ui';
-import { ErrorState, useToast } from '@/components/feedback';
-import { Pagination, SearchInput } from '@/components/data';
+import { Button, Card, Dialog, Select, Input } from '@/components/ui';
+import { ErrorState, Alert } from '@/components/feedback';
+import { Pagination, SearchInput, useListParams } from '@/components/data';
 import { usePrincipal } from '@/app/auth/useAuth';
-import { can } from '@/services/auth/principal';
 import { useDebouncedValue } from '@/lib/utilities/useDebouncedValue';
-import { customersApi, customersKey, type Customer } from './api';
-import { CustomerForm } from './CustomerForm';
-import { CustomerImport } from './CustomerImport';
+import { formatBytes } from '@/lib/formatting/units';
+import { formatDateTime } from '@/lib/formatting/dates';
+import { deviceUsageApi } from './deviceUsageApi';
+
+const FILTERS = ['period', 'activity', 'start', 'end'] as const;
+const statuses = {
+  online: 'Online (recent accounting)',
+  offline: 'Offline',
+  unknown: 'Connection unknown',
+};
 
 export default function CustomersPage() {
-  const manage = can(usePrincipal(), 'customers.manage');
-  const client = useQueryClient();
-  const toast = useToast();
-  const [search, setSearch] = useState('');
-  const [status, setStatus] = useState('current');
-  const [page, setPage] = useState(1);
-  const [editor, setEditor] = useState<{ customer?: Customer } | null>(null);
-  const [importing, setImporting] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [selected, setSelected] = useState<number | null>(null);
-  const [lifecycle, setLifecycle] = useState<Customer | null>(null);
-  const debounced = useDebouncedValue(search);
-  const params = { search: debounced, status, page, page_size: 12 };
+  const principal = usePrincipal();
+  const scope =
+    principal.kind === 'member'
+      ? principal.tenantId
+      : principal.kind === 'platform_staff'
+        ? principal.activeTenantId
+        : null;
+  const list = useListParams(FILTERS);
+  const search = useDebouncedValue(list.state.search);
+  const period = list.state.filters.period || 'all';
+  const activity = list.state.filters.activity || 'all';
+  const start = list.state.filters.start || '';
+  const end = list.state.filters.end || '';
+  const validDates = period !== 'custom' || Boolean(start && end && start <= end);
+  const params = {
+    period,
+    activity,
+    search,
+    ...(period === 'custom' ? { start, end } : {}),
+    page: list.state.page,
+    page_size: list.state.page_size,
+  };
+  const [selected, setSelected] = useState<string | null>(null);
+  const [codePage, setCodePage] = useState(1);
   const query = useQuery({
-    queryKey: [...customersKey, 'list', params],
-    queryFn: () => customersApi.list(params),
+    queryKey: ['customer-devices', scope, principal.user.id, params],
+    queryFn: () => deviceUsageApi.list(params),
+    enabled: validDates,
+    refetchInterval: 60_000,
   });
+  const detailParams = { ...params, page: codePage, page_size: 10 };
   const detail = useQuery({
-    queryKey: [...customersKey, 'detail', selected],
-    queryFn: () => customersApi.get(selected!),
-    enabled: selected !== null,
+    queryKey: ['customer-device-codes', scope, principal.user.id, selected, detailParams],
+    queryFn: () => deviceUsageApi.codes(selected!, detailParams),
+    enabled: Boolean(selected) && validDates,
+    gcTime: 0,
   });
-  const refresh = () => void client.invalidateQueries({ queryKey: customersKey });
-  const saved = () => {
-    setEditor(null);
-    setImporting(false);
-    refresh();
-    toast.success('Customer records saved');
+  const change = (name: (typeof FILTERS)[number], value: string) => {
+    setSelected(null);
+    list.setFilter(name, value);
   };
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 space-y-6">
       <PageHeader
         title="Customers"
-        description="Your customer directory, separate from staff accounts and voucher purchases."
+        description="Internet users identified by device MAC address. Access codes used, not purchases or login attempts."
         actions={
-          <>
+          <div className="flex flex-wrap gap-2">
             <Link
               to="/sessions"
-              className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-brand-700"
+              className="rounded-lg px-3 py-2 text-sm font-medium text-brand-700"
             >
-              Live sessions <ArrowRight className="size-4" />
+              Live sessions
             </Link>
-            {manage && (
-              <>
-                <Button
-                  variant="secondary"
-                  leadingIcon={<Upload />}
-                  onClick={() => setImporting(true)}
-                >
-                  Import CSV
-                </Button>
-                <Button leadingIcon={<Plus />} onClick={() => setEditor({})}>
-                  Add customer
-                </Button>
-              </>
-            )}
-          </>
+            <Button
+              variant="secondary"
+              leadingIcon={<RefreshCw />}
+              disabled={query.isFetching || !validDates}
+              onClick={() => void query.refetch()}
+            >
+              Refresh
+            </Button>
+          </div>
         }
       />
-      <Card className="grid gap-4 p-4 lg:grid-cols-[minmax(0,1fr)_12rem_auto] lg:items-center">
-        <div className="min-w-0 flex-1">
-          <SearchInput
-            value={search}
-            onChange={(value) => {
-              setSearch(value);
-              setPage(1);
-            }}
-            placeholder="Search name, reference, email or phone"
-          />
-        </div>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Card className="p-5">
+          <Users className="mb-3 size-5 text-brand-600" />
+          <p className="text-sm text-ink-500">Devices in selected period</p>
+          <p className="mt-1 text-3xl font-semibold">
+            {validDates ? (query.data?.summary.devices ?? '--') : '--'}
+          </p>
+        </Card>
+        <Card className="p-5">
+          <Ticket className="mb-3 size-5 text-brand-600" />
+          <p className="text-sm text-ink-500">Distinct access codes used</p>
+          <p className="mt-1 text-3xl font-semibold">
+            {validDates ? (query.data?.summary.distinct_codes ?? '--') : '--'}
+          </p>
+          <p className="mt-2 text-xs text-ink-500">
+            A shared code counts once across matching devices.
+          </p>
+        </Card>
+      </div>
+      <Card className="grid gap-4 p-4 md:grid-cols-3">
+        <SearchInput
+          value={list.state.search}
+          onChange={list.setSearch}
+          placeholder="Search device MAC address"
+        />
         <Select
-          aria-label="Customer status"
-          value={status}
-          onChange={(e) => {
-            setStatus(e.target.value);
-            setPage(1);
-          }}
+          aria-label="Activity period"
+          value={period}
+          onChange={(e) => change('period', e.target.value)}
           options={[
-            { value: 'current', label: 'Current records' },
-            { value: 'archived', label: 'Archived records' },
-            { value: '', label: 'All records' },
+            { value: 'all', label: 'All time' },
+            { value: 'today', label: 'Today' },
+            { value: 'week', label: 'This week' },
+            { value: 'month', label: 'This month' },
+            { value: 'custom', label: 'Custom dates' },
           ]}
         />
-        <p className="shrink-0 text-sm text-ink-500" role="status">
-          {query.data ? `${query.data.count} matching customers` : 'Loading customers?'}
-        </p>
+        <Select
+          aria-label="Connection status"
+          value={activity}
+          onChange={(e) => change('activity', e.target.value)}
+          options={[
+            { value: 'all', label: 'All connections' },
+            { value: 'online', label: 'Online now (recent accounting)' },
+            { value: 'offline', label: 'Offline (closed sessions)' },
+            { value: 'unknown', label: 'Connection unknown' },
+          ]}
+        />
+        {period === 'custom' && (
+          <>
+            <label className="text-sm">
+              From
+              <Input type="date" value={start} onChange={(e) => change('start', e.target.value)} />
+            </label>
+            <label className="text-sm">
+              Through
+              <Input type="date" value={end} onChange={(e) => change('end', e.target.value)} />
+            </label>
+          </>
+        )}
       </Card>
-      {query.isError ? (
+      {!validDates ? (
+        <Alert tone="info">Choose a start date and an end date on or after it.</Alert>
+      ) : query.isError ? (
         <ErrorState error={query.error} onRetry={() => void query.refetch()} />
       ) : query.isPending ? (
-        <Card className="p-8 text-sm text-ink-500">Loading customer directory?</Card>
-      ) : query.data.results.length === 0 ? (
-        <Card className="px-6 py-14 text-center">
-          <Users className="mx-auto mb-4 size-10 text-brand-600" />
-          <h2 className="text-xl font-semibold">No customers found</h2>
-          <p className="mx-auto mt-2 max-w-md text-sm text-ink-500">
-            Add your first customer or adjust your filters. Existing voucher purchasers are not
-            automatically added to this directory.
-          </p>
-          {manage && (
-            <Button className="mt-5" onClick={() => setEditor({})}>
-              Create customer
-            </Button>
-          )}
+        <Card className="p-8" role="status">
+          Loading device history...
         </Card>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {query.data.results.map((customer) => (
-            <Card key={customer.id} className="flex min-w-0 flex-col p-5">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="text-xs font-medium tracking-wide break-all text-ink-500">
-                    {customer.reference}
-                  </p>
-                  <button
-                    className="mt-2 text-left text-lg font-semibold break-words text-brand-950 hover:underline"
-                    onClick={() => setSelected(customer.id)}
-                  >
-                    {customer.name}
-                  </button>
-                </div>
-                <span className="shrink-0 rounded-full bg-surface-muted px-2 py-1 text-xs text-ink-600">
-                  {customer.archived_at ? 'Archived' : 'Current'}
-                </span>
-              </div>
-              <div className="mt-4 flex-1 space-y-1 text-sm break-words text-ink-500">
-                <p>{customer.email || 'No email address'}</p>
-                <p>{customer.phone || 'No phone number'}</p>
-                <p className="pt-3 text-xs">
-                  {customer.has_service ? 'PPPoE service assigned' : 'No service assigned'}
-                </p>
-              </div>
-              <div className="mt-5 flex flex-wrap gap-2 border-t border-border pt-4">
-                <Button variant="secondary" size="sm" onClick={() => setSelected(customer.id)}>
-                  View details
-                </Button>
-                {manage && (
-                  <>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      disabled={!!customer.archived_at}
-                      onClick={() => setEditor({ customer })}
-                    >
-                      Edit
-                    </Button>
-                    <Button variant="ghost" size="sm" onClick={() => setLifecycle(customer)}>
-                      {customer.archived_at ? 'Restore' : 'Archive'}
-                    </Button>
-                  </>
-                )}
-              </div>
+        <>
+          <p className="text-sm text-ink-500">
+            {query.data.synced_at
+              ? `Last accounting sync: ${formatDateTime(query.data.synced_at)}`
+              : 'Waiting for the first accounting sync.'}{' '}
+            | Dates: {query.data.timezone}
+          </p>
+          {!query.data.results.length ? (
+            <Card className="px-6 py-12 text-center">
+              <Users className="mx-auto mb-4 size-9 text-brand-600" />
+              <h2 className="text-lg font-semibold">No observed devices</h2>
+              <p className="mt-2 text-sm text-ink-500">
+                Devices appear automatically after accounting records include their MAC and a tenant
+                access code. Try a different period or connection filter.
+              </p>
             </Card>
-          ))}
-        </div>
-      )}
-      {query.data && query.data.count > 0 && (
-        <Pagination
-          count={query.data.count}
-          page={page}
-          totalPages={query.data.total_pages}
-          pageSize={12}
-          onPageChange={setPage}
-          itemLabel="customers"
-        />
-      )}
-      <Dialog
-        open={editor !== null}
-        onClose={() => setEditor(null)}
-        dismissible={!busy}
-        title={editor?.customer ? 'Edit customer' : 'Add customer'}
-        size="lg"
-      >
-        {editor && (
-          <CustomerForm
-            {...(editor.customer ? { customer: editor.customer } : {})}
-            onSaved={saved}
-            onBusy={setBusy}
-            onCancel={() => setEditor(null)}
+          ) : (
+            <div className="grid gap-4 lg:grid-cols-2">
+              {query.data.results.map((device) => (
+                <Card key={device.mac_address} className="min-w-0 p-5">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <h2 className="font-mono font-semibold break-all">{device.mac_address}</h2>
+                    <span
+                      className={
+                        device.status === 'online'
+                          ? 'text-xs text-success-700'
+                          : 'text-xs text-ink-500'
+                      }
+                    >
+                      {statuses[device.status]}
+                    </span>
+                  </div>
+                  <dl className="mt-5 grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <dt className="text-ink-500">Codes used in period</dt>
+                      <dd className="mt-1 text-2xl font-semibold">{device.codes_used}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-ink-500">Lifetime codes used</dt>
+                      <dd className="mt-1 text-2xl font-semibold">{device.lifetime_codes_used}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-ink-500">Recorded sessions</dt>
+                      <dd>{device.sessions}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-ink-500">Recorded data</dt>
+                      <dd>{formatBytes(device.bytes_total)}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-ink-500">First matching session</dt>
+                      <dd>{formatDateTime(device.first_seen)}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-ink-500">Last recorded activity</dt>
+                      <dd>{formatDateTime(device.last_seen)}</dd>
+                    </div>
+                  </dl>
+                  <Button
+                    className="mt-5"
+                    variant="secondary"
+                    onClick={() => {
+                      setSelected(device.mac_address);
+                      setCodePage(1);
+                    }}
+                  >
+                    View access-code history
+                  </Button>
+                </Card>
+              ))}
+            </div>
+          )}
+          <Pagination
+            count={query.data.count}
+            totalPages={query.data.total_pages}
+            page={list.state.page}
+            pageSize={list.state.page_size}
+            onPageChange={list.setPage}
+            onPageSizeChange={list.setPageSize}
+            itemLabel="devices"
           />
-        )}
-      </Dialog>
-      <Dialog
-        open={importing}
-        onClose={() => setImporting(false)}
-        dismissible={!busy}
-        title="Import customers"
-        size="lg"
-      >
-        {importing && <CustomerImport onSaved={saved} onBusy={setBusy} />}
-      </Dialog>
+          <Alert tone="info">
+            {query.data.accounting_note} Reconnecting with the same code does not increase codes
+            used. A device can have used more than one unexpired code.
+          </Alert>
+        </>
+      )}
       <Dialog
         open={selected !== null}
         onClose={() => setSelected(null)}
-        title="Customer details"
-        dismissible={!busy}
+        title="Access-code history"
+        description={selected}
         size="lg"
       >
         {detail.isError ? (
           <ErrorState error={detail.error} onRetry={() => void detail.refetch()} />
-        ) : detail.data ? (
+        ) : detail.isPending ? (
+          <p role="status">Loading access-code history...</p>
+        ) : (
           <div className="space-y-4">
-            <h2 className="text-xl font-semibold break-words">{detail.data.name}</h2>
-            <dl className="space-y-3 text-sm">
-              {[
-                ['Reference', detail.data.reference],
-                ['Record status', detail.data.archived_at ? 'Archived' : 'Current'],
-                ['Email', detail.data.email],
-                ['Phone', detail.data.phone],
-                ['Address', detail.data.address],
-                ['Internal notes', detail.data.notes],
-              ].map(([label, value]) => (
-                <div key={label}>
-                  <dt className="font-medium text-ink-500">{label}</dt>
-                  <dd className="break-words whitespace-pre-wrap">{value || 'Not provided'}</dd>
+            <p className="text-sm text-ink-500">
+              Distinct codes used by this MAC in the selected period. This does not identify who
+              purchased them.
+            </p>
+            {!detail.data.results.length && <p>No codes used in this period.</p>}
+            {detail.data.results.map((code) => (
+              <Card key={code.voucher_id} className="p-4">
+                <div className="flex flex-wrap justify-between gap-2">
+                  <h3 className="font-mono font-semibold break-all">
+                    {code.access_code}{' '}
+                    <span className="font-sans text-xs text-ink-500">
+                      Voucher #{code.voucher_id}
+                    </span>
+                  </h3>
+                  <span className="text-sm capitalize">{code.status}</span>
                 </div>
-              ))}
-            </dl>
-            <ServicePanel
-              customer={detail.data.id}
-              archived={!!detail.data.archived_at}
-              onBusy={setBusy}
+                <p className="mt-2 text-sm">
+                  {code.plan} | Device allowance: {code.device_limit}
+                </p>
+                <dl className="mt-3 grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <dt className="text-ink-500">First matching use</dt>
+                    <dd>{formatDateTime(code.first_seen)}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-ink-500">Last used</dt>
+                    <dd>{formatDateTime(code.last_seen)}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-ink-500">Expires</dt>
+                    <dd>{code.expires_at ? formatDateTime(code.expires_at) : 'Not set'}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-ink-500">Sessions / data</dt>
+                    <dd>
+                      {code.sessions} / {formatBytes(code.bytes_total)}
+                    </dd>
+                  </div>
+                </dl>
+              </Card>
+            ))}
+            <Pagination
+              count={detail.data.count}
+              page={codePage}
+              totalPages={detail.data.total_pages}
+              pageSize={10}
+              onPageChange={setCodePage}
+              itemLabel="access codes"
             />
           </div>
-        ) : (
-          <p role="status">Loading customer details...</p>
         )}
       </Dialog>
-      <ConfirmDialog
-        open={lifecycle !== null}
-        onClose={() => setLifecycle(null)}
-        title={`${lifecycle?.archived_at ? 'Restore' : 'Archive'} customer?`}
-        description={
-          lifecycle?.archived_at
-            ? 'Return this record to the current directory. This does not activate internet service.'
-            : 'Retain this customer and their reference in the archive. This does not disconnect a network session.'
-        }
-        confirmLabel={lifecycle?.archived_at ? 'Restore customer' : 'Archive customer'}
-        onConfirm={async () => {
-          if (lifecycle) {
-            await (lifecycle.archived_at
-              ? customersApi.restore(lifecycle.id)
-              : customersApi.archive(lifecycle.id));
-            setPage(1);
-            refresh();
-            toast.success('Customer record updated');
-          }
-        }}
-      />
     </div>
   );
 }

@@ -33,7 +33,8 @@ export function usePublicPlans(slug: string | null, params: PublicPlanParams = {
     queryFn: () => storefrontApi.plans(slug ?? '', params),
     enabled: Boolean(slug),
     placeholderData: keepPreviousData,
-    staleTime: 60_000,
+    staleTime: 0,
+    refetchInterval: 10_000,
   });
 }
 

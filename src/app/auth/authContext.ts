@@ -15,6 +15,7 @@ export interface AuthContextValue {
   refreshPrincipal: () => Promise<Principal | null>;
   signOut: (reason?: string) => Promise<void>;
   /** Platform staff: choose the tenant whose data the workspace shows. */
+  switchContext: (context: 'platform' | 'workspace') => Promise<void>;
   selectTenant: (tenantId: number | null) => void;
 }
 

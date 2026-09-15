@@ -38,10 +38,9 @@ export function AgentStatsCards({
         value={stats ? stats.total_vouchers.toLocaleString() : '—'}
         loading={loading}
       />
-      {/* Gap #5: commission is never computed by the backend, so the card only appears when it carries a value. */}
-      {stats && stats.commission_this_month > 0 && (
+      {stats && (
         <Stat
-          label="Commission this month"
+          label="Retail margin this month"
           value={formatKobo(stats.commission_this_month)}
           className="col-span-2 sm:col-span-3"
         />

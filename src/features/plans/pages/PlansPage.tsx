@@ -47,7 +47,8 @@ export default function PlansPage() {
     const p: PlanListParams = { page: list.state.page, page_size: list.state.page_size };
     if (debouncedSearch) p.search = debouncedSearch;
     if (list.state.ordering) p.ordering = list.state.ordering;
-    if (list.state.filters.is_active) p.is_active = list.state.filters.is_active === 'true';
+    if (list.state.filters.is_active === 'archived') p.archived = true;
+    else if (list.state.filters.is_active) p.is_active = list.state.filters.is_active === 'true';
     return p;
   }, [list.state, debouncedSearch]);
   const query = usePlans(params);
@@ -77,7 +78,7 @@ export default function PlansPage() {
             <BooleanBadge
               value={plan.is_active}
               trueLabel="Active"
-              falseLabel="Inactive"
+              falseLabel={plan.archived_at ? 'Archived' : 'Inactive'}
               size="sm"
             />
           </div>
@@ -203,6 +204,7 @@ export default function PlansPage() {
                 { value: '', label: 'All plans' },
                 { value: 'true', label: 'Active only' },
                 { value: 'false', label: 'Inactive only' },
+                { value: 'archived', label: 'Archived' },
               ]}
             />
           }
@@ -256,7 +258,7 @@ export default function PlansPage() {
           }
           rowActions={(plan) => {
             const items = [
-              ...(canGenerate
+              ...(canGenerate && plan.is_active && !plan.archived_at && plan.plan_type !== 'iot_mac'
                 ? [
                     {
                       key: 'gen',
@@ -266,7 +268,7 @@ export default function PlansPage() {
                     },
                   ]
                 : []),
-              ...(canManage
+              ...(canManage && !plan.archived_at
                 ? [
                     {
                       key: 'edit',
@@ -282,7 +284,7 @@ export default function PlansPage() {
                     'separator' as const,
                     {
                       key: 'delete',
-                      label: 'Delete',
+                      label: 'Archive',
                       icon: <Trash2 className="h-4 w-4" aria-hidden />,
                       tone: 'danger' as const,
                       onSelect: () => setPendingDelete(plan),
@@ -334,16 +336,16 @@ export default function PlansPage() {
         </Card>
         <Card>
           <h2 className="font-semibold text-ink-900">
-            <Link to="/plans/pppoe" className="hover:underline">
-              PPPoE service plans
+            <Link to="/devices" className="hover:underline">
+              IoT / MAC devices
             </Link>
           </h2>
           <span className="mt-2 inline-block rounded-full bg-surface-muted px-2 py-1 text-xs text-ink-600">
-            Subscriber services
+            Device access
           </span>
           <p className="mt-2 text-sm text-ink-500">
-            Manage fixed subscriber service periods separately from Hotspot vouchers. PAP
-            authentication requires the dedicated FreeRADIUS integration.
+            Register equipment by MAC address, assign its router and plan, and choose permanent or
+            time-limited access.
           </p>
         </Card>
       </div>
@@ -363,13 +365,13 @@ export default function PlansPage() {
         open={pendingDelete !== null}
         onClose={() => setPendingDelete(null)}
         tone="danger"
-        title={`Delete ${pendingDelete?.name ?? 'plan'}?`}
-        description="Deletion fails if vouchers reference this plan — deactivate it instead to stop new sales while keeping history."
-        confirmLabel="Delete plan"
+        title={`Archive ${pendingDelete?.name ?? 'plan'}?`}
+        description="Stops new sales and issuance permanently. Existing vouchers and payment history are retained."
+        confirmLabel="Archive plan"
         onConfirm={async () => {
           if (!pendingDelete) return;
           await remove.mutateAsync(pendingDelete.id);
-          toast.success('Plan deleted');
+          toast.success('Plan archived');
         }}
       />
       {!canManage && canGenerate && (

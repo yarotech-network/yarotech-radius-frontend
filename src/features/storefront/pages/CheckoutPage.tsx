@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { ChevronLeft, ExternalLink, Lock } from 'lucide-react';
-import { Button, ButtonLink, FormField, Input } from '@/components/ui';
+import { Button, ButtonLink, FormField, Input, Select } from '@/components/ui';
 import { Alert, ErrorState } from '@/components/feedback';
 import { useFormSubmit } from '@/lib/forms/useFormSubmit';
 import { formatKobo } from '@/lib/formatting/money';
@@ -16,7 +16,7 @@ import { pendingCheckout } from '../pendingCheckout';
 import { checkoutSchema, type CheckoutInput, type CheckoutOutput } from '../checkoutSchema';
 import { PlanCard, PlanCardSkeleton } from '../components/PlanCard';
 
-const FIELDS = ['email', 'name', 'phone'] as const;
+const FIELDS = ['email', 'name', 'phone', 'device_limit'] as const;
 
 export default function CheckoutPage({
   slug,
@@ -85,43 +85,56 @@ function CheckoutForm({ plan, slug }: { plan: PublicPlan; slug: string }) {
   const [unavailable, setUnavailable] = useState<string | null>(null);
   const form = useForm<CheckoutInput, unknown, CheckoutOutput>({
     resolver: zodResolver(checkoutSchema),
-    defaultValues: { email: '', name: '', phone: '' },
+    defaultValues: { email: '', name: '', phone: '', device_limit: 1 },
     mode: 'onTouched',
   });
   const { message, reset: resetErrors, captureError } = useFormSubmit(form.setError, FIELDS);
   const errors = form.formState.errors;
+  const deviceLimit = Number(useWatch({ control: form.control, name: 'device_limit' }) ?? 1);
+  const maxDevices = Math.max(1, Math.min(10, plan.max_devices ?? 1));
+  const displayedTotal = plan.price * deviceLimit;
+  const [previousPayload, setPreviousPayload] = useState('');
 
   const submit = form.handleSubmit(async (values) => {
     resetErrors();
     setUnavailable(null);
     try {
-      const result = await storefrontApi.buy(
-        {
-          plan_id: plan.id,
-          email: values.email,
-          ...(values.name ? { name: values.name } : {}),
-          ...(values.phone ? { phone: values.phone } : {}),
-        },
-        idempotencyKey,
-      );
+      if (values.device_limit > maxDevices) {
+        form.setError('device_limit', {message: `Choose at most ${maxDevices} device(s).`});
+        return;
+      }
+      const payload = {
+        plan_id: plan.id, email: values.email,
+        ...(values.device_limit > 1 ? {device_limit: values.device_limit} : {}),
+        ...(values.name ? {name: values.name} : {}),
+        ...(values.phone ? {phone: values.phone} : {}),
+      };
+      const fingerprint = JSON.stringify(payload);
+      const key = previousPayload && previousPayload !== fingerprint ? newIdempotencyKey('buy') : idempotencyKey;
+      setPreviousPayload(fingerprint);
+      if (key !== idempotencyKey) setIdempotencyKey(key);
+      const result = await storefrontApi.buy(payload, key);
       pendingCheckout.save({
         kind: 'voucher',
         reference: result.reference,
         slug,
         planName: plan.name,
-        amount: plan.price,
+        amount: result.amount ?? displayedTotal,
+        deviceLimit: result.device_limit ?? values.device_limit,
       });
       window.location.assign(result.authorization_url);
     } catch (error) {
       if (isApiError(error) && error.status === 503) {
-        const reference = (error.body as { reference?: string } | null)?.reference;
+        const reservation = error.body as {reference?: string; amount?: number; device_limit?: number} | null;
+        const reference = reservation?.reference;
         if (reference)
           pendingCheckout.save({
             kind: 'voucher',
             reference,
             slug,
             planName: plan.name,
-            amount: plan.price,
+            amount: reservation?.amount ?? displayedTotal,
+            deviceLimit: reservation?.device_limit ?? values.device_limit,
           });
         setUnavailable(reference ?? '');
         // The pending order behind this key is dead; a retry must create a fresh one.
@@ -151,6 +164,9 @@ function CheckoutForm({ plan, slug }: { plan: PublicPlan; slug: string }) {
           )}
         </Alert>
       )}
+      <FormField label="Devices per voucher" hint="The selected devices share this voucher?s code, duration and data allowance." error={errors.device_limit?.message}>
+        <Select {...form.register('device_limit')} options={Array.from({length: maxDevices}, (_, i) => ({value:String(i+1), label:`${i+1} device${i ? 's' : ''}`}))} disabled={form.formState.isSubmitting} />
+      </FormField>
       <FormField
         label="Email address"
         required
@@ -183,7 +199,7 @@ function CheckoutForm({ plan, slug }: { plan: PublicPlan; slug: string }) {
         <div>
           <div className="text-xs text-ink-500">Total</div>
           <div className="text-xl font-semibold text-ink-900 tabular-nums">
-            {formatKobo(plan.price)}
+            {formatKobo(displayedTotal)}
           </div>
         </div>
         <Button

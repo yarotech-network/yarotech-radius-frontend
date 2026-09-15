@@ -105,3 +105,31 @@ describe('derivePrincipal + can()', () => {
     expect(initials(user('owner', { first_name: '', last_name: '' }))).toBe('AD');
   });
 });
+
+describe('combined account context', () => {
+  it('grants only the selected role and preserves the account identity', () => {
+    const combined = user('platform_admin', {
+      is_platform_admin: true,
+      membership_active: true,
+      workspace_role: 'owner',
+    });
+    const platform = derivePrincipal(combined);
+    const workspace = derivePrincipal(combined, [], null, 'workspace');
+    expect(can(platform, 'platform.admin')).toBe(true);
+    expect(can(platform, 'team.manage')).toBe(false);
+    expect(can(workspace, 'platform.admin')).toBe(false);
+    expect(can(workspace, 'team.manage')).toBe(true);
+    expect(workspace.user.id).toBe(platform.user.id);
+  });
+  it('does not restore suspended membership from a stored workspace choice', () => {
+    const suspended = user('platform_admin', {
+      is_platform_admin: true,
+      membership_active: false,
+      workspace_role: null,
+    });
+    expect(derivePrincipal(suspended, [], null, 'workspace').kind).toBe('platform_admin');
+    expect(can(derivePrincipal(user('owner', { membership_active: false })), 'team.manage')).toBe(
+      false,
+    );
+  });
+});

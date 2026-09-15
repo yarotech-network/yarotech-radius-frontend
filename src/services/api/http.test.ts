@@ -2,7 +2,13 @@ import { http as mswHttp, HttpResponse, delay } from 'msw';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { server } from '@/test/server';
 import { tokenStore } from '@/services/auth/tokenStore';
-import { http, request, setActiveTenantHeader, setSessionExpiredHandler } from './http';
+import {
+  http,
+  request,
+  setAccessContext,
+  setActiveTenantHeader,
+  setSessionExpiredHandler,
+} from './http';
 import { ApiError } from './errors';
 
 const BASE = 'http://localhost:3000/api/v1';
@@ -10,6 +16,7 @@ const BASE = 'http://localhost:3000/api/v1';
 beforeEach(() => {
   tokenStore.clear();
   setActiveTenantHeader(null);
+  setAccessContext('platform');
   setSessionExpiredHandler(null);
 });
 afterEach(() => vi.restoreAllMocks());
@@ -86,11 +93,13 @@ describe('http client', () => {
 
   it.each([404, 500, 502])('does not expose HTML error documents for HTTP %s', async (status) => {
     server.use(
-      mswHttp.get(`${BASE}/pricing/`, () =>
-        new HttpResponse('<!DOCTYPE html><html><body>Internal debug information</body></html>', {
-          status,
-          headers: { 'Content-Type': 'text/html' },
-        }),
+      mswHttp.get(
+        `${BASE}/pricing/`,
+        () =>
+          new HttpResponse('<!DOCTYPE html><html><body>Internal debug information</body></html>', {
+            status,
+            headers: { 'Content-Type': 'text/html' },
+          }),
       ),
     );
     const error = await http
@@ -207,4 +216,24 @@ describe('http client', () => {
     server.use(mswHttp.delete(`${BASE}/plans/3/`, () => new HttpResponse(null, { status: 204 })));
     await expect(http.delete('/plans/3/', { anonymous: true })).resolves.toBeUndefined();
   });
+});
+
+it('keeps the original workspace context when a token refresh retries a request', async () => {
+  tokenStore.set({ access: 'A1', refresh: 'R1' });
+  setAccessContext('workspace');
+  const contexts: (string | null)[] = [];
+  server.use(
+    mswHttp.get(`${BASE}/context-probe/`, ({ request: req }) => {
+      contexts.push(req.headers.get('X-Access-Context'));
+      return contexts.length === 1
+        ? HttpResponse.json({}, { status: 401 })
+        : HttpResponse.json({ ok: true });
+    }),
+    mswHttp.post(`${BASE}/auth/token/refresh/`, () => {
+      setAccessContext('platform');
+      return HttpResponse.json({ access: 'A2', refresh: 'R2' });
+    }),
+  );
+  await http.get('/context-probe/');
+  expect(contexts).toEqual(['workspace', 'workspace']);
 });

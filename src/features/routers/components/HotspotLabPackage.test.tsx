@@ -94,3 +94,25 @@ describe('Laboratory package', () => {
     expect(screen.getByRole('button', { name: 'Generate lab package' })).toBeDisabled();
   });
 });
+
+it('explains local-user credentials and limits without asking for a password or RADIUS secret', () => {
+  const local = {
+    ...data,
+    intent: {
+      ...data.intent!,
+      configuration: {
+        ...data.intent!.configuration,
+        authentication_mode: 'local_user' as const,
+      },
+    },
+  };
+  renderPage(<HotspotLabPackage router={router} data={local} />);
+  expect(
+    screen.getByText(/Local-user test only: set the generated Hotspot user password in WinBox/),
+  ).toBeInTheDocument();
+  expect(screen.getByText(/one device, 2 Mbps, 15-minute sessions/)).toBeInTheDocument();
+  expect(screen.queryByLabelText(/password/i)).not.toBeInTheDocument();
+  expect(
+    screen.queryByText(/Existing RADIUS credentials must already be configured/),
+  ).not.toBeInTheDocument();
+});

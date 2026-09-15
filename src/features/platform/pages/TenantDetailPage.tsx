@@ -1,3 +1,4 @@
+import { OwnerSetupNotice } from '../components/OwnerSetupNotice';
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import {
@@ -160,6 +161,7 @@ function TenantDetail({
           </div>
         }
       />
+      {tenant.owner_setup_pending && <OwnerSetupNotice tenantId={tenant.id} />}
       {refreshFailed && (
         <Alert tone="warning" title="Tenant could not be refreshed">
           Showing the last loaded profile. Refresh again to check for changes.

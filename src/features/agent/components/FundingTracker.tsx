@@ -2,7 +2,8 @@ import { CheckCircle2, RefreshCw, X, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui';
 import { formatKobo } from '@/lib/formatting/money';
 import { cn } from '@/lib/utilities/cn';
-import { useFundingByReference } from '../queries';
+import { useFundingByReference, useVerifyFunding } from '../queries';
+import { Alert } from '@/components/feedback';
 
 /** Live status of one top-up (polls the agent's funding list by reference until it settles). */
 export function FundingTracker({
@@ -13,6 +14,7 @@ export function FundingTracker({
   onDismiss: () => void;
 }) {
   const funding = useFundingByReference(reference);
+  const verify = useVerifyFunding();
   const status = funding.data?.status ?? (funding.data === null ? 'missing' : 'loading');
   const settled = status === 'success' || status === 'failed';
   return (
@@ -52,13 +54,14 @@ export function FundingTracker({
           Reference <code className="font-mono">{reference}</code>
           {!settled && status !== 'missing' && ' · checking every few seconds'}
         </p>
-        {!settled && status !== 'missing' && (
+        {verify.error && <Alert tone="warning">{verify.error.message}</Alert>}
+        {status !== 'success' && status !== 'missing' && (
           <Button
             size="sm"
             variant="secondary"
             className="mt-2"
-            onClick={() => void funding.refetch()}
-            loading={funding.isFetching}
+            onClick={() => verify.mutate(reference)}
+            loading={verify.isPending}
           >
             Check now
           </Button>

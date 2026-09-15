@@ -1,8 +1,5 @@
 import { NavLink } from 'react-router';
-import { usePrincipal } from '@/app/auth/useAuth';
-import { can } from '@/services/auth/principal';
 export function ServicePlansNav() {
-  const pppoe = can(usePrincipal(), 'pppoe.view');
   return (
     <nav
       aria-label="Service plan sections"
@@ -11,7 +8,7 @@ export function ServicePlansNav() {
       {[
         ['/plans', 'Hotspot plans'],
         ['/plans/bandwidth', 'Bandwidth control'],
-        ...(pppoe ? [['/plans/pppoe', 'PPPoE plans']] : []),
+        ['/devices', 'IoT / MAC devices'],
       ].map(([to, label]) => (
         <NavLink
           key={to}

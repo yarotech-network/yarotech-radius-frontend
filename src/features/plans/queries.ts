@@ -41,8 +41,11 @@ export function usePlans(params: PlanListParams) {
 }
 
 /** Lightweight option list for selects (vouchers generate, filters, devices…). */
-export function usePlanOptions(activeOnly = true) {
-  return useQuery(planOptionsQuery(activeOnly));
+export function usePlanOptions(activeOnly = true, kind: 'voucher' | 'all' = 'voucher') {
+  return useQuery({
+    ...planOptionsQuery(activeOnly),
+    select: (rows) => (kind === 'all' ? rows : rows.filter((p) => p.plan_type !== 'iot_mac')),
+  });
 }
 
 export function usePlan(id: number) {
@@ -63,7 +66,10 @@ export function useCreatePlan() {
       payload: InternetPlanWrite;
       idempotencyKey: string;
     }) => plansApi.create(payload, idempotencyKey),
-    onSuccess: () => client.invalidateQueries({ queryKey: planKeys.all }),
+    onSuccess: () =>
+      client.invalidateQueries({
+        predicate: (q) => ['plans', 'storefront', 'agent'].includes(String(q.queryKey[0])),
+      }),
   });
 }
 
@@ -72,7 +78,10 @@ export function useUpdatePlan() {
   return useMutation({
     mutationFn: ({ id, payload }: { id: number; payload: Partial<InternetPlanWrite> }) =>
       plansApi.update(id, payload),
-    onSuccess: () => client.invalidateQueries({ queryKey: planKeys.all }),
+    onSuccess: () =>
+      client.invalidateQueries({
+        predicate: (q) => ['plans', 'storefront', 'agent'].includes(String(q.queryKey[0])),
+      }),
   });
 }
 
@@ -80,6 +89,9 @@ export function useDeletePlan() {
   const client = useQueryClient();
   return useMutation({
     mutationFn: (id: number) => plansApi.remove(id),
-    onSuccess: () => client.invalidateQueries({ queryKey: planKeys.all }),
+    onSuccess: () =>
+      client.invalidateQueries({
+        predicate: (q) => ['plans', 'storefront', 'agent'].includes(String(q.queryKey[0])),
+      }),
   });
 }

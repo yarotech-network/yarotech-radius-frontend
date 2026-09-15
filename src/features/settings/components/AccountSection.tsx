@@ -1,3 +1,4 @@
+import { ChangeEmailForm } from './ChangeEmailForm';
 import { CopyButton, DescriptionList } from '@/components/ui';
 import { useAuth } from '@/app/auth/useAuth';
 import { ChangePasswordForm } from './ChangePasswordForm';
@@ -46,6 +47,13 @@ export function AccountSection() {
             ]}
           />
         )}
+      </SettingsCard>
+      <SettingsCard
+        id="email-change"
+        title="Change email"
+        description="Your current email stays active until you verify the replacement."
+      >
+        <ChangeEmailForm />
       </SettingsCard>
       <SettingsCard
         id="password"

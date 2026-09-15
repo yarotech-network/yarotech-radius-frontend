@@ -12,6 +12,9 @@ export interface User {
   last_name: string;
   phone: string;
   role: UserRole;
+  is_platform_admin?: boolean;
+  workspace_role?: 'owner' | 'manager' | 'staff' | null;
+  membership_active?: boolean;
   tenant_name: string | null;
   tenant_id: number | null;
 }

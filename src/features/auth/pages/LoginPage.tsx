@@ -15,7 +15,7 @@ import { applyApiErrors } from '@/lib/validation/applyApiErrors';
 import { isApiError } from '@/services/api/errors';
 
 const schema = z.object({
-  username: z.string().trim().min(1, 'Enter your username'),
+  username: z.string().trim().min(1, 'Enter your username or email'),
   password: z.string().min(1, 'Enter your password'),
 });
 type FormValues = z.infer<typeof schema>;
@@ -41,7 +41,7 @@ export default function LoginPage() {
       await signIn(tokens); // RedirectIfAuthenticated performs the navigation
     } catch (error) {
       if (isApiError(error) && error.status === 401) {
-        submitError.setMessage('Incorrect username or password.');
+        submitError.setMessage('Incorrect username/email or password.');
         return;
       }
       if (isApiError(error) && error.status === 403 && error.code === 'email_not_verified') {
@@ -84,7 +84,7 @@ export default function LoginPage() {
         {submitError.retryAfter !== null && (
           <ThrottleNotice seconds={submitError.retryAfter} onDone={submitError.clearThrottle} />
         )}
-        <FormField label="Username" error={form.formState.errors.username?.message} required>
+        <FormField label="Username or email" error={form.formState.errors.username?.message} required>
           <Input
             autoComplete="username"
             autoFocus

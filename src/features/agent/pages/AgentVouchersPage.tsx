@@ -13,6 +13,8 @@ const FILTERS = ['status'] as const;
 const STATUS_OPTIONS = [
   { value: '', label: 'Any voucher status' },
   { value: 'unused', label: 'Unused' },
+  { value: 'sold', label: 'Sold' },
+  { value: 'used', label: 'Used' },
   { value: 'active', label: 'Active' },
   { value: 'expired', label: 'Expired' },
   { value: 'disabled', label: 'Disabled' },

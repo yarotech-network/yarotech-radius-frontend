@@ -113,7 +113,7 @@ export default function SubscriptionSettingsPage() {
         title="Plans"
         description={
           canCheckout
-            ? 'Pay securely with Paystack. Your subscription is extended as soon as the payment is confirmed.'
+            ? 'Pay securely with Paystack. Upgrades that preserve all purchased allowances start on confirmation. Renewals and reduced allowances start after your existing paid period; unused paid time is retained.'
             : 'Only workspace owners can change the plan.'
         }
       >
@@ -235,7 +235,7 @@ function CurrentPlan({ subscription }: { subscription: TenantSubscription }) {
           <h3 className="font-semibold text-brand-950">{subscription.is_trial ? 'Your trial allowances' : 'Your purchased allowances'}</h3>
           <PlanLimits plan={subscription.entitlements.terms} />
           <p className="mt-3 text-sm text-ink-600">
-            {subscription.entitlements.routers_used} routers registered.{' '}
+            {subscription.entitlements.routers_used} active routers.{' '}
             {subscription.entitlements.vouchers_prepared_today} vouchers prepared today (
             {subscription.entitlements.timezone}). Same-day reprints are free.
           </p>

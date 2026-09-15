@@ -35,6 +35,7 @@ export function AccessCodePanel({
         <p className="mt-2 text-sm text-ink-700">
           {plan.name} · {formatHours(plan.duration_hours)} · {formatDataLimit(plan.data_limit)}
           {plan.data_limit === 0 ? ' data' : ''}
+          {plan.device_limit !== undefined && ` ? ${plan.device_limit} device${plan.device_limit === 1 ? '' : 's'}`}
         </p>
       )}
       <div className="mt-4 rounded-card border border-success-100 bg-white p-4">

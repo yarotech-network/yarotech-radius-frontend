@@ -9,7 +9,20 @@ export interface MacDevice {
   plan_name: string;
   tenant: number;
   is_active: boolean;
-  expires_at: IsoDateTime;
+  expires_at: IsoDateTime | null;
+  router?: string | null;
+  router_name?: string | null;
+  router_location?: string | null;
+  access_type?: 'permanent' | 'timed';
+  vlan_id?: number | null;
+  description?: string;
+  accounting?: {
+    available: boolean;
+    session_count: number | null;
+    open_sessions: number | null;
+    bytes_total: number | null;
+    last_connected_at: IsoDateTime | null;
+  } | null;
   created_at: IsoDateTime;
 }
 
@@ -18,10 +31,15 @@ export interface MacDeviceWrite {
   device_name: string;
   plan: number;
   is_active?: boolean;
-  expires_at: IsoDateTime;
+  expires_at: IsoDateTime | null;
+  router?: string | null;
+  access_type?: 'permanent' | 'timed';
+  vlan_id?: number | null;
+  description?: string;
 }
 
 export interface DeviceListParams extends PageParams {
+  router?: string;
   is_active?: boolean;
   plan?: number;
 }

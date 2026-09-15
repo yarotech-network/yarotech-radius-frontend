@@ -1,5 +1,22 @@
 import type { IsoDateTime, Kobo, PageParams } from './common';
 import type { VoucherStatus } from './vouchers';
+import type { PublicPlan } from './tenants';
+
+export interface AgentPlan extends PublicPlan {
+  agent_cost: Kobo;
+  commission_amount: Kobo;
+  commission_rate: string;
+}
+
+export interface AgentWalletTransaction {
+  id: number;
+  reference: string;
+  category: 'voucher_sale' | 'funding';
+  amount: Kobo;
+  previous_balance: Kobo;
+  new_balance: Kobo;
+  created_at: IsoDateTime;
+}
 
 export type AgentStatus = 'pending' | 'active' | 'suspended';
 
@@ -54,6 +71,8 @@ export interface AgentWallet {
 export type FundingStatus = 'pending' | 'success' | 'failed';
 
 export interface AgentFundingPayment {
+  fee?: Kobo;
+  total_amount?: Kobo;
   id: number;
   reference: string;
   amount: Kobo;
@@ -80,6 +99,7 @@ export interface PlatformWalletPaymentListParams extends PageParams {
 }
 
 export interface FundWalletRequest {
+  expected_total?: Kobo;
   /** ≥ 50 000 kobo (₦500) and ≤ tenant max_funding_amount. */
   amount: Kobo;
 }
@@ -96,6 +116,9 @@ export interface AgentVoucherAllocation {
   allocation_type: AllocationType;
   amount_charged: Kobo;
   commission_earned: Kobo;
+  retail_price?: Kobo | null;
+  commission_rate_snapshot?: string | null;
+  wallet_transaction?: number | null;
   created_at: IsoDateTime;
 }
 

@@ -5,7 +5,7 @@ import { http, HttpResponse } from 'msw';
 import { server } from '@/test/server';
 import { API, paginated } from '@/test/fixtures';
 import { renderPage } from '@/test/renderPage';
-import CustomersPage from './CustomersPage';
+import CustomersPage from './ContactRecordsPage';
 
 const customer = {
   id: 1,
@@ -35,7 +35,7 @@ describe('Customer directory', () => {
     await userEvent.click(screen.getByRole('button', { name: 'View details' }));
     expect(await screen.findByText('Fresh detail')).toBeVisible();
     expect(
-      await within(screen.getByRole('dialog')).findByText('No service assigned'),
+      await within(screen.getByRole('dialog')).findByRole('link', { name: 'IoT / MAC Devices' }),
     ).toBeVisible();
   });
   it('creates a customer with an idempotency key and displays server field errors', async () => {

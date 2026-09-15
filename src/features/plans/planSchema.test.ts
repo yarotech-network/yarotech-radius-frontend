@@ -14,11 +14,16 @@ describe('plan form schema', () => {
     });
     expect(formToPlan(parsed)).toEqual({
       name: 'Daily',
+      plan_type: 'voucher',
+      is_public: true,
+      agent_enabled: true,
+      public_router: null,
       price: 150050,
       duration_hours: 24,
       rate_limit: '5M/10M',
       data_limit: 1024,
       voucher_prefix: 'DAY',
+      voucher_code_format: 'legacy',
       is_active: true,
     });
   });
@@ -57,5 +62,28 @@ describe('plan form schema', () => {
       duration_hours: 168,
       is_active: false,
     });
+  });
+});
+
+describe('compatible plan terms', () => {
+  it('preserves fractional duration, private sales flags and an empty rate', () => {
+    const parsed = planFormSchema.parse({
+      ...planToForm(),
+      name: 'Short private plan',
+      price: '10',
+      duration_hours: '0.333333',
+      rate_limit: '',
+      is_public: false,
+      agent_enabled: false,
+    });
+    expect(formToPlan(parsed)).toMatchObject({
+      duration_hours: 0.333333,
+      rate_limit: '',
+      is_public: false,
+      agent_enabled: false,
+    });
+    expect(
+      planFormSchema.safeParse({ ...parsed, price: '10', duration_hours: 0.000001 }).success,
+    ).toBe(false);
   });
 });

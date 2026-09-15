@@ -33,6 +33,10 @@ export interface HttpResponse<T> {
 type SessionExpiredHandler = (reason: 'expired' | 'revoked') => void;
 
 let activeTenantId: number | null = null;
+let accessContext: 'platform' | 'workspace' = 'platform';
+export function setAccessContext(value: 'platform' | 'workspace') {
+  accessContext = value;
+}
 let onSessionExpired: SessionExpiredHandler | null = null;
 let refreshInFlight: Promise<string | null> | null = null;
 
@@ -114,7 +118,11 @@ export async function refreshAccessToken(): Promise<string | null> {
   return refreshInFlight;
 }
 
-async function execute<T>(options: RequestOptions, attempt: number): Promise<HttpResponse<T>> {
+async function execute<T>(
+  options: RequestOptions,
+  attempt: number,
+  context: 'platform' | 'workspace',
+): Promise<HttpResponse<T>> {
   const {
     method = 'GET',
     path,
@@ -133,6 +141,7 @@ async function execute<T>(options: RequestOptions, attempt: number): Promise<Htt
   const tenantId = options.tenantId === undefined ? activeTenantId : options.tenantId;
   if (tenantId !== null && tenantId !== undefined) headers.set('X-Tenant-ID', String(tenantId));
   if (!anonymous) {
+    headers.set('X-Access-Context', context);
     const access = tokenStore.getAccess();
     if (access) headers.set('Authorization', `Bearer ${access}`);
   }
@@ -150,7 +159,7 @@ async function execute<T>(options: RequestOptions, attempt: number): Promise<Htt
 
   if (response.status === 401 && !anonymous && attempt === 0) {
     const refreshed = await refreshAccessToken();
-    if (refreshed) return execute<T>(options, attempt + 1);
+    if (refreshed) return execute<T>({ ...options, tenantId }, attempt + 1, context);
     if (!tokenStore.getRefresh()) {
       onSessionExpired?.('expired');
     }
@@ -171,7 +180,7 @@ async function execute<T>(options: RequestOptions, attempt: number): Promise<Htt
 }
 
 export async function request<T>(options: RequestOptions): Promise<HttpResponse<T>> {
-  return execute<T>(options, 0);
+  return execute<T>(options, 0, accessContext);
 }
 
 /** Convenience helpers returning only the parsed body. */

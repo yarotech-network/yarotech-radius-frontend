@@ -19,6 +19,7 @@ export function SaleResult({
   onDone: () => void;
 }) {
   const total = vouchers.reduce((sum, v) => sum + v.amount_charged, 0);
+  const margin = vouchers.reduce((sum, v) => sum + v.commission_earned, 0);
   const allSingleCode = vouchers.every((v) => Boolean(v.access_code));
   const usernames = vouchers.map((v) => v.access_code ?? v.voucher_username).join('\n');
   return (
@@ -36,6 +37,7 @@ export function SaleResult({
       <p className="mt-1 text-sm text-ink-700">
         {planName} · {formatKobo(total)} taken from your wallet.
       </p>
+      <p className="mt-1 text-sm text-ink-700">Retail margin retained: {formatKobo(margin)}.</p>
       <ul
         aria-label={allSingleCode ? 'Access codes' : 'Voucher usernames'}
         className="mt-4 divide-y divide-success-100 rounded-card border border-success-100 bg-white"

@@ -10,7 +10,7 @@ import { newIdempotencyKey } from '@/lib/utilities/idempotency';
 import { cn } from '@/lib/utilities/cn';
 import { isApiError } from '@/services/api/errors';
 import { pendingCheckout } from '@/features/storefront/pendingCheckout';
-import { useFundWallet } from '../queries';
+import { useFundWallet, useFundingPolicy } from '../queries';
 import { fundSchema, QUICK_AMOUNTS_KOBO, type FundInput, type FundOutput } from '../fundSchema';
 
 const FIELDS = ['amount'] as const;
@@ -29,6 +29,9 @@ export function FundWalletDialog({
   onStarted: (reference: string) => void;
 }) {
   const fund = useFundWallet();
+  const policy = useFundingPolicy(open);
+  const [unresolvedAmount, setUnresolvedAmount] = useState<number | null>(null);
+  const [unresolvedTotal, setUnresolvedTotal] = useState<number | null>(null);
   const [idempotencyKey, setIdempotencyKey] = useState(() => newIdempotencyKey('fund'));
   const [unavailable, setUnavailable] = useState<string | null>(null);
   const form = useForm<FundInput, unknown, FundOutput>({
@@ -39,6 +42,9 @@ export function FundWalletDialog({
   const { message, reset: resetErrors, captureError } = useFormSubmit(form.setError, FIELDS);
   const raw = useWatch({ control: form.control, name: 'amount' });
   const preview = parseNairaToKobo(raw ?? '');
+  const basisPoints = Math.round(Number(policy.data?.fee_percent ?? 0) * 100);
+  const fee = preview === null ? 0 : Math.floor((preview * basisPoints + 5000) / 10000) + (policy.data?.flat_fee ?? 0);
+  const total = (preview ?? 0) + fee;
 
   function close() {
     form.reset();
@@ -50,17 +56,35 @@ export function FundWalletDialog({
   const submit = form.handleSubmit(async (values) => {
     resetErrors();
     setUnavailable(null);
+    if (!policy.data) return;
+    if (unresolvedAmount !== null && unresolvedAmount !== values.amount) {
+      form.setError('amount', { message: 'Check the previous top-up before changing the amount.' });
+      return;
+    }
+    setUnresolvedAmount(values.amount);
+    setUnresolvedTotal(unresolvedTotal ?? total);
     try {
-      const result = await fund.mutateAsync({ amount: values.amount, idempotencyKey });
-      pendingCheckout.save({ kind: 'wallet', reference: result.reference, amount: values.amount });
+      const result = await fund.mutateAsync({ amount: values.amount, expected_total: unresolvedTotal ?? total, idempotencyKey });
+      pendingCheckout.save({ kind: 'wallet', reference: result.reference, amount: result.amount ?? values.amount });
       onStarted(result.reference);
+      setIdempotencyKey(newIdempotencyKey('fund'));
+      setUnresolvedAmount(null);
+      setUnresolvedTotal(null);
       window.location.assign(result.authorization_url);
     } catch (error) {
-      setIdempotencyKey(newIdempotencyKey('fund'));
+      if (isApiError(error) && error.status === 400) {
+        setIdempotencyKey(newIdempotencyKey('fund'));
+        setUnresolvedAmount(null);
+        setUnresolvedTotal(null);
+        void policy.refetch();
+      }
       if (isApiError(error) && error.status === 503) {
         const reference = (error.body as { reference?: string } | null)?.reference ?? null;
         setUnavailable(reference ?? '');
-        if (reference) onStarted(reference);
+        if (reference) {
+          pendingCheckout.save({ kind: 'wallet', reference, amount: values.amount });
+          onStarted(reference);
+        }
         return;
       }
       captureError(error);
@@ -82,9 +106,11 @@ export function FundWalletDialog({
         aria-label="Fund wallet"
       >
         {message && <Alert tone="danger">{message}</Alert>}
+        {policy.isError && <Alert tone="warning">Could not load funding fees. <Button type="button" onClick={() => void policy.refetch()}>Retry</Button></Alert>}
+        {policy.data && preview !== null && <p className="text-sm text-ink-700">Wallet credit: {formatKobo(preview)}. Funding fee: {formatKobo(fee)}. Total: {formatKobo(total)}.</p>}
         {unavailable !== null && (
           <Alert tone="warning" title="Payments are temporarily unavailable">
-            We could not reach Paystack. Nothing was charged — try again in a few minutes.
+            Paystack did not confirm the outcome. Check this top-up before starting another payment.
             {unavailable && (
               <span className="mt-1 block text-xs">
                 Reference <code className="font-mono">{unavailable}</code>
@@ -134,10 +160,11 @@ export function FundWalletDialog({
           </Button>
           <Button
             type="submit"
+            disabled={!policy.data || policy.isFetching}
             loading={form.formState.isSubmitting}
             trailingIcon={<ExternalLink className="size-4" aria-hidden />}
           >
-            {preview ? `Pay ${formatKobo(preview)}` : 'Continue to Paystack'}
+            {preview ? `Pay ${formatKobo(total)}` : 'Continue to Paystack'}
           </Button>
         </div>
       </form>

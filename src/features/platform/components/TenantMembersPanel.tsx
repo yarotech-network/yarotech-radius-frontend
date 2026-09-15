@@ -1,3 +1,4 @@
+import { MembershipStatusControl } from '@/features/settings/components/MembershipStatusControl';
 import { useMemo, useState } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -57,6 +58,11 @@ export function TenantMembersPanel({
   }
 
   const columns: Column<TenantMembership>[] = [
+    {
+      key: 'status',
+      header: 'Access',
+      cell: (m) => <MembershipStatusControl member={m} disabled={query.isFetching} />,
+    },
     {
       key: 'user',
       header: 'Member',

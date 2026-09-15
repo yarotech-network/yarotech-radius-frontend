@@ -33,6 +33,7 @@ export function renderPage(
     refreshPrincipal: vi.fn(),
     signOut: vi.fn(),
     selectTenant: vi.fn(),
+    switchContext: vi.fn(),
   };
   const client = createTestQueryClient();
   const path = options.path ?? '/';

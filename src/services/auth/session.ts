@@ -1,5 +1,10 @@
 import { STORAGE_KEYS } from '@/app/config/constants';
-import { http, refreshAccessToken, setActiveTenantHeader } from '@/services/api/http';
+import {
+  http,
+  refreshAccessToken,
+  setActiveTenantHeader,
+  setAccessContext,
+} from '@/services/api/http';
 import type {
   AgentLoginResponse,
   LoginResponse,
@@ -93,7 +98,15 @@ export async function loadPrincipal(): Promise<Principal> {
     if (principal.kind === 'platform_staff') setActiveTenantHeader(principal.activeTenantId);
     return principal;
   }
-  return derivePrincipal(user);
+  let context: 'platform' | 'workspace' = 'platform';
+  try {
+    if (sessionStorage.getItem(`yr.context.${user.id}`) === 'workspace') context = 'workspace';
+  } catch {
+    /* optional storage */
+  }
+  const principal = derivePrincipal(user, [], null, context);
+  setAccessContext(principal.kind === 'platform_admin' ? 'platform' : 'workspace');
+  return principal;
 }
 
 /** Called on app start: silently refresh (if we have a refresh token) then load the principal. */

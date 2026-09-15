@@ -1,5 +1,5 @@
 import { http, HttpResponse } from 'msw';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { server } from '@/test/server';
@@ -28,17 +28,64 @@ const device = (extra: Partial<MacDevice> = {}): MacDevice => ({
   plan: 1,
   plan_name: 'Daily 1GB',
   tenant: 5,
+  accounting: {
+    available: true,
+    session_count: 3,
+    open_sessions: 1,
+    bytes_total: 1536,
+    last_connected_at: '2026-09-11T10:00:00Z',
+  },
   is_active: true,
   expires_at: '2027-09-01T10:00:00Z',
   created_at: '2026-09-01T10:00:00Z',
   ...extra,
 });
 
+beforeEach(() =>
+  server.use(
+    http.get(`${API}/routers/`, () =>
+      HttpResponse.json(paginated([{ id: 'router-1', name: 'Lab router' }])),
+    ),
+  ),
+);
+
 describe('device schemas', () => {
+  it('requires a router, validates VLAN boundaries and requires an expiry only for timed access', () => {
+    const base = {
+      device_name: 'TV',
+      mac_address: 'aabbccddeeff',
+      plan: '1',
+      router: 'router-1',
+      access_type: 'permanent',
+      vlan_id: '',
+      description: '',
+      expires_at: '',
+      is_active: true,
+    };
+    expect(formToPayload(deviceSchema.parse(base)).expires_at).toBeNull();
+    for (const mac_address of [
+      'aabb.ccdd.eeff',
+      'AA:BB:CC:DD:EE:FF',
+      'aa-bb-cc-dd-ee-ff',
+      'aabbccddeeff',
+    ])
+      expect(formToPayload(deviceSchema.parse({ ...base, mac_address })).mac_address).toBe(
+        'AA:BB:CC:DD:EE:FF',
+      );
+    expect(deviceSchema.safeParse({ ...base, router: '' }).success).toBe(false);
+    expect(deviceSchema.safeParse({ ...base, access_type: 'timed' }).success).toBe(false);
+    expect(deviceSchema.safeParse({ ...base, vlan_id: '4095' }).success).toBe(false);
+    expect(deviceSchema.safeParse({ ...base, vlan_id: '1' }).success).toBe(true);
+  });
+
   it('normalises MAC formats and converts the local expiry to ISO', () => {
     expect(normaliseMac('aabb.ccdd.eeff')).toBe('AA:BB:CC:DD:EE:FF');
     expect(normaliseMac('aa-bb-cc-dd-ee-ff')).toBe('AA:BB:CC:DD:EE:FF');
     const parsed = deviceSchema.parse({
+      router: 'router-1',
+      access_type: 'timed',
+      vlan_id: '',
+      description: '',
       device_name: 'TV',
       mac_address: 'aa-bb-cc-dd-ee-01',
       plan: '1',
@@ -48,11 +95,15 @@ describe('device schemas', () => {
     const payload = formToPayload(parsed);
     expect(payload.mac_address).toBe('AA:BB:CC:DD:EE:01');
     expect(payload.plan).toBe(1);
-    expect(new Date(payload.expires_at).getTime()).toBe(new Date('2027-01-01T10:00').getTime());
+    expect(new Date(payload.expires_at!).getTime()).toBe(new Date('2027-01-01T10:00').getTime());
   });
   it('patches only what changed', () => {
     const d = device();
     const parsed = deviceSchema.parse({
+      router: 'router-1',
+      access_type: 'timed',
+      vlan_id: '',
+      description: '',
       device_name: 'Lobby TV',
       mac_address: 'aa:bb:cc:dd:ee:ff',
       plan: '1',
@@ -97,14 +148,19 @@ describe('DevicesPage', () => {
     renderPage(<DevicesPage />, { path: '/devices' });
     const table = await screen.findByRole('table', { name: 'Devices' });
     expect(await within(table).findByText('Lobby TV')).toBeInTheDocument();
+    expect(within(table).getAllByText('1 open').length).toBeGreaterThan(0);
+    expect(within(table).getAllByText('1.5 KB').length).toBeGreaterThan(0);
     expect(within(table).getAllByText(/Expired/).length).toBeGreaterThan(0);
 
-    await userEvent.click(screen.getByRole('button', { name: 'Register device' }));
-    const dialog = await screen.findByRole('dialog', { name: 'Register device' });
+    await userEvent.click(screen.getByRole('button', { name: 'Add device' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Add IoT / MAC Device' });
     await userEvent.type(within(dialog).getByLabelText(/Device name/), 'Kitchen tablet');
     await userEvent.type(within(dialog).getByLabelText(/MAC address/), '11-22-33-44-55-66');
     await userEvent.selectOptions(await within(dialog).findByLabelText(/Plan/), '1');
-    await userEvent.click(within(dialog).getByRole('button', { name: 'Register device' }));
+    await userEvent.selectOptions(within(dialog).getByLabelText(/^Router/), 'router-1');
+    await userEvent.type(within(dialog).getByLabelText(/VLAN ID/), '42');
+    await userEvent.type(within(dialog).getByLabelText(/Description/), 'Kitchen equipment');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Save device' }));
     await waitFor(() => expect(created).toHaveLength(1));
     expect(created[0]).toMatchObject({
       device_name: 'Kitchen tablet',
@@ -112,7 +168,13 @@ describe('DevicesPage', () => {
       plan: 1,
       is_active: true,
     });
-    expect(typeof created[0]?.expires_at).toBe('string');
+    expect(created[0]).toMatchObject({
+      expires_at: null,
+      access_type: 'permanent',
+      router: 'router-1',
+      vlan_id: 42,
+      description: 'Kitchen equipment',
+    });
 
     await userEvent.click(within(table).getByRole('button', { name: 'Actions for Old printer' }));
     await userEvent.click(await screen.findByRole('menuitem', { name: 'Remove' }));
@@ -128,7 +190,7 @@ describe('DevicesPage', () => {
     renderPage(<DevicesPage />, { path: '/devices', role: 'staff' });
     const table = await screen.findByRole('table', { name: 'Devices' });
     expect(await within(table).findByText('Lobby TV')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Register device' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Add device' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Actions for/ })).not.toBeInTheDocument();
   });
 });
@@ -181,7 +243,9 @@ describe('Device directory recovery', () => {
     );
     renderPage(<DevicesPage />, { path: '/devices', role: 'staff' });
     expect(await screen.findByText('Plan filters unavailable')).toBeInTheDocument();
-    expect(within(screen.getByRole('table', { name: 'Devices' })).getByText('Lobby TV')).toBeInTheDocument();
+    expect(
+      within(screen.getByRole('table', { name: 'Devices' })).getByText('Lobby TV'),
+    ).toBeInTheDocument();
     failed = false;
     await userEvent.click(screen.getByRole('button', { name: 'Retry plans' }));
     await waitFor(() =>

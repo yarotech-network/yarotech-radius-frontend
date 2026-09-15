@@ -1,3 +1,4 @@
+import { SubscriptionGate } from './SubscriptionGate';
 import type { ReactNode } from 'react';
 import { Navigate, Outlet, useLocation } from 'react-router';
 import { useAuth } from './useAuth';
@@ -21,7 +22,7 @@ export function RequireAuth({ loginPath = '/login' }: { loginPath?: string }) {
     const next = `${location.pathname}${location.search}`;
     return <Navigate to={loginPath} replace state={{ from: next }} />;
   }
-  return <Outlet />;
+  return <SubscriptionGate><Outlet /></SubscriptionGate>;
 }
 
 /** Only principals belonging to `surface` may enter; others go to their own home. */
@@ -48,7 +49,7 @@ export function RedirectIfAuthenticated() {
   if (status === 'booting') return <AppSplash />;
   if (status === 'authenticated' && principal) {
     const from = safeRedirectPath((location.state as { from?: unknown } | null)?.from);
-    return <Navigate to={from ?? homePathFor(principal)} replace />;
+    return <SubscriptionGate><Navigate to={from ?? homePathFor(principal)} replace /></SubscriptionGate>;
   }
   return <Outlet />;
 }

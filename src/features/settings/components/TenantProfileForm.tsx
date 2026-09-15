@@ -14,7 +14,7 @@ import {
   type TenantProfileOutput,
 } from '../settingsSchemas';
 
-const FIELDS = ['name', 'email', 'phone', 'address'] as const;
+const FIELDS = ['name', 'business_name', 'email', 'phone', 'address'] as const;
 
 export function TenantProfileForm({ profile }: { profile: TenantProfile }) {
   const toast = useToast();
@@ -62,8 +62,11 @@ export function TenantProfileForm({ profile }: { profile: TenantProfile }) {
       {message && <Alert tone="danger">{message}</Alert>}
       <fieldset disabled={update.isPending} className="flex min-w-0 flex-col gap-4">
         <legend className="sr-only">Business contact details</legend>
-        <FormField label="Business name" required error={errors.name?.message}>
+        <FormField label="Workspace name" required error={errors.name?.message}>
           <Input autoComplete="organization" {...form.register('name')} />
+        </FormField>
+        <FormField label="Business display name" error={errors.business_name?.message}>
+          <Input {...form.register('business_name')} />
         </FormField>
         <div className="grid gap-4 sm:grid-cols-2">
           <FormField label="Contact email" optionalLabel error={errors.email?.message}>

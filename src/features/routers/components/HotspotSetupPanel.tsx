@@ -7,6 +7,7 @@ import { http } from '@/services/api/http';
 import { errorMessage, isApiError } from '@/services/api/errors';
 import type { NasDevice } from '@/types/api';
 import { HotspotLabPackage } from './HotspotLabPackage';
+import { LocalLabVerification, type LocalLabResult } from './LocalLabVerification';
 import { RouterDiscovery, type RouterInventory } from './RouterDiscovery';
 
 type Port = {
@@ -16,6 +17,7 @@ type Port = {
   bridge: string;
 };
 type Configuration = {
+  authentication_mode?: 'radius' | 'local_user';
   inventory_id?: string | null;
   model: string;
   routeros_version: string;
@@ -30,6 +32,8 @@ type Configuration = {
   inventory_confirmed: boolean;
 };
 export type HotspotSetupResult = {
+  local_lab?: LocalLabResult;
+  local_lan_available?: boolean;
   discovery?: RouterInventory | null;
   device_profile?: { model: string; routeros_version: string };
   compatibility?: {
@@ -64,6 +68,7 @@ const initial: Configuration = {
   profile_name: 'yarotech-profile',
   gateway: '',
   radius_server: '',
+  authentication_mode: 'radius',
   interfaces: [],
   inventory_confirmed: false,
 };
@@ -361,14 +366,39 @@ function SetupWorkspace({
                 />
               </label>
               <label className="setup-field">
-                RADIUS server address
-                <Input
-                  required
-                  value={draft.radius_server}
-                  onChange={(e) => update('radius_server', e.target.value)}
-                  placeholder="Reachable server IPv4 address"
+                Authentication mode
+                <Select
+                  value={draft.authentication_mode ?? 'radius'}
+                  onChange={(event) => {
+                    const mode = event.target.value as 'radius' | 'local_user';
+                    update('authentication_mode', mode);
+                    if (mode === 'local_user') update('radius_server', '');
+                  }}
+                  options={[
+                    { value: 'radius', label: 'RADIUS ? system vouchers' },
+                    { value: 'local_user', label: 'Local user ? lab test without FreeRADIUS' },
+                  ]}
                 />
               </label>
+              {draft.authentication_mode === 'local_user' && (
+                <Alert tone="warning" title="Local-user lab only">
+                  Requires approved local LAN discovery and unused client ports. The package creates
+                  one router-local test user: one device, 2 Mbps, 15-minute sessions, one-hour total
+                  uptime and 100 MiB total data. Set its password in WinBox after staging. System
+                  vouchers, payments and RADIUS accounting are not tested by this mode.
+                </Alert>
+              )}
+              {draft.authentication_mode !== 'local_user' && (
+                <label className="setup-field">
+                  RADIUS server address
+                  <Input
+                    required
+                    value={draft.radius_server}
+                    onChange={(e) => update('radius_server', e.target.value)}
+                    placeholder="Reachable server IPv4 address"
+                  />
+                </label>
+              )}
             </div>
             <section className="space-y-4" aria-labelledby="inventory-heading">
               <h3 id="inventory-heading" className="font-semibold">
@@ -378,6 +408,7 @@ function SetupWorkspace({
                 Read interface names, types and bridge membership in WinBox. Add the actual
                 interfaces below, including separate WAN and management ports. Nothing is selected
                 for client traffic automatically.
+                {' '}For Wi-Fi, use interface type wireless and the same Hotspot clients role.
               </p>
               <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
                 <label className="setup-field">
@@ -508,6 +539,12 @@ function SetupWorkspace({
         <div className="space-y-5">
           <div>
             <h3 className="text-lg font-semibold">Configuration review</h3>
+            <p className="text-sm font-medium">
+              Authentication:{' '}
+              {data.intent.configuration.authentication_mode === 'local_user'
+                ? 'Local user lab ? RADIUS not verified'
+                : 'RADIUS system vouchers'}
+            </p>
             <p className="mt-1 text-sm text-ink-500">
               {data.intent.version} / {data.intent.state}. Review access expires{' '}
               {new Date(data.intent.expires_at).toLocaleString()}.
@@ -574,6 +611,9 @@ function SetupWorkspace({
       )}
       {step === 2 && (
         <div className="space-y-4">
+          {data.intent?.configuration.authentication_mode === 'local_user' && data.local_lab && (
+            <LocalLabVerification key={data.intent.id} routerId={router.id} intentId={data.intent.id} result={data.local_lab} />
+          )}
           <h3 className="text-lg font-semibold">Awaiting verified deployment</h3>
           <p className="text-sm text-ink-500">
             Saving a review does not configure the router. Executable deployment remains gated by

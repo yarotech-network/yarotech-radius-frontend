@@ -7,7 +7,7 @@ export function PlanLimits({ plan }: { plan: Limits }) {
         <li>
           {plan.max_routers === null
             ? 'Unlimited routers'
-            : `${plan.max_routers} registered routers`}
+            : `${plan.max_routers} active routers`}
         </li>
       )}
       {plan.whatsapp_enabled !== undefined && (

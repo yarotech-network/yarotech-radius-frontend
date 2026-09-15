@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { emailSchema, optionalPhoneSchema } from '@/lib/validation/schemas';
 
 export const checkoutSchema = z.object({
+  device_limit: z.coerce.number().int().min(1).max(10).default(1),
   email: emailSchema,
   name: z.string().trim().max(200, 'At most 200 characters'),
   phone: optionalPhoneSchema,

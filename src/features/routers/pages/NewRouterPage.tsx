@@ -174,8 +174,9 @@ export default function NewRouterPage() {
         <span>
           <strong className="block">Continue to Hotspot configuration review</strong>
           <span className="mt-1 block text-ink-600">
-            After registration, select actual interfaces and review a saved setup plan. Executable
-            smart scripts require hardware validation.
+            After registration, select actual interfaces and review a saved setup plan. On the setup
+            page, choose local LAN or WireGuard discovery. Local LAN requires server approval;
+            executable scripts require hardware validation.
           </span>
         </span>
       </label>

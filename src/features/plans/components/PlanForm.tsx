@@ -1,3 +1,5 @@
+import { planCodeFormatOptions } from '@/lib/voucherCodeFormats';
+import { useRouterOptions } from '@/features/routers/queries';
 import { useEffect, useMemo, useState } from 'react';
 import { Controller, useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -19,6 +21,10 @@ import { BandwidthPicker } from './BandwidthPicker';
 import { useCreatePlan, useUpdatePlan } from '../queries';
 
 const FIELDS = [
+  'plan_type',
+  'public_router',
+  'is_public',
+  'agent_enabled',
   'bandwidth_profile',
   'name',
   'price',
@@ -26,6 +32,7 @@ const FIELDS = [
   'rate_limit',
   'data_limit_mb',
   'voucher_prefix',
+  'voucher_code_format',
   'is_active',
 ] as const;
 const ALIASES = { data_limit: 'data_limit_mb' };
@@ -52,6 +59,7 @@ export function PlanForm({
     reset: resetErrors,
     captureError,
   } = useFormSubmit(form.setError, FIELDS, ALIASES);
+  const planType = useWatch({ control: form.control, name: 'plan_type' });
   const profileId = useWatch({ control: form.control, name: 'bandwidth_profile' });
   const [chooseProfile, setChooseProfile] = useState(!!plan?.bandwidth_profile);
   const duration = useWatch({ control: form.control, name: 'duration_hours' });
@@ -91,6 +99,28 @@ export function PlanForm({
       {message && <Alert tone="danger">{message}</Alert>}
       <fieldset className="min-w-0 space-y-4 rounded-xl border border-border p-4">
         <legend className="px-2 text-sm font-semibold text-brand-950">Package details</legend>
+        <FormField label="Service type" error={form.formState.errors.plan_type?.message}>
+          <Select
+            {...form.register('plan_type')}
+            options={[
+              { value: 'voucher', label: 'Hotspot voucher' },
+              { value: 'iot_mac', label: 'IoT / MAC device' },
+            ]}
+          />
+        </FormField>
+        {planType === 'iot_mac' && (
+          <Controller
+            control={form.control}
+            name="public_router"
+            render={({ field }) => (
+              <PlanRouterField
+                value={field.value}
+                onChange={field.onChange}
+                error={form.formState.errors.public_router?.message}
+              />
+            )}
+          />
+        )}
         <FormField label="Plan name" required error={form.formState.errors.name?.message}>
           <Input
             autoFocus
@@ -116,9 +146,9 @@ export function PlanForm({
             {customDuration ? (
               <Input
                 type="number"
-                min={1}
-                step={1}
-                inputMode="numeric"
+                min={0.000139}
+                step="any"
+                inputMode="decimal"
                 placeholder="Hours"
                 trailingSlot={<span className="text-xs text-ink-500">hours</span>}
                 {...form.register('duration_hours')}
@@ -204,8 +234,7 @@ export function PlanForm({
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <FormField
             label="Speed limit"
-            required
-            hint="Upload/download, e.g. 5M/10M. Select a profile to write speed limits to RADIUS for newly issued vouchers."
+            hint="Upload/download, e.g. 5M/10M. Applies to newly issued access; leave blank for no plan speed limit."
             error={form.formState.errors.rate_limit?.message}
           >
             <Input
@@ -233,6 +262,9 @@ export function PlanForm({
       </fieldset>
       <fieldset className="min-w-0 space-y-4 rounded-xl border border-border p-4">
         <legend className="px-2 text-sm font-semibold text-brand-950">Sales and vouchers</legend>
+        <FormField label="Voucher code format" hint="Applies to future vouchers. Existing codes stay unchanged. Numbers or letters describe the random part after any prefix." error={form.formState.errors.voucher_code_format?.message}>
+          <Select {...form.register('voucher_code_format')} options={planCodeFormatOptions} />
+        </FormField>
         <FormField
           label="Voucher prefix"
           optionalLabel
@@ -246,6 +278,25 @@ export function PlanForm({
             {...form.register('voucher_prefix')}
           />
         </FormField>
+        {(['is_public', 'agent_enabled'] as const).map((name) => (
+          <Controller
+            key={name}
+            control={form.control}
+            name={name}
+            render={({ field }) => (
+              <Checkbox
+                checked={field.value}
+                onChange={(e) => field.onChange(e.target.checked)}
+                label={name === 'is_public' ? 'Public sales' : 'Agent sales'}
+                description={
+                  name === 'is_public'
+                    ? 'Allow public hotspot checkout. IoT plans remain managed through device access.'
+                    : 'Allow agents to issue hotspot vouchers from this plan.'
+                }
+              />
+            )}
+          />
+        ))}
         <Controller
           control={form.control}
           name="is_active"
@@ -268,5 +319,47 @@ export function PlanForm({
         </Button>
       </div>
     </form>
+  );
+}
+
+function PlanRouterField({
+  value,
+  onChange,
+  error,
+}: {
+  value: string | null | undefined;
+  onChange: (value: string | null) => void;
+  error: string | undefined;
+}) {
+  const routers = useRouterOptions();
+  return (
+    <div>
+      <FormField
+        label="Assigned router"
+        error={error}
+        hint="IoT access is restricted to this router; required when Public sales is selected."
+      >
+        <Select
+          value={value ?? ''}
+          onChange={(e) => onChange(e.target.value || null)}
+          disabled={routers.isPending}
+          options={[
+            {
+              value: '',
+              label: routers.isPending ? 'Loading routers...' : 'No router restriction',
+            },
+            ...(routers.data ?? []).map((r) => ({ value: r.id, label: r.name })),
+            ...(value && !routers.data?.some((r) => r.id === value)
+              ? [{ value, label: 'Current router' }]
+              : []),
+          ]}
+        />
+      </FormField>
+      {routers.isError && (
+        <Button type="button" variant="ghost" onClick={() => void routers.refetch()}>
+          Retry routers
+        </Button>
+      )}
+    </div>
   );
 }

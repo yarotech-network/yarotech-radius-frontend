@@ -17,7 +17,17 @@ import {
   type TenantOutput,
 } from '../platformSchemas';
 
-const FIELDS = ['name', 'slug', 'email', 'phone', 'address', 'is_active'] as const;
+const FIELDS = [
+  'name',
+  'business_name',
+  'owner_email',
+  'owner_username',
+  'slug',
+  'email',
+  'phone',
+  'address',
+  'is_active',
+] as const;
 
 /** Create or edit a tenant. The slug is the public storefront address, so it is auto-suggested from the name until edited. */
 export function TenantDialog({
@@ -38,8 +48,8 @@ export function TenantDialog({
       title={tenant ? `Edit ${tenant.name}` : 'New tenant'}
       description={
         tenant
-          ? 'Contact details and the storefront address. Changing the slug breaks existing storefront links.'
-          : 'An operator workspace. Add its owner from the Members tab afterwards.'
+          ? 'Contact details. The existing storefront address is preserved.'
+          : 'Create a workspace and its owner account together. The owner receives a password setup link.'
       }
       size="md"
     >
@@ -81,6 +91,10 @@ function TenantForm({
 
   const submit = form.handleSubmit(async (values) => {
     resetErrors();
+    if (!tenant && (!values.owner_email || !values.owner_username)) {
+      form.setError('owner_email', { message: 'Owner email and username are required.' });
+      return;
+    }
     try {
       let saved: Tenant;
       if (tenant) {
@@ -95,7 +109,12 @@ function TenantForm({
       } else {
         saved = await create.mutateAsync({ payload: tenantFormToCreate(values), idempotencyKey });
         setIdempotencyKey(newIdempotencyKey('tenant'));
-        toast.success('Tenant created', `${saved.name} is live at /s/${saved.slug}.`);
+        if (saved.owner_delivery_status === 'failed')
+          toast.info(
+            'Tenant created; invitation not sent',
+            'Retry owner setup from the tenant details page.',
+          );
+        else toast.success('Tenant created', 'The owner has been sent a password setup link.');
       }
       onSaved?.(saved);
       onClose();
@@ -113,10 +132,24 @@ function TenantForm({
       aria-label={tenant ? 'Edit tenant' : 'New tenant'}
     >
       {message && <Alert tone="danger">{message}</Alert>}
+      {!tenant && (
+        <fieldset className="space-y-3">
+          <legend>Owner account</legend>
+          <FormField label="Owner email" required error={errors.owner_email?.message}>
+            <Input type="email" {...form.register('owner_email')} />
+          </FormField>
+          <FormField label="Owner username" required error={errors.owner_username?.message}>
+            <Input autoComplete="off" {...form.register('owner_username')} />
+          </FormField>
+        </fieldset>
+      )}
+      <FormField label="Business display name" error={errors.business_name?.message}>
+        <Input {...form.register('business_name')} />
+      </FormField>
       <fieldset className="min-w-0 space-y-4 rounded-xl border border-border p-4">
         <legend className="px-2 text-sm font-semibold text-brand-950">Business identity</legend>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <FormField label="Business name" required error={errors.name?.message}>
+          <FormField label="Workspace name" required error={errors.name?.message}>
             <Input
               autoFocus
               {...form.register('name', {
@@ -139,6 +172,7 @@ function TenantForm({
             <Input
               autoCapitalize="none"
               spellCheck={false}
+              readOnly={Boolean(tenant)}
               {...form.register('slug', { onChange: () => setSlugTouched(true) })}
             />
           </FormField>

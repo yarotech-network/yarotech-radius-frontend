@@ -150,7 +150,7 @@ function CreateAgentForm({
         <FormField
           label="Commission rate"
           optionalLabel
-          hint="Percent of each sale credited as commission. Defaults to 10%."
+          hint="Discount deducted from the wallet charge on future sales. Defaults to 10%."
           error={errors.commission_rate?.message}
         >
           <Input

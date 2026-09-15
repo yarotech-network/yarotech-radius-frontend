@@ -1,12 +1,15 @@
 import { z } from 'zod';
 import { LIMITS } from '@/app/config/constants';
-import { emailSchema, optionalPhoneSchema, positiveIntSchema } from '@/lib/validation/schemas';
+import { emailSchema, positiveIntSchema } from '@/lib/validation/schemas';
 import { STAFF_SERVICES, type StaffService, type Tenant, type TenantWrite } from '@/types/api';
 import { SLUG_PATTERN } from './platformVocabulary';
 
 /* ---------- tenants ---------- */
 
 export const tenantSchema = z.object({
+  business_name: z.string().trim().max(150).default(''),
+  owner_email: z.union([z.literal(''), emailSchema]).default(''),
+  owner_username: z.string().trim().max(150).default(''),
   name: z
     .string()
     .trim()
@@ -16,10 +19,10 @@ export const tenantSchema = z.object({
     .string()
     .trim()
     .min(2, 'At least 2 characters')
-    .max(50, 'At most 50 characters')
+    .max(120, 'At most 120 characters')
     .regex(SLUG_PATTERN, 'Letters, digits, hyphens and underscores only'),
   email: z.union([z.literal(''), emailSchema]),
-  phone: optionalPhoneSchema,
+  phone: z.string().trim().max(30),
   address: z.string().trim().max(500, 'At most 500 characters'),
   is_active: z.boolean(),
 });
@@ -29,6 +32,9 @@ export type TenantOutput = z.output<typeof tenantSchema>;
 export function tenantToForm(tenant?: Tenant): TenantInput {
   return {
     name: tenant?.name ?? '',
+    business_name: tenant?.business_name ?? '',
+    owner_email: '',
+    owner_username: '',
     slug: tenant?.slug ?? '',
     email: tenant?.email ?? '',
     phone: tenant?.phone ?? '',
@@ -40,6 +46,9 @@ export function tenantToForm(tenant?: Tenant): TenantInput {
 export function tenantFormToCreate(values: TenantOutput): TenantWrite {
   return {
     name: values.name,
+    business_name: values.business_name,
+    owner_email: values.owner_email,
+    owner_username: values.owner_username,
     slug: values.slug,
     email: values.email,
     phone: values.phone,
@@ -51,8 +60,9 @@ export function tenantFormToCreate(values: TenantOutput): TenantWrite {
 /** Only fields that changed (PATCH). */
 export function tenantFormToPatch(tenant: Tenant, values: TenantOutput): Partial<TenantWrite> {
   const patch: Partial<TenantWrite> = {};
-  for (const key of ['name', 'slug', 'email', 'phone', 'address', 'is_active'] as const) {
-    if (values[key] !== tenant[key]) (patch as Record<string, unknown>)[key] = values[key];
+  for (const key of ['name', 'business_name', 'email', 'phone', 'address', 'is_active'] as const) {
+    if (values[key] !== (key === 'business_name' ? (tenant[key] ?? '') : tenant[key]))
+      (patch as Record<string, unknown>)[key] = values[key];
   }
   return patch;
 }

@@ -216,3 +216,88 @@ describe('Hotspot setup workspace', () => {
     expect(screen.queryByRole('button', { name: 'Download review' })).not.toBeInTheDocument();
   });
 });
+
+describe('Local LAN onboarding', () => {
+  it('allows approved LAN discovery without deployed WireGuard and shows preparation review', async () => {
+    const user = userEvent.setup();
+    const local = { ...empty, local_lan_available: true };
+    let body: unknown;
+    server.use(
+      http.get(endpoint, () => HttpResponse.json(local)),
+      http.post(endpoint + 'discover/', async ({ request }) => {
+        body = await request.json();
+        return HttpResponse.json({
+          ...local,
+          discovery: {
+            id: 'local-inventory',
+            state: 'current',
+            observed_at: router.updated_at,
+            source: 'routeros_https',
+            version: 'v1',
+            connection_mode: 'local_lan',
+            management_ip: '192.168.88.1',
+            model: 'hAP ac lite',
+            routeros_version: '7.24.2',
+            reported_version: '7.24.2 (stable)',
+            architecture: 'mipsbe',
+            interfaces: [],
+            bridges: [],
+            packages: [],
+            hotspots: [],
+            hotspot_allowed: true,
+            unavailable_sections: [],
+            preparation: {
+              management_interface: 'ether2',
+              wan_interface: 'ether1',
+              steps: [
+                'Keep the computer on ether2 and verify IP management access.',
+                'After preparation, discover again.',
+              ],
+              ports: [
+                {
+                  name: 'ether3',
+                  bridge: 'bridgeLocal',
+                  protected_reasons: ['management'],
+                  state: 'review_required',
+                },
+              ],
+            },
+          },
+        });
+      }),
+    );
+    renderPage(<HotspotSetupPanel router={router} />);
+    expect(await screen.findByLabelText('Discovery connection')).toHaveValue('local_lan');
+    await user.click(screen.getByRole('button', { name: 'Discover router' }));
+    expect(await screen.findByText('Review customer-port preparation')).toBeInTheDocument();
+    expect(body).toEqual({ expected_updated_at: router.updated_at, connection_mode: 'local_lan' });
+    expect(screen.getByText(/ether3: currently in bridgeLocal/)).toBeInTheDocument();
+    expect(screen.getByText(/No WireGuard deployment is created/)).toBeInTheDocument();
+  });
+
+  it('blocks unapproved local discovery with an actionable explanation', async () => {
+    server.use(http.get(endpoint, () => HttpResponse.json(empty)));
+    renderPage(<HotspotSetupPanel router={router} />);
+    await userEvent.selectOptions(
+      await screen.findByLabelText('Discovery connection'),
+      'local_lan',
+    );
+    expect(screen.getByRole('button', { name: 'Discover router' })).toBeDisabled();
+    expect(screen.getByText(/Local LAN access has not been approved/)).toBeInTheDocument();
+  });
+});
+
+it('makes RADIUS address conditional on the explicitly selected authentication mode', async () => {
+  server.use(http.get(endpoint, () => HttpResponse.json(empty)));
+  renderPage(<HotspotSetupPanel router={router} />);
+  const select = await screen.findByLabelText('Authentication mode');
+  expect(screen.getByLabelText('RADIUS server address')).toBeRequired();
+  await userEvent.selectOptions(select, 'local_user');
+  expect(screen.queryByLabelText('RADIUS server address')).not.toBeInTheDocument();
+  expect(screen.getByText('Local-user lab only')).toBeInTheDocument();
+  expect(
+    screen.getByText(/System vouchers, payments and RADIUS accounting are not tested/),
+  ).toBeInTheDocument();
+  await userEvent.selectOptions(select, 'radius');
+  expect(screen.getByLabelText('RADIUS server address')).toBeRequired();
+});

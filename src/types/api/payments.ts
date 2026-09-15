@@ -41,6 +41,7 @@ export interface DeliverRequest {
 }
 
 export interface PublicBuyRequest {
+  device_limit?: number;
   plan_id: number;
   email: string;
   name?: string;
@@ -48,6 +49,7 @@ export interface PublicBuyRequest {
 }
 
 export interface PaymentCallbackPlan {
+  device_limit?: number;
   name: string;
   duration_hours: number;
   /** MB; 0 = unlimited. */

@@ -15,6 +15,9 @@ export interface PublicPlanParams extends PageParams {
 }
 
 export interface CheckoutStart {
+  amount?: number;
+  device_limit?: number;
+  base_amount?: number;
   authorization_url: string;
   reference: string;
 }

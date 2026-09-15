@@ -2,6 +2,7 @@ import type { Voucher } from '@/types/api';
 
 /** Mirrors backend `perform_update` / `perform_destroy`: only pristine admin vouchers are editable. */
 export function isEditable(voucher: Voucher): boolean {
+  if (voucher.can_edit !== undefined) return voucher.can_edit;
   return (
     voucher.status === 'unused' &&
     voucher.agent === null &&
@@ -10,7 +11,7 @@ export function isEditable(voucher: Voucher): boolean {
 }
 
 export function canDisable(voucher: Voucher): boolean {
-  return voucher.status === 'unused' || voucher.status === 'active';
+  return ['unused', 'sold', 'used', 'active'].includes(voucher.status);
 }
 
 export function describeSource(voucher: Voucher): string {

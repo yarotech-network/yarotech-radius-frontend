@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { Controller, useForm } from 'react-hook-form';
+import { Controller, useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button, Checkbox, Dialog, FormField, Input, Select } from '@/components/ui';
 import { Alert } from '@/components/feedback';
 import { useFormSubmit } from '@/lib/forms/useFormSubmit';
 import { newIdempotencyKey } from '@/lib/utilities/idempotency';
+import { useRouterOptions } from '@/features/routers/queries';
 import { usePlanOptions } from '@/features/plans/queries';
 import type { MacDevice } from '@/types/api';
 import { useCreateDevice, useUpdateDevice } from '../queries';
@@ -18,7 +19,17 @@ import {
   type DeviceOutput,
 } from '../deviceSchemas';
 
-const FIELDS = ['device_name', 'mac_address', 'plan', 'expires_at', 'is_active'] as const;
+const FIELDS = [
+  'device_name',
+  'mac_address',
+  'plan',
+  'expires_at',
+  'is_active',
+  'router',
+  'access_type',
+  'vlan_id',
+  'description',
+] as const;
 
 export function DeviceDialog({
   open,
@@ -35,13 +46,13 @@ export function DeviceDialog({
     <Dialog
       open={open}
       onClose={onClose}
-      variant="drawer"
-      size="md"
-      title={device ? `Edit ${device.device_name}` : 'Register device'}
+      variant="dialog"
+      size="lg"
+      title={device ? `Edit ${device.device_name}` : 'Add IoT / MAC Device'}
       description={
         device
           ? 'Changes apply the next time the device authenticates.'
-          : 'Devices with a registered MAC address connect without a voucher, on the plan you choose, until the expiry date.'
+          : 'Register device access by MAC address. Network authentication must be configured separately.'
       }
     >
       {open && (
@@ -67,7 +78,8 @@ function DeviceForm({
 }) {
   const create = useCreateDevice();
   const update = useUpdateDevice();
-  const plans = usePlanOptions(true);
+  const plans = usePlanOptions(true, 'all');
+  const routers = useRouterOptions();
   const [idempotencyKey] = useState(() => newIdempotencyKey('device'));
   const form = useForm<DeviceInput, unknown, DeviceOutput>({
     resolver: zodResolver(deviceSchema),
@@ -76,6 +88,7 @@ function DeviceForm({
   });
   const { message, reset: resetErrors, captureError } = useFormSubmit(form.setError, FIELDS);
   const errors = form.formState.errors;
+  const accessType = useWatch({ control: form.control, name: 'access_type' });
 
   const submit = form.handleSubmit(async (values) => {
     resetErrors();
@@ -143,6 +156,28 @@ function DeviceForm({
           {...form.register('mac_address')}
         />
       </FormField>
+      {routers.isError && (
+        <Alert
+          tone="warning"
+          actions={
+            <Button type="button" onClick={() => void routers.refetch()}>
+              Retry routers
+            </Button>
+          }
+        >
+          Routers could not be loaded.
+        </Alert>
+      )}
+      <FormField label="Router" required error={errors.router?.message}>
+        <Select
+          {...form.register('router')}
+          disabled={routers.isPending}
+          options={[
+            { value: '', label: routers.isPending ? 'Loading routers...' : 'Choose a router' },
+            ...(routers.data ?? []).map((r) => ({ value: r.id, label: r.name })),
+          ]}
+        />
+      </FormField>
       <FormField
         label="Plan"
         required
@@ -151,13 +186,34 @@ function DeviceForm({
       >
         <Select options={planOptions} disabled={plans.isPending} {...form.register('plan')} />
       </FormField>
+      <FormField label="Access type" required error={errors.access_type?.message}>
+        <Select
+          {...form.register('access_type')}
+          options={[
+            { value: 'permanent', label: 'Permanent' },
+            { value: 'timed', label: 'Time limited' },
+          ]}
+        />
+      </FormField>
+      {accessType === 'timed' && (
+        <FormField label="Access expires" required error={errors.expires_at?.message}>
+          <Input type="datetime-local" {...form.register('expires_at')} />
+        </FormField>
+      )}
       <FormField
-        label="Access expires"
-        required
-        hint="After this the device must be renewed here."
-        error={errors.expires_at?.message}
+        label="VLAN ID"
+        optionalLabel
+        hint="Optional: 1 to 4094. The router must support this VLAN policy."
+        error={errors.vlan_id?.message}
       >
-        <Input type="datetime-local" {...form.register('expires_at')} />
+        <Input type="number" min={1} max={4094} {...form.register('vlan_id')} />
+      </FormField>
+      <FormField label="Description" optionalLabel error={errors.description?.message}>
+        <textarea
+          className="min-h-24 w-full rounded-xl border border-border bg-white p-3 text-sm"
+          maxLength={2000}
+          {...form.register('description')}
+        />
       </FormField>
       <Controller
         control={form.control}
@@ -181,7 +237,7 @@ function DeviceForm({
           Cancel
         </Button>
         <Button type="submit" loading={form.formState.isSubmitting}>
-          {device ? 'Save changes' : 'Register device'}
+          {device ? 'Save changes' : 'Save device'}
         </Button>
       </div>
     </form>

@@ -296,6 +296,7 @@ export const router = createBrowserRouter([
       {
         Component: RequireAuth,
         children: [
+          { path: "/renew-subscription", element: null },
           {
             Component: PublicLayout,
             children: [

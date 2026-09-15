@@ -1,9 +1,17 @@
+export type VoucherCodeFormat = 'legacy' | 'numeric' | 'alphabetic' | 'alphanumeric';
 import type { IsoDateTime, Kobo, PageParams } from './common';
 
 export interface InternetPlan {
+  max_devices?: number;
+  archived_at?: IsoDateTime | null;
+  duration_seconds?: number;
   bandwidth_profile?: number | null;
   bandwidth_profile_name?: string | null;
-  service_type?: 'hotspot';
+  service_type?: 'hotspot' | 'iot_mac';
+  plan_type?: 'voucher' | 'iot_mac';
+  is_public?: boolean;
+  agent_enabled?: boolean;
+  public_router?: string | null;
   id: number;
   name: string;
   price: Kobo;
@@ -15,28 +23,36 @@ export interface InternetPlan {
   /** MB; 0 = unlimited. */
   data_limit: number;
   voucher_prefix: string;
+  voucher_code_format?: VoucherCodeFormat | 'tenant_default';
   is_active: boolean;
   created_at: IsoDateTime;
 }
 
 export interface InternetPlanWrite {
   bandwidth_profile?: number | null;
-  service_type?: 'hotspot';
+  service_type?: 'hotspot' | 'iot_mac';
+  plan_type?: 'voucher' | 'iot_mac';
+  is_public?: boolean;
+  agent_enabled?: boolean;
+  public_router?: string | null;
   name: string;
   price: Kobo;
   duration_hours: number;
   rate_limit: string;
   data_limit?: number;
   voucher_prefix?: string;
+  voucher_code_format?: VoucherCodeFormat | 'tenant_default';
   is_active?: boolean;
 }
 
 export interface PlanListParams extends PageParams {
+  archived?: boolean;
+  plan_type?: 'voucher' | 'iot_mac';
   is_active?: boolean;
   duration_hours?: number;
 }
 
-export type VoucherStatus = 'unused' | 'active' | 'expired' | 'disabled';
+export type VoucherStatus = 'unused' | 'sold' | 'used' | 'active' | 'expired' | 'disabled';
 export type VoucherSource = 'admin' | 'agent' | 'customer';
 
 /** `password` is write-only; credentials are only readable through print/pdf. */
@@ -54,6 +70,7 @@ export interface Voucher {
   agent: number | null;
   agent_name: string | null;
   status: VoucherStatus;
+  can_edit?: boolean;
   generation_source: VoucherSource;
   device_limit: number;
   expires_at: IsoDateTime | null;
@@ -70,6 +87,7 @@ export interface VoucherListParams extends PageParams {
 }
 
 export interface VoucherGenerateRequest {
+  device_limit?: number;
   plan_id: number;
   /** 1–100 */
   quantity: number;

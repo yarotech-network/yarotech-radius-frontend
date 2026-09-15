@@ -4,7 +4,7 @@ import { Controller, useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { CheckCircle2, Printer, RotateCcw, Ticket } from 'lucide-react';
 import { PageHeader } from '@/components/layout';
-import { Button, Card, FormField, Input, SegmentedControl } from '@/components/ui';
+import { Button, Card, FormField, Input, Select, SegmentedControl } from '@/components/ui';
 import { Alert } from '@/components/feedback';
 import { useFormSubmit } from '@/lib/forms/useFormSubmit';
 import { newIdempotencyKey } from '@/lib/utilities/idempotency';
@@ -24,7 +24,7 @@ import {
   type GenerateOutput,
 } from '../voucherSchemas';
 
-const FIELDS = ['plan_id', 'quantity', 'prefix'] as const;
+const FIELDS = ['plan_id', 'quantity', 'prefix', 'device_limit'] as const;
 
 interface BatchResult {
   vouchers: Voucher[];
@@ -48,21 +48,25 @@ export default function GenerateVouchersPage() {
     defaultValues: {
       plan_id: Number.isFinite(initialPlan) && initialPlan > 0 ? initialPlan : 0,
       quantity: 20,
+      device_limit: 1,
       prefix: '',
     },
     mode: 'onTouched',
   });
   const { message, reset: resetErrors, captureError } = useFormSubmit(form.setError, FIELDS);
-  const [planIdRaw, quantityRaw] = useWatch({
+  const [planIdRaw, quantityRaw, deviceLimitRaw] = useWatch({
     control: form.control,
-    name: ['plan_id', 'quantity'],
+    name: ['plan_id', 'quantity', 'device_limit'],
   });
   const planId = Number(planIdRaw);
   const quantity = Number(quantityRaw);
+  const deviceLimit = Number(deviceLimitRaw ?? 1);
+  const [previousPayload, setPreviousPayload] = useState('');
   const selectedPlan = useMemo(
     () => plans.data?.find((p) => p.id === planId),
     [plans.data, planId],
   );
+  const maxDevices = Math.max(1, Math.min(10, selectedPlan?.max_devices ?? 1));
   const validQuantity = Number.isInteger(quantity) && quantity >= 1 && quantity <= 100;
   const prefixPlaceholder = selectedPlan?.voucher_prefix
     ? `Defaults to ${selectedPlan.voucher_prefix}`
@@ -71,12 +75,21 @@ export default function GenerateVouchersPage() {
   const submit = form.handleSubmit(async (values) => {
     resetErrors();
     try {
+      if (values.device_limit > maxDevices) {
+        form.setError('device_limit', {message: `Choose at most ${maxDevices} device(s).`});
+        return;
+      }
       const payload = {
         plan_id: values.plan_id,
         quantity: values.quantity,
+        ...(values.device_limit > 1 ? {device_limit: values.device_limit} : {}),
         ...(values.prefix ? { prefix: values.prefix } : {}),
       };
-      const res = await generate.mutateAsync({ payload, idempotencyKey });
+      const fingerprint = JSON.stringify(payload);
+      const key = previousPayload && previousPayload !== fingerprint ? newIdempotencyKey('gen') : idempotencyKey;
+      setPreviousPayload(fingerprint);
+      if (key !== idempotencyKey) setIdempotencyKey(key);
+      const res = await generate.mutateAsync({ payload, idempotencyKey: key });
       setResult(res);
     } catch (error) {
       captureError(error);
@@ -86,7 +99,8 @@ export default function GenerateVouchersPage() {
   function startAnother() {
     setResult(null);
     setIdempotencyKey(newIdempotencyKey('gen'));
-    form.reset({ plan_id: planId, quantity, prefix: '' });
+    form.reset({ plan_id: planId, quantity, prefix: '', device_limit: deviceLimit });
+    setPreviousPayload('');
   }
 
   if (result) {
@@ -253,6 +267,9 @@ export default function GenerateVouchersPage() {
                   </FormField>
                 )}
               />
+              <FormField label="Devices per voucher" error={form.formState.errors.device_limit?.message}>
+                <Select {...form.register('device_limit')} options={Array.from({length: maxDevices}, (_, i) => ({value:String(i+1), label:`${i+1} device${i ? 's' : ''}`}))} />
+              </FormField>
               <FormField
                 label="Username prefix"
                 optionalLabel
@@ -294,7 +311,7 @@ export default function GenerateVouchersPage() {
               <div className="flex justify-between gap-3">
                 <dt className="text-ink-500">Price per voucher</dt>
                 <dd className="font-medium text-ink-900 tabular-nums">
-                  {selectedPlan ? formatKobo(selectedPlan.price) : 'Choose a plan'}
+                  {selectedPlan ? formatKobo(selectedPlan.price * deviceLimit) : 'Choose a plan'}
                 </dd>
               </div>
               <div className="flex justify-between gap-3">
@@ -306,7 +323,7 @@ export default function GenerateVouchersPage() {
               <div className="flex justify-between gap-3 border-t border-border pt-2">
                 <dt className="text-ink-500">Face value</dt>
                 <dd className="font-semibold text-ink-900 tabular-nums">
-                  {selectedPlan && validQuantity ? formatKobo(selectedPlan.price * quantity) : '—'}
+                  {selectedPlan && validQuantity ? formatKobo(selectedPlan.price * deviceLimit * quantity) : '—'}
                 </dd>
               </div>
             </dl>

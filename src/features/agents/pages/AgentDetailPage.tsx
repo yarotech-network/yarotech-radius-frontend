@@ -21,8 +21,10 @@ import { useAgent, useApproveAgent, useSuspendAgent } from '../queries';
 import { AGENT_STATUS_LABELS, canApprove, canSuspend } from '../agentRules';
 import { formatCommission } from '../agentSchemas';
 import { EditAgentDialog } from '../components/AgentForms';
+import { AgentCreditPanel } from '../components/AgentCreditPanel';
+import { usePrincipal } from '@/app/auth/useAuth';
 
-type Tab = 'overview' | 'sales';
+type Tab = 'overview' | 'sales' | 'credit';
 
 export default function AgentDetailPage() {
   const { id = '' } = useParams();
@@ -68,6 +70,8 @@ function AgentDetail({
     document.title = `${agent.username} - Agents - Yarotech RADIUS`;
   }, [agent.username]);
   const toast = useToast();
+  const principal = usePrincipal();
+  const canManageCredit = principal.kind === 'member' && principal.role === 'owner';
   const approve = useApproveAgent();
   const suspend = useSuspendAgent();
   const [tab, setTab] = useState<Tab>('overview');
@@ -183,6 +187,7 @@ function AgentDetail({
           items={[
             { value: 'overview', label: 'Profile' },
             { value: 'sales', label: 'Vouchers sold' },
+            ...(canManageCredit ? [{ value: 'credit' as const, label: 'Credit account' }] : []),
           ]}
           value={tab}
           onChange={setTab}
@@ -209,6 +214,7 @@ function AgentDetail({
           />
         )}
         {tab === 'sales' && <AgentSales agent={agent} />}
+        {tab === 'credit' && canManageCredit && <AgentCreditPanel agent={agent} />}
       </Card>
 
       <EditAgentDialog

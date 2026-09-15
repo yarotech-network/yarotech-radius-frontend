@@ -132,6 +132,9 @@ describe('platform rules + vocabulary', () => {
     const t = tenant();
     expect(
       tenantFormToPatch(t, {
+        business_name: t.business_name ?? '',
+        owner_email: '',
+        owner_username: '',
         name: t.name,
         slug: t.slug,
         email: 'new@x.io',
@@ -290,7 +293,9 @@ describe('TenantsPage', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'New tenant' }));
     const form = await screen.findByRole('form', { name: 'New tenant' });
-    await userEvent.type(within(form).getByLabelText(/^Business name/), 'Probe WiFi');
+    await userEvent.type(within(form).getByLabelText(/^Owner email/), 'owner@example.test');
+    await userEvent.type(within(form).getByLabelText(/^Owner username/), 'owner');
+    await userEvent.type(within(form).getByLabelText(/^Workspace name/), 'Probe WiFi');
     // slug suggested from the name
     expect(within(form).getByLabelText(/^Storefront slug/)).toHaveValue('probe-wifi');
     await userEvent.click(within(form).getByRole('button', { name: 'Create tenant' }));
@@ -356,7 +361,9 @@ describe('TenantsPage', () => {
     renderPage(<TenantsPage />, { path: '/platform/tenants', role: 'platform_admin' });
     await userEvent.click(await screen.findByRole('button', { name: 'New tenant' }));
     const form = await screen.findByRole('form', { name: 'New tenant' });
-    await userEvent.type(within(form).getByLabelText(/^Business name/), 'Wuse Hotspot');
+    await userEvent.type(within(form).getByLabelText(/^Owner email/), 'owner@example.test');
+    await userEvent.type(within(form).getByLabelText(/^Owner username/), 'owner');
+    await userEvent.type(within(form).getByLabelText(/^Workspace name/), 'Wuse Hotspot');
     await userEvent.click(within(form).getByRole('button', { name: 'Create tenant' }));
     expect(
       await within(form).findByText('tenant with this slug already exists.'),

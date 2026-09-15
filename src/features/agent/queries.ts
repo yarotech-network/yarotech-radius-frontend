@@ -5,6 +5,8 @@ import type {
   AgentSelfEditRequest,
   AllocationListParams,
   FundingListParams,
+  PageParams,
+  FundWalletRequest,
 } from '@/types/api';
 import { agentPortalApi } from './api';
 
@@ -102,6 +104,7 @@ function useInvalidateMoney() {
       qc.invalidateQueries({ queryKey: agentKeys.me() }),
       qc.invalidateQueries({ queryKey: [...agentKeys.all, 'history'] }),
       qc.invalidateQueries({ queryKey: [...agentKeys.all, 'fundings'] }),
+      qc.invalidateQueries({ queryKey: [...agentKeys.all, 'transactions'] }),
     ]);
 }
 
@@ -122,8 +125,8 @@ export function useGenerateVouchers() {
 export function useFundWallet() {
   const invalidate = useInvalidateMoney();
   return useMutation({
-    mutationFn: ({ amount, idempotencyKey }: { amount: number; idempotencyKey: string }) =>
-      agentPortalApi.fund({ amount }, idempotencyKey),
+    mutationFn: ({ idempotencyKey, ...payload }: FundWalletRequest & { idempotencyKey: string }) =>
+      agentPortalApi.fund(payload, idempotencyKey),
     onSettled: () => void invalidate(),
   });
 }
@@ -134,5 +137,29 @@ export function useUpdateAgentMe() {
     mutationFn: ({ id, payload }: { id: number; payload: AgentSelfEditRequest }) =>
       agentPortalApi.updateMe(id, payload),
     onSuccess: (profile) => qc.setQueryData(agentKeys.me(), profile),
+  });
+}
+
+export function useAgentPlans() { return useQuery({queryKey: ['agent', 'plans'], queryFn: agentPortalApi.plans}); }
+
+export function useFundingPolicy(enabled: boolean) {
+  return useQuery({ queryKey: [...agentKeys.all, 'funding-policy'], queryFn: agentPortalApi.fundingPolicy, enabled, staleTime: 0 });
+}
+
+export function useVerifyFunding() {
+  const qc = useQueryClient();
+  const invalidate = useInvalidateMoney();
+  return useMutation({
+    mutationFn: agentPortalApi.verifyFunding,
+    onMutate: (reference) => qc.cancelQueries({ queryKey: agentKeys.funding(reference) }),
+    onSuccess: (payment) => { qc.setQueryData(agentKeys.funding(payment.reference), payment); void invalidate(); },
+  });
+}
+
+export function useWalletTransactions(params: PageParams) {
+  return useQuery({
+    queryKey: [...agentKeys.all, 'transactions', params],
+    queryFn: () => agentPortalApi.transactions(params),
+    placeholderData: keepPreviousData,
   });
 }

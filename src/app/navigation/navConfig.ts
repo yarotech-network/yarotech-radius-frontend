@@ -111,13 +111,6 @@ export const WORKSPACE_NAV: NavGroup[] = [
             capabilities: ['plans.view'],
           },
           {
-            key: 'pppoe-plans',
-            label: 'PPPoE Plans',
-            to: '/plans/pppoe',
-            icon: ListChecks,
-            capabilities: ['pppoe.view'],
-          },
-          {
             key: 'bandwidth',
             label: 'Bandwidth Control',
             to: '/plans/bandwidth',
@@ -187,7 +180,7 @@ export const WORKSPACE_NAV: NavGroup[] = [
       },
       {
         key: 'devices',
-        label: 'Devices',
+        label: 'IoT / MAC Devices',
         to: '/devices',
         icon: Smartphone,
         capabilities: ['devices.view'],

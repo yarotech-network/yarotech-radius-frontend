@@ -1,3 +1,4 @@
+import { AccessContextSwitcher } from './AccessContextSwitcher';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router';
 import { useQueryClient } from '@tanstack/react-query';
@@ -254,6 +255,7 @@ export function AppShell({
             {activeItem?.label ?? 'Dashboard'}
           </p>
         </div>
+        <AccessContextSwitcher />
         {topBarStart && (
           <div
             className={cn(

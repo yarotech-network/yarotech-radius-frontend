@@ -25,7 +25,7 @@ import { VOUCHERS_DEFAULT_ORDERING, useDisableVoucher, useVouchers } from '../qu
 import { describeSource } from '../voucherRules';
 
 const FILTERS = ['status', 'plan', 'source'] as const;
-const STATUSES: readonly VoucherStatus[] = ['unused', 'active', 'expired', 'disabled'];
+const STATUSES: readonly VoucherStatus[] = ['unused', 'sold', 'used', 'active', 'expired', 'disabled'];
 
 export default function VouchersPage() {
   const principal = usePrincipal();

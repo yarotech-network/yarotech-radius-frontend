@@ -1,7 +1,9 @@
+import { formatBytes } from '@/lib/formatting/units';
+import '../devices.css';
 import { useEffect, useMemo, useState } from 'react';
 import { MonitorSmartphone, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react';
 import { PageHeader, BooleanBadge } from '@/components/layout';
-import { Button, Card, ConfirmDialog, Menu, Select } from '@/components/ui';
+import { Button, ConfirmDialog, Menu, Select } from '@/components/ui';
 import { Alert, EmptyState, useToast } from '@/components/feedback';
 import {
   DataTable,
@@ -16,30 +18,33 @@ import { formatDateTime, formatRelative, isPast } from '@/lib/formatting/dates';
 import { useDebouncedValue } from '@/lib/utilities/useDebouncedValue';
 import { can } from '@/services/auth/principal';
 import { errorMessage } from '@/services/api/errors';
+import { useRouterOptions } from '@/features/routers/queries';
 import { usePlanOptions } from '@/features/plans/queries';
 import type { DeviceListParams, MacDevice } from '@/types/api';
 import { useDeleteDevice, useDevices } from '../queries';
 import { DeviceDialog } from '../components/DeviceDialog';
 
-const FILTERS = ['is_active', 'plan'] as const;
+const FILTERS = ['is_active', 'plan', 'router'] as const;
 const MoreIcon = () => <span aria-hidden>···</span>;
 
 export default function DevicesPage() {
   useEffect(() => {
-    document.title = 'Devices | Yarotech RADIUS';
+    document.title = 'IoT / MAC Devices | Yarotech RADIUS';
   }, []);
   const principal = usePrincipal();
   const canManage = can(principal, 'devices.manage');
   const toast = useToast();
   const list = useListParams(FILTERS);
   const debouncedSearch = useDebouncedValue(list.state.search);
-  const plans = usePlanOptions(false);
+  const plans = usePlanOptions(false, 'all');
+  const routers = useRouterOptions();
   const remove = useDeleteDevice();
   const [dialog, setDialog] = useState<{ open: boolean; device?: MacDevice }>({ open: false });
   const [deleting, setDeleting] = useState<MacDevice | null>(null);
 
   const params = useMemo(() => {
     const p: DeviceListParams = { page: list.state.page, page_size: list.state.page_size };
+    if (list.state.filters.router) p.router = list.state.filters.router;
     if (debouncedSearch) p.search = debouncedSearch;
     if (list.state.filters.is_active) p.is_active = list.state.filters.is_active === 'true';
     if (list.state.filters.plan) p.plan = Number(list.state.filters.plan);
@@ -68,55 +73,97 @@ export default function DevicesPage() {
           ) : (
             <div className="font-medium break-all text-ink-900">{d.device_name}</div>
           )}
-          <code className="font-mono text-xs break-all text-ink-500">{d.mac_address}</code>
+
           <p className="mt-1 text-xs text-ink-500 md:hidden">
-            {isPast(d.expires_at) ? 'Expired' : 'Access until'} {formatDateTime(d.expires_at)}
+            {d.expires_at
+              ? `${isPast(d.expires_at) ? 'Expired' : 'Access until'} ${formatDateTime(d.expires_at)}`
+              : 'Permanent access'}
           </p>
         </div>
       ),
     },
+    { key: 'mac', header: 'MAC', cell: (d) => <code className="text-xs">{d.mac_address}</code> },
     {
       key: 'plan',
-      header: 'Plan',
+      header: 'Plan / policy',
       cell: (d) => <span className="break-words text-ink-700">{d.plan_name}</span>,
     },
     {
       key: 'expires',
-      header: 'Access until',
+      header: 'Expiration',
       hideBelow: 'md',
       cell: (d) => (
         <span
           className={isPast(d.expires_at) ? 'text-danger-700' : 'text-ink-700'}
           title={formatDateTime(d.expires_at)}
         >
-          {isPast(d.expires_at)
-            ? `Expired ${formatRelative(d.expires_at)}`
-            : formatRelative(d.expires_at)}
+          {!d.expires_at
+            ? 'Permanent'
+            : isPast(d.expires_at)
+              ? `Expired ${formatRelative(d.expires_at)}`
+              : formatRelative(d.expires_at)}
         </span>
       ),
     },
     {
       key: 'active',
       header: 'Status',
-      cell: (d) => <BooleanBadge value={d.is_active} trueLabel="Active" falseLabel="Inactive" />,
+      cell: (d) => (
+        <BooleanBadge
+          value={d.is_active}
+          trueLabel={isPast(d.expires_at) ? 'Expired' : 'Enabled'}
+          falseLabel="Inactive"
+        />
+      ),
     },
     {
-      key: 'created',
-      header: 'Registered',
-      hideBelow: 'xl',
+      key: 'router',
+      header: 'Router / site',
       cell: (d) => (
-        <time dateTime={d.created_at} title={formatDateTime(d.created_at)} className="text-ink-600">
-          {formatRelative(d.created_at)}
-        </time>
+        <div>
+          <span>{d.router_name ?? 'Unassigned'}</span>
+          <p className="text-xs text-ink-500">{d.router_location}</p>
+        </div>
+      ),
+    },
+    {
+      key: 'session',
+      header: 'Session',
+      cell: (d) => (
+        <span
+          className="text-xs text-ink-500"
+          title="Based on recorded MAC authentication sessions; an open record does not guarantee current connectivity."
+        >
+          {!d.accounting?.available
+            ? 'Unavailable'
+            : !d.accounting.session_count
+              ? 'Not observed'
+              : d.accounting.open_sessions
+                ? `${d.accounting.open_sessions} open`
+                : 'Closed'}
+        </span>
+      ),
+    },
+    {
+      key: 'usage',
+      header: 'Usage',
+      cell: (d) => (
+        <span className="text-xs text-ink-500">
+          {d.accounting?.bytes_total == null
+            ? 'Not observed'
+            : formatBytes(d.accounting.bytes_total)}
+        </span>
       ),
     },
   ];
 
+  const order = ['device', 'mac', 'router', 'active', 'plan', 'expires', 'session', 'usage'];
+  columns.sort((a, b) => order.indexOf(a.key) - order.indexOf(b.key));
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Devices"
-        description="Smart TVs, printers and other equipment allowed online by MAC address without a voucher."
+        title="IoT / MAC Devices"
+        description="Router-bound device access managed by MAC address."
         actions={
           <div className="flex flex-wrap gap-2">
             <Button
@@ -137,32 +184,16 @@ export default function DevicesPage() {
                 leadingIcon={<Plus className="h-4 w-4" aria-hidden />}
                 onClick={() => setDialog({ open: true })}
               >
-                Register device
+                Add device
               </Button>
             )}
           </div>
         }
       />
-      <Card className="border-brand-100 bg-gradient-to-br from-brand-50 via-white to-sky-50">
-        <div className="flex items-start gap-4">
-          <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-brand-600 text-white">
-            <MonitorSmartphone className="size-5" aria-hidden />
-          </span>
-          <div>
-            <h2 className="text-lg font-semibold text-brand-950">
-              Manage access for your equipment
-            </h2>
-            <p className="mt-1 text-sm leading-relaxed text-ink-600">
-              Register TVs, printers and other devices by MAC address. Choose their internet plan
-              and review when their access expires.
-            </p>
-            <p className="mt-3 text-sm text-brand-800">
-              Active is the registration setting. Access also requires an unexpired registration and
-              a configured network.
-            </p>
-          </div>
-        </div>
-      </Card>
+      <Alert tone="info">
+        Connection and usage figures reflect recorded MAC sessions. Saving a device does not confirm
+        network access.
+      </Alert>
       <section aria-labelledby="device-directory-title" className="space-y-4">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h2 id="device-directory-title" className="text-lg font-semibold text-brand-950">
@@ -177,7 +208,7 @@ export default function DevicesPage() {
           </p>
         </div>
         <FilterBar
-          inline
+          className="iot-filters rounded-xl border border-border bg-surface p-4"
           search={
             <SearchInput
               value={list.state.search}
@@ -188,6 +219,17 @@ export default function DevicesPage() {
           }
           filters={
             <>
+              <Select
+                aria-label="Router"
+                size="sm"
+                value={list.state.filters.router ?? ''}
+                onChange={(e) => list.setFilter('router', e.target.value || undefined)}
+                disabled={routers.isPending}
+                options={[
+                  { value: '', label: 'All routers' },
+                  ...(routers.data ?? []).map((r) => ({ value: r.id, label: r.name })),
+                ]}
+              />
               <Select
                 aria-label="Status"
                 size="sm"
@@ -224,6 +266,18 @@ export default function DevicesPage() {
           activeCount={list.activeFilterCount}
           onClear={list.clearFilters}
         />
+        {routers.isError && (
+          <Alert
+            tone="warning"
+            actions={
+              <Button variant="secondary" onClick={() => void routers.refetch()}>
+                Retry routers
+              </Button>
+            }
+          >
+            Router filters could not be loaded.
+          </Alert>
+        )}
         {plans.isError && (
           <Alert
             tone="warning"
@@ -243,6 +297,7 @@ export default function DevicesPage() {
           </Alert>
         )}
         <DataTable
+          className="relative max-w-full min-w-0"
           caption="Devices"
           columns={columns}
           rows={query.data?.results}
@@ -312,7 +367,7 @@ export default function DevicesPage() {
                 }
                 action={
                   canManage ? (
-                    <Button onClick={() => setDialog({ open: true })}>Register device</Button>
+                    <Button onClick={() => setDialog({ open: true })}>Add device</Button>
                   ) : undefined
                 }
               />

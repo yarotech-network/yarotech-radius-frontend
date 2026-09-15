@@ -1,9 +1,10 @@
+import { voucherCodeFormatOptions } from '@/lib/voucherCodeFormats';
 import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Link } from 'react-router';
 import { CreditCard, KeyRound, RefreshCw } from 'lucide-react';
-import { Button, Card, FormField, Input, PasswordInput, Skeleton } from '@/components/ui';
+import { Button, Card, FormField, Input, Select, PasswordInput, Skeleton } from '@/components/ui';
 import { Alert, ErrorState, useToast } from '@/components/feedback';
 import { useFormSubmit } from '@/lib/forms/useFormSubmit';
 import { formatDateTime } from '@/lib/formatting/dates';
@@ -92,8 +93,11 @@ export default function BillingSettingsPage() {
 }
 
 const FIELDS = [
+  'agent_funding_fee_percent',
+  'agent_funding_flat_fee',
   'agent_commission_percent',
   'voucher_prefix',
+  'default_voucher_code_format',
   'max_funding_amount',
   'paystack_public_key',
   'paystack_secret_key',
@@ -195,6 +199,9 @@ function BillingForm({ settings }: { settings: TenantSetting }) {
           className="grid min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-3"
         >
           <legend className="sr-only">Voucher and agent rules</legend>
+          <FormField label="Default voucher code format" hint="Used by plans set to Business default. Existing vouchers are unchanged." error={errors.default_voucher_code_format?.message}>
+            <Select {...form.register('default_voucher_code_format')} options={voucherCodeFormatOptions} />
+          </FormField>
           <FormField
             label="Voucher prefix"
             hint="Up to 10 letters/digits, e.g. WH"
@@ -208,7 +215,7 @@ function BillingForm({ settings }: { settings: TenantSetting }) {
           </FormField>
           <FormField
             label="Agent commission"
-            hint="Recorded for reporting; not applied to wallets automatically"
+            hint="Legacy reporting value. Set each agent's sales discount on their agent profile."
             error={errors.agent_commission_percent?.message}
           >
             <Input
@@ -220,6 +227,16 @@ function BillingForm({ settings }: { settings: TenantSetting }) {
               }
               {...form.register('agent_commission_percent')}
             />
+          </FormField>
+          <FormField
+            label="Wallet funding fee (%)"
+            hint="Added to future top-ups. Zero disables the percentage fee."
+            error={errors.agent_funding_fee_percent?.message}
+          >
+            <Input inputMode="decimal" {...form.register('agent_funding_fee_percent')} />
+          </FormField>
+          <FormField label="Flat wallet funding fee (naira)" error={errors.agent_funding_flat_fee?.message}>
+            <Input inputMode="decimal" {...form.register('agent_funding_flat_fee')} />
           </FormField>
           <FormField
             label="Max wallet top-up"

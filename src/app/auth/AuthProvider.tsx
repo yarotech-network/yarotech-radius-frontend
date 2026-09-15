@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { setActiveTenantHeader, setSessionExpiredHandler } from '@/services/api/http';
+import {
+  setAccessContext,
+  setActiveTenantHeader,
+  setSessionExpiredHandler,
+} from '@/services/api/http';
 import { tokenStore } from '@/services/auth/tokenStore';
 import {
   bootstrapSession,
@@ -23,6 +27,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [principal]);
 
   const applyPrincipal = useCallback((next: Principal | null) => {
+    principalRef.current = next;
     setPrincipal(next);
     setStatus(next ? 'authenticated' : 'anonymous');
   }, []);
@@ -100,14 +105,54 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         rememberTenantFor(current.user.id, next.activeTenantId);
       }
       queryClient.clear();
+      principalRef.current = next;
       setPrincipal(next);
     },
     [queryClient],
   );
 
+  const switchContext = useCallback(
+    async (context: 'platform' | 'workspace') => {
+      const user = principalRef.current?.user;
+      if (!user || !user.is_platform_admin || (context === 'workspace' && !user.membership_active))
+        return;
+      await queryClient.cancelQueries();
+      if (principalRef.current?.user !== user) return;
+      queryClient.clear();
+      try {
+        sessionStorage.setItem(`yr.context.${user.id}`, context);
+      } catch {
+        /* optional storage */
+      }
+      const next = derivePrincipal(user, [], null, context);
+      setAccessContext(context);
+      principalRef.current = next;
+      applyPrincipal(next);
+    },
+    [applyPrincipal, queryClient],
+  );
+
   const value = useMemo<AuthContextValue>(
-    () => ({ status, principal, signOutReason, signIn, refreshPrincipal, signOut, selectTenant }),
-    [status, principal, signOutReason, signIn, refreshPrincipal, signOut, selectTenant],
+    () => ({
+      status,
+      principal,
+      signOutReason,
+      signIn,
+      refreshPrincipal,
+      signOut,
+      selectTenant,
+      switchContext,
+    }),
+    [
+      status,
+      principal,
+      signOutReason,
+      signIn,
+      refreshPrincipal,
+      signOut,
+      selectTenant,
+      switchContext,
+    ],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

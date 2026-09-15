@@ -3,6 +3,7 @@ import { LIMITS } from '@/app/config/constants';
 import { idempotentPrefixSchema, positiveIntSchema } from '@/lib/validation/schemas';
 
 export const generateSchema = z.object({
+  device_limit: z.coerce.number().int().min(1).max(10).default(1),
   plan_id: z.coerce.number().int().positive('Choose a plan'),
   quantity: z.coerce
     .number()

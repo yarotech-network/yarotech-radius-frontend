@@ -4,7 +4,6 @@ import {
   emailSchema,
   idempotentPrefixSchema,
   nairaAmountSchema,
-  optionalPhoneSchema,
   passwordSchema,
   positiveIntSchema,
 } from '@/lib/validation/schemas';
@@ -21,13 +20,14 @@ import type {
 /* ---------- business profile ---------- */
 
 export const tenantProfileSchema = z.object({
+  business_name: z.string().trim().max(150).default(''),
   name: z
     .string()
     .trim()
     .min(LIMITS.tenantNameMin, `At least ${LIMITS.tenantNameMin} characters`)
     .max(LIMITS.tenantNameMax),
   email: z.union([z.literal(''), emailSchema]),
-  phone: optionalPhoneSchema,
+  phone: z.string().trim().max(30),
   address: z.string().trim().max(500, 'At most 500 characters'),
 });
 export type TenantProfileInput = z.input<typeof tenantProfileSchema>;
@@ -36,6 +36,7 @@ export type TenantProfileOutput = z.output<typeof tenantProfileSchema>;
 export function profileToForm(profile: TenantProfile): TenantProfileInput {
   return {
     name: profile.name,
+    business_name: profile.business_name ?? '',
     email: profile.email,
     phone: profile.phone,
     address: profile.address,
@@ -48,6 +49,8 @@ export function profileFormToPatch(
   current: TenantProfile,
 ): TenantProfileWrite {
   const patch: TenantProfileWrite = {};
+  if (values.business_name !== (current.business_name ?? ''))
+    patch.business_name = values.business_name;
   if (values.name !== current.name) patch.name = values.name;
   if (values.email !== current.email) patch.email = values.email;
   if (values.phone !== current.phone) patch.phone = values.phone;
@@ -65,8 +68,11 @@ const percentSchema = z
   .refine((v) => Number(v) <= 100, 'At most 100%');
 
 export const billingSettingsSchema = z.object({
+  agent_funding_fee_percent: percentSchema.default('0'),
+  agent_funding_flat_fee: nairaAmountSchema({ minKobo: 0 }).default(0),
   agent_commission_percent: percentSchema,
   voucher_prefix: idempotentPrefixSchema,
+  default_voucher_code_format: z.enum(['legacy', 'numeric', 'alphabetic', 'alphanumeric']).default('legacy'),
   max_funding_amount: nairaAmountSchema({ minKobo: 1 }),
   /** Blank = keep the stored key. */
   paystack_public_key: z.string().trim().max(200),
@@ -77,8 +83,11 @@ export type BillingSettingsOutput = z.output<typeof billingSettingsSchema>;
 
 export function settingsToForm(s: TenantSetting): BillingSettingsInput {
   return {
+    agent_funding_fee_percent: s.agent_funding_fee_percent ?? '0',
+    agent_funding_flat_fee: koboToNairaInput(s.agent_funding_flat_fee ?? 0),
     agent_commission_percent: String(Number(s.agent_commission_percent)),
     voucher_prefix: s.voucher_prefix,
+    default_voucher_code_format: s.default_voucher_code_format ?? 'legacy',
     max_funding_amount: koboToNairaInput(s.max_funding_amount),
     paystack_public_key: '',
     paystack_secret_key: '',
@@ -90,8 +99,14 @@ export function settingsFormToPatch(
   current: TenantSetting,
 ): TenantSettingWrite {
   const patch: TenantSettingWrite = {};
+  if (Number(values.agent_funding_fee_percent) !== Number(current.agent_funding_fee_percent ?? 0))
+    patch.agent_funding_fee_percent = values.agent_funding_fee_percent;
+  if (values.agent_funding_flat_fee !== (current.agent_funding_flat_fee ?? 0))
+    patch.agent_funding_flat_fee = values.agent_funding_flat_fee;
   if (Number(values.agent_commission_percent) !== Number(current.agent_commission_percent))
     patch.agent_commission_percent = values.agent_commission_percent;
+  if (values.default_voucher_code_format !== (current.default_voucher_code_format ?? 'legacy'))
+    patch.default_voucher_code_format = values.default_voucher_code_format;
   if (values.voucher_prefix !== current.voucher_prefix)
     patch.voucher_prefix = values.voucher_prefix;
   if (values.max_funding_amount !== current.max_funding_amount)

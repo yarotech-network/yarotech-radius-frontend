@@ -10,47 +10,37 @@ import { formatKobo } from '@/lib/formatting/money';
 import { newIdempotencyKey } from '@/lib/utilities/idempotency';
 import { cn } from '@/lib/utilities/cn';
 import { isApiError } from '@/services/api/errors';
-import { usePublicPlans, usePublicTenant } from '@/features/storefront/queries';
 import { PlanCard, PlanCardSkeleton } from '@/features/storefront/components/PlanCard';
 import type { AgentVoucherAllocation, PublicPlan } from '@/types/api';
-import { useAgentWallet, useGenerateVouchers } from '../queries';
-import { useStoreSlug } from '../storeSlug';
+import { useAgentWallet, useAgentPlans, useGenerateVouchers } from '../queries';
 import { sellCost, sellSchema, type SellInput, type SellOutput } from '../sellSchema';
-import { StoreLinkForm } from '../components/StoreLink';
 import { SaleResult } from '../components/SaleResult';
+import { usePrincipal } from '@/app/auth/useAuth';
+import { loadPendingSale, savePendingSale, clearPendingSale } from '../pendingSale';
 
 const FIELDS = ['plan_id', 'quantity'] as const;
 
 export default function AgentSellPage() {
-  const [slug, setSlug] = useStoreSlug();
-  useEffect(() => {
-    document.title = 'Sell vouchers · Agent portal';
-  }, []);
-
-  if (!slug) {
-    return (
-      <div className="space-y-4">
-        <h1 className="text-2xl font-semibold text-brand-950">Sell vouchers</h1>
-        <StoreLinkForm />
-      </div>
-    );
-  }
-  return <SellForm slug={slug} onChangeStore={() => setSlug(null)} />;
+  const principal = usePrincipal();
+  const scope = `${principal?.user.id}:${principal?.user.tenant_id}`;
+  useEffect(() => { document.title = 'Sell vouchers - Agent portal'; }, []);
+  return <SellForm key={scope} scope={scope} />;
 }
 
-function SellForm({ slug, onChangeStore }: { slug: string; onChangeStore: () => void }) {
-  const tenant = usePublicTenant(slug);
-  const plans = usePublicPlans(slug);
+function SellForm({ scope }: { scope: string }) {
+  const plans = useAgentPlans();
   const wallet = useAgentWallet();
   const generate = useGenerateVouchers();
-  const [idempotencyKey, setIdempotencyKey] = useState(() => newIdempotencyKey('agent-gen'));
+  const [remembered] = useState(() => loadPendingSale(scope));
+  const [idempotencyKey, setIdempotencyKey] = useState(() => remembered?.key ?? newIdempotencyKey('agent-gen'));
+  const [unresolvedPayload, setUnresolvedPayload] = useState<string | null>(() => remembered ? JSON.stringify(remembered.payload) : null);
   const [sold, setSold] = useState<{ vouchers: AgentVoucherAllocation[]; planName: string } | null>(
     null,
   );
 
   const form = useForm<SellInput, unknown, SellOutput>({
     resolver: zodResolver(sellSchema),
-    defaultValues: { plan_id: 0, quantity: 1 },
+    defaultValues: remembered?.payload ?? { plan_id: 0, quantity: 1 },
     mode: 'onTouched',
   });
   const { message, reset: resetErrors, captureError } = useFormSubmit(form.setError, FIELDS);
@@ -62,28 +52,38 @@ function SellForm({ slug, onChangeStore }: { slug: string; onChangeStore: () => 
     () => plans.data?.results.find((p) => p.id === planId) ?? null,
     [plans.data, planId],
   );
-  const cost = plan ? sellCost(plan.price, quantity) : 0;
+  const pricingAvailable = plan != null && Number.isSafeInteger(plan.agent_cost);
+  const cost = plan && pricingAvailable ? sellCost(plan.agent_cost, quantity) : 0;
+  const margin = plan && pricingAvailable ? sellCost(plan.commission_amount, quantity) : 0;
   const balance = wallet.data?.balance ?? null;
   const short = balance !== null && cost > balance;
 
-  // The storefront slug may point at a tenant the agent does not belong to; the backend rejects
-  // the plan with a 400 we surface on the field. Reset the choice when the slug changes.
-  useEffect(() => {
-    form.setValue('plan_id', 0);
-  }, [slug, form]);
-
   const submit = form.handleSubmit(async (values) => {
     resetErrors();
+    const payload = { plan_id: values.plan_id, quantity: values.quantity };
+    const fingerprint = JSON.stringify(payload);
+    if (unresolvedPayload && unresolvedPayload !== fingerprint) {
+      form.setError('root', { message: 'Retry the original sale before changing the plan or quantity. Its outcome has not been confirmed.' });
+      return;
+    }
+    setUnresolvedPayload(fingerprint);
     try {
+      savePendingSale(scope, { key: idempotencyKey, payload });
       const res = await generate.mutateAsync({
-        payload: { plan_id: values.plan_id, quantity: values.quantity },
+        payload,
         idempotencyKey,
       });
       setSold({ vouchers: res.vouchers, planName: plan?.name ?? 'Voucher' });
+      clearPendingSale(scope);
       setIdempotencyKey(newIdempotencyKey('agent-gen'));
+      setUnresolvedPayload(null);
       form.reset({ plan_id: 0, quantity: 1 });
     } catch (error) {
-      setIdempotencyKey(newIdempotencyKey('agent-gen'));
+      if (isApiError(error) && error.status === 400) {
+        clearPendingSale(scope);
+        setIdempotencyKey(newIdempotencyKey('agent-gen'));
+        setUnresolvedPayload(null);
+      }
       if (isApiError(error) && /insufficient/i.test(error.message)) {
         form.setError('root', { message: 'insufficient' });
         return;
@@ -117,14 +117,7 @@ function SellForm({ slug, onChangeStore }: { slug: string; onChangeStore: () => 
           <h1 className="text-2xl font-semibold text-brand-950">Sell vouchers</h1>
           <p className="mt-1 flex items-center gap-1.5 text-sm text-ink-500">
             <Store className="size-4" aria-hidden />
-            {tenant.data?.name ?? slug}
-            <button
-              type="button"
-              onClick={onChangeStore}
-              className="ml-1 text-brand-600 hover:underline"
-            >
-              Change
-            </button>
+            Your operator's enabled plans
           </p>
         </div>
         <p className="flex items-center gap-1.5 text-sm text-ink-700">
@@ -137,6 +130,9 @@ function SellForm({ slug, onChangeStore }: { slug: string; onChangeStore: () => 
       </header>
 
       {message && <Alert tone="danger">{message}</Alert>}
+      {unresolvedPayload && <Alert tone="warning">This sale has not been confirmed. Retry the same plan and quantity to check its result before starting another sale.</Alert>}
+      {errors.root?.message && errors.root.message !== 'insufficient' && <Alert tone="warning">{errors.root.message}</Alert>}
+      {plan && !pricingAvailable && <Alert tone="warning">Agent pricing is unavailable. Refresh the catalogue before selling.</Alert>}
       {errors.root?.message === 'insufficient' && (
         <Alert
           tone="warning"
@@ -215,6 +211,7 @@ function SellForm({ slug, onChangeStore }: { slug: string; onChangeStore: () => 
       <div className="flex flex-col gap-3 rounded-card border border-border bg-surface p-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="text-xs text-ink-500">Wallet will be charged</div>
+          {pricingAvailable && <p className="text-sm text-ink-500">Your margin: {formatKobo(margin)} ({plan?.commission_rate}%). Retained from the retail price.</p>}
           <div
             className={cn(
               'text-xl font-semibold tabular-nums',
@@ -233,7 +230,7 @@ function SellForm({ slug, onChangeStore }: { slug: string; onChangeStore: () => 
           type="submit"
           size="lg"
           loading={form.formState.isSubmitting}
-          disabled={!plan || short}
+          disabled={!unresolvedPayload && (!plan || !pricingAvailable || short)}
         >
           {plan && quantity > 1 ? `Sell ${quantity} vouchers` : 'Sell voucher'}
         </Button>

@@ -35,6 +35,7 @@ export function HotspotLabPackage({
 }
 
 function PackageForm({ router, data }: { router: NasDevice; data: HotspotSetupResult }) {
+  const localUser = data.intent?.configuration.authentication_mode === 'local_user';
   const [acknowledged, setAcknowledged] = useState(false);
   const [dns, setDns] = useState('');
   const mutation = useMutation({
@@ -76,8 +77,18 @@ function PackageForm({ router, data }: { router: NasDevice; data: HotspotSetupRe
       <Alert tone="warning" title="These scripts can change your router">
         Stage creates disabled resources. Activate enables them separately. Cleanup removes this
         package's resources. Read the included guide and test with independent management access.
-        Existing RADIUS credentials must already be configured; this package contains no secrets.
+        {localUser
+          ? 'Local-user test only: set the generated Hotspot user password in WinBox after staging. RADIUS and system vouchers remain unverified.'
+          : 'Existing RADIUS credentials must already be configured; this package contains no secrets.'}
       </Alert>
+      {localUser && (
+        <p className="text-sm text-ink-600">
+          The router-local account permits one device, 2 Mbps, 15-minute sessions, one-hour total
+          uptime and 100 MiB total data. Without internet, test the login page using the customer
+          gateway IP. Cleanup removes the test account and profile. This does not configure an
+          internet uplink or a complete firewall.
+        </p>
+      )}
       {!eligible && (
         <p className="text-sm text-ink-500">
           Discover this router, use its interfaces and save a fresh-install review before exporting.

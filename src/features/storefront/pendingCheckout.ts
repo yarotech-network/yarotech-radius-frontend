@@ -9,6 +9,7 @@ export interface PendingCheckout {
   slug?: string;
   planName?: string;
   amount?: number;
+  deviceLimit?: number;
   startedAt: string;
 }
 

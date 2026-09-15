@@ -8,6 +8,8 @@ import { humanise } from '@/lib/formatting/units';
 const TONES: Record<string, BadgeTone> = {
   // vouchers
   unused: 'info',
+  sold: 'info',
+  used: 'neutral',
   active: 'success',
   expired: 'neutral',
   disabled: 'danger',

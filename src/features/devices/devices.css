@@ -1,0 +1,24 @@
+.iot-filters > div:first-child {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr) auto;
+  width: 100%;
+}
+.iot-filters > div:first-child > div:first-child {
+  max-width: none;
+  width: 100%;
+}
+.iot-filters > div:first-child > div:nth-child(2) {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  min-width: 0;
+}
+@media (max-width: 63.999rem) {
+  .iot-filters > div:first-child {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 35rem) {
+  .iot-filters > div:first-child > div:nth-child(2) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

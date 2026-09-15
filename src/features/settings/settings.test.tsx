@@ -76,6 +76,14 @@ const plans: SubscriptionPlan[] = [
 ];
 
 describe('settings schemas', () => {
+  it('converts flat funding fees to kobo and preserves zero defaults', () => {
+    const form = settingsToForm(setting);
+    const defaults = billingSettingsSchema.parse(form);
+    expect(defaults.agent_funding_flat_fee).toBe(0);
+    expect(settingsFormToPatch(defaults, setting)).toEqual({});
+    const changed = billingSettingsSchema.parse({ ...form, agent_funding_fee_percent: '2.50', agent_funding_flat_fee: '10.50' });
+    expect(settingsFormToPatch(changed, setting)).toEqual({ agent_funding_fee_percent: '2.50', agent_funding_flat_fee: 1050 });
+  });
   it('patches only changed profile fields', () => {
     const parsed = tenantProfileSchema.parse({
       name: 'Wuse Hotspot',
@@ -127,7 +135,7 @@ describe('SettingsLayout', () => {
     });
     const nav = await screen.findByRole('navigation', { name: 'Settings sections' });
     expect(within(nav).getByRole('link', { name: 'General' })).toBeInTheDocument();
-    expect(within(nav).getByRole('link', { name: 'Team' })).toBeInTheDocument();
+    expect(within(nav).queryByRole('link', { name: 'Team' })).not.toBeInTheDocument();
     expect(within(nav).getByRole('link', { name: 'Subscription' })).toBeInTheDocument();
     expect(within(nav).queryByRole('link', { name: 'Billing & payouts' })).not.toBeInTheDocument();
   });
@@ -146,7 +154,7 @@ describe('GeneralSettingsPage', () => {
     );
     renderPage(<GeneralSettingsPage />, { path: '/settings/general', role: 'manager' });
     const form = await screen.findByRole('form', { name: 'Business profile' });
-    const name = within(form).getByLabelText(/Business name/);
+    const name = within(form).getByLabelText(/Workspace name/);
     await waitFor(() => expect(name).toHaveValue('Wuse Hotspot'));
     expect(within(form).getByRole('button', { name: 'Save changes' })).toBeDisabled();
     await userEvent.clear(name);
@@ -347,7 +355,7 @@ describe('SubscriptionSettingsPage', () => {
     renderPage(<SubscriptionSettingsPage />, { path: '/settings/subscription', role: 'owner' });
     expect(await screen.findByText('15-day trial')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Your trial allowances' })).toBeInTheDocument();
-    expect(screen.getByText('1 registered routers')).toBeInTheDocument();
+    expect(screen.getByText('1 active routers')).toBeInTheDocument();
     expect(screen.getByText('50 vouchers prepared for printing per day')).toBeInTheDocument();
     expect(screen.getByText('WhatsApp not included')).toBeInTheDocument();
   });
@@ -433,9 +441,9 @@ describe('SubscriptionSettingsPage', () => {
     expect(await screen.findByText('Current')).toBeInTheDocument();
     expect(screen.getAllByText('Business').length).toBeGreaterThan(0);
     expect(screen.getByText('Purchased Business')).toBeInTheDocument();
-    expect(screen.getByText('5 registered routers')).toBeInTheDocument();
+    expect(screen.getByText('5 active routers')).toBeInTheDocument();
     expect(
-      screen.getByText(/3 routers registered. 12 vouchers prepared today/),
+      screen.getByText(/3 active routers. 12 vouchers prepared today/),
     ).toBeInTheDocument();
     expect(
       screen.queryByRole('button', { name: /Subscribe|Renew|Switch/ }),
@@ -552,7 +560,7 @@ describe('GeneralSettingsPage refresh recovery', () => {
       'href',
       '/s/wuse-hotspot',
     );
-    const name = within(form).getByLabelText(/Business name/);
+    const name = within(form).getByLabelText(/Workspace name/);
     await userEvent.clear(name);
     await userEvent.type(name, 'Updated business');
     expect(screen.getByText('You have unsaved changes.')).toBeInTheDocument();
@@ -651,4 +659,9 @@ describe('TeamSettingsPage directory recovery', () => {
     expect(screen.queryByRole('button', { name: 'Add member' })).not.toBeInTheDocument();
     expect(within(table).queryByLabelText(/Role for/)).not.toBeInTheDocument();
   });
+});
+
+it('saves an explicitly selected business voucher format without changing other settings', () => {
+  const parsed = billingSettingsSchema.parse({ ...settingsToForm(setting), default_voucher_code_format: 'alphabetic' });
+  expect(settingsFormToPatch(parsed, setting)).toEqual({ default_voucher_code_format: 'alphabetic' });
 });
