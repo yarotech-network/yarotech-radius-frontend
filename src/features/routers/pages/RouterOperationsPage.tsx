@@ -19,6 +19,7 @@ const STATUS_OPTIONS: { value: OperationStatus | ''; label: string }[] = [
 const ACTION_OPTIONS: { value: OperationAction | ''; label: string }[] = [
   { value: '', label: 'All actions' },
   { value: 'provision', label: 'Provision' },
+  { value: 'self_service_provision', label: 'Prepare router setup' },
   { value: 'suspend', label: 'Suspend' },
 ];
 

@@ -30,6 +30,16 @@ export const ROUTER_TRANSITIONS: Readonly<Record<OnboardingState, readonly Onboa
 
 /** Secrets (`nas_secret`, `routeros_password_encrypted`) are write-only. */
 export interface NasDevice {
+  registration?: {
+    nas_identifier: string;
+    hotspot_interface: string;
+    hotspot_profile: string;
+    notes: string;
+    setup: Record<string, string>;
+    status: 'needs_attention' | 'preparing' | 'ready';
+    error_code: string;
+    script_sha256: string;
+  } | null;
   model?: string;
   routeros_version?: string;
   id: string;
@@ -140,7 +150,7 @@ export interface RouterRadiusTestResult {
   passed: boolean;
 }
 
-export type OperationAction = 'provision' | 'suspend';
+export type OperationAction = 'provision' | 'suspend' | 'self_service_provision';
 export type OperationStatus = 'pending' | 'running' | 'succeeded' | 'failed';
 
 export interface RouterOperation {
@@ -161,7 +171,7 @@ export interface OperationListParams extends PageParams {
 }
 
 export interface ProvisionRequest {
-  action: OperationAction;
+  action: 'provision' | 'suspend';
 }
 
 export interface ReplaceSecretsRequest {

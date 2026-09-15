@@ -17,7 +17,8 @@ export function RouterBasicsFields({
   register,
   errors,
   control,
-}: GroupProps & { control: Control<AnyRouterForm> }) {
+  identityReadOnly = false,
+}: GroupProps & { control: Control<AnyRouterForm>; identityReadOnly?: boolean }) {
   return (
     <div className="grid gap-4 sm:grid-cols-2">
       <FormField
@@ -35,6 +36,7 @@ export function RouterBasicsFields({
         error={errors.ip_address?.message}
       >
         <Input
+          readOnly={identityReadOnly}
           inputMode="decimal"
           placeholder="10.100.100.12"
           className="font-mono"

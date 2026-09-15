@@ -69,7 +69,12 @@ export function RouterEditForm({
     <form onSubmit={(e) => void submit(e)} noValidate className="flex flex-col gap-6">
       {message && <Alert tone="danger">{message}</Alert>}
       <Section title="Basics">
-        <RouterBasicsFields register={register} errors={errors} control={control} />
+        <RouterBasicsFields
+          register={register}
+          errors={errors}
+          control={control}
+          identityReadOnly={!!router.registration}
+        />
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <FormField label="MikroTik model" error={errors.model?.message}>
             <Input maxLength={80} {...register('model')} />
@@ -83,12 +88,20 @@ export function RouterEditForm({
           </FormField>
         </div>
       </Section>
-      <Section
-        title="WireGuard"
-        description="Changing the peer settings does not re-provision automatically — run Provision again afterwards."
-      >
-        <RouterWireGuardFields register={register} errors={errors} />
-      </Section>
+      {!router.registration && (
+        <Section
+          title="WireGuard"
+          description="Changing the peer settings does not re-provision automatically — run Provision again afterwards."
+        >
+          <RouterWireGuardFields register={register} errors={errors} />
+        </Section>
+      )}
+      {router.registration && (
+        <p className="text-sm text-ink-500">
+          This router’s tunnel address, keys and RADIUS secret are managed by its generated setup
+          configuration.
+        </p>
+      )}
       <Section
         title="RouterOS access"
         description="The RouterOS password and the RADIUS secret are changed under Secrets."

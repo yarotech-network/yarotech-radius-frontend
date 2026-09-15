@@ -2,7 +2,6 @@ import { http, HttpResponse } from 'msw';
 import { describe, expect, it } from 'vitest';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { Route } from 'react-router';
 import { server } from '@/test/server';
 import { API, paginated } from '@/test/fixtures';
 import { renderPage } from '@/test/renderPage';
@@ -245,84 +244,53 @@ describe('RouterDetailPage', () => {
 });
 
 describe('NewRouterPage', () => {
-  it('reviews non-secret details and returns to the field rejected by the server', async () => {
+  it('uses the legacy network form and generates no client-side credentials', async () => {
     const user = userEvent.setup();
+    let received: Record<string, unknown> | undefined;
+    let key: string | null = null;
     server.use(
-      http.post(`${API}/routers/`, () =>
-        HttpResponse.json(
-          {
-            problem: {
-              code: 'validation_error',
-              message: 'Invalid input.',
-              fields: { ip_address: ['This address is already registered.'] },
-            },
-          },
-          { status: 400 },
-        ),
-      ),
-    );
-    renderPage(<NewRouterPage />, { path: '/routers/new' });
-    await user.type(screen.getByLabelText(/^Name/), 'Branch router');
-    await user.type(screen.getByLabelText(/NAS IP address/), '10.100.100.14');
-    await user.click(screen.getByRole('button', { name: 'Continue' }));
-    await user.type(await screen.findByLabelText(/RADIUS shared secret/), 'sharedsecret123');
-    await user.click(screen.getByRole('button', { name: 'Continue' }));
-    await user.click(screen.getByRole('button', { name: 'Continue' }));
-    expect(screen.getByRole('heading', { name: 'Review before registering' })).toBeInTheDocument();
-    expect(screen.getByText('Branch router')).toBeInTheDocument();
-    expect(screen.queryByText('sharedsecret123')).not.toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Register router' }));
-    expect(await screen.findByText('This address is already registered.')).toBeInTheDocument();
-    expect(screen.getByLabelText(/^Name/)).toHaveValue('Branch router');
-    expect(screen.getByLabelText(/NAS IP address/)).toHaveValue('10.100.100.14');
-  });
-
-  it('walks through the steps, validates per step and posts once with an Idempotency-Key', async () => {
-    const requests: { key: string | null; body: Record<string, unknown> }[] = [];
-    server.use(
-      http.post(`${API}/routers/`, async ({ request }) => {
-        requests.push({
-          key: request.headers.get('Idempotency-Key'),
-          body: (await request.json()) as Record<string, unknown>,
-        });
-        return HttpResponse.json(
-          router({ id: 'new-1', name: 'mikrotik-garki-01', onboarding_state: 'pending' }),
-          { status: 201 },
-        );
+      http.post(`${API}/routers/register/`, async ({ request }) => {
+        received = (await request.json()) as Record<string, unknown>;
+        key = request.headers.get('Idempotency-Key');
+        return HttpResponse.json(router(), { status: 201 });
       }),
     );
-    renderPage(<NewRouterPage />, {
-      path: '/routers/new',
-      extraRoutes: <Route path="/routers/:id" element={<div>router detail</div>} />,
+    renderPage(<NewRouterPage />, { path: '/routers/new', role: 'owner' });
+    expect(screen.getByLabelText('Set up HotSpot automatically')).toBeChecked();
+    expect(screen.queryByLabelText(/RADIUS secret/i)).not.toBeInTheDocument();
+    await user.type(screen.getByLabelText(/Router name/), 'Branch router');
+    await user.type(screen.getByLabelText(/HotSpot LAN interface/), 'bridge-lan');
+    await user.type(screen.getByLabelText(/LAN gateway\/subnet/), '192.168.50.1/24');
+    await user.click(screen.getByLabelText(/I confirm this router/));
+    await user.click(screen.getByRole('button', { name: 'Create Router' }));
+    await waitFor(() => expect(received).toBeDefined());
+    expect(key).toMatch(/^[A-Za-z0-9_.:-]{16,128}$/);
+    expect(received).toMatchObject({
+      name: 'Branch router',
+      hotspot_interface: 'bridge-lan',
+      complete_hotspot_setup: true,
+      network_reviewed: true,
+      dhcp_range_mode: 'automatic',
     });
-    await userEvent.click(screen.getByRole('button', { name: /Continue/ }));
-    expect(await screen.findByText('Give the router a name')).toBeInTheDocument();
-    await userEvent.type(screen.getByLabelText(/^Name/), 'mikrotik-garki-01');
-    await userEvent.type(screen.getByLabelText(/MikroTik model/), 'RB5009UG');
-    await userEvent.type(screen.getByLabelText(/RouterOS version/), '7.20.1');
-    await userEvent.type(screen.getByLabelText(/NAS IP address/), '10.100.100.14');
-    await userEvent.click(screen.getByRole('button', { name: /Continue/ }));
-    await userEvent.type(await screen.findByLabelText(/RADIUS shared secret/), 'sharedsecret123');
-    await userEvent.click(screen.getByRole('button', { name: /Continue/ }));
-    await screen.findByText(/Step 3 of 4/);
-    await userEvent.click(screen.getByRole('button', { name: /Continue/ }));
-    await screen.findByText(/Step 4 of 4/);
-    await userEvent.click(screen.getByRole('button', { name: 'Register router' }));
-    expect(await screen.findByText('router detail')).toBeInTheDocument();
-    expect(requests).toHaveLength(1);
-    expect(requests[0]?.key).toMatch(/^[A-Za-z0-9_.:-]{16,128}$/);
-    expect(requests[0]?.body).toMatchObject({
-      name: 'mikrotik-garki-01',
-      model: 'RB5009UG',
-      routeros_version: '7.20.1',
-      ip_address: '10.100.100.14',
-      nas_secret: 'sharedsecret123',
-      wireguard_port: 51820,
-      wireguard_ip: null,
-      wireguard_public_key: '',
-    });
-    // Secrets are only sent when provided.
-    expect(requests[0]?.body).not.toHaveProperty('routeros_password_encrypted');
+    expect(received).not.toHaveProperty('nas_secret');
+    expect(received).not.toHaveProperty('wireguard_ip');
+  });
+
+  it('retains entered details when server preparation rejects the request', async () => {
+    const user = userEvent.setup();
+    server.use(
+      http.post(`${API}/routers/register/`, () =>
+        HttpResponse.json({ detail: 'Router capacity reached.' }, { status: 400 }),
+      ),
+    );
+    renderPage(<NewRouterPage />, { path: '/routers/new', role: 'owner' });
+    await user.type(screen.getByLabelText(/Router name/), 'Keep my details');
+    await user.type(screen.getByLabelText(/HotSpot LAN interface/), 'bridge-lan');
+    await user.type(screen.getByLabelText(/LAN gateway\/subnet/), '192.168.50.1/24');
+    await user.click(screen.getByLabelText(/I confirm this router/));
+    await user.click(screen.getByRole('button', { name: 'Create Router' }));
+    expect(await screen.findByText('Router capacity reached.')).toBeInTheDocument();
+    expect(screen.getByLabelText(/Router name/)).toHaveValue('Keep my details');
   });
 });
 

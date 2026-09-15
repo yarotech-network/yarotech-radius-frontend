@@ -130,6 +130,7 @@ export function provisionBlocker(
   router: NasDevice,
   operations?: readonly RouterOperation[],
 ): string | null {
+  if (router.registration) return 'Use the setup-script page to prepare this router.';
   if (isRouterBusy(router, operations)) return 'A provisioning operation is already in progress.';
   if (!router.wireguard_public_key) return 'Add the WireGuard public key first.';
   if (!router.wireguard_ip) return 'Assign a WireGuard IP first.';

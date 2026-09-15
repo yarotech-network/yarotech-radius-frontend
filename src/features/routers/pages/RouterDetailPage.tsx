@@ -27,6 +27,7 @@ import { ChecksPanel } from '../components/ChecksPanel';
 import { VpnPanel } from '../components/VpnPanel';
 import { SecretsPanel } from '../components/SecretsPanel';
 import { RadiusTestPanel } from '../components/RadiusTestPanel';
+import { RouterSetupScript } from '../components/RouterSetupScript';
 import { HotspotSetupPanel } from '../components/HotspotSetupPanel';
 import { HistoryPanel } from '../components/HistoryPanel';
 
@@ -272,7 +273,14 @@ function RouterDetail({
         />
       </div>
       <Card className="router-section-content">
-        {tab === 'setup' && <HotspotSetupPanel router={router} />}
+        {tab === 'setup' && router.registration && (
+          <RouterSetupScript
+            key={`${router.id}:${router.is_active}:${router.onboarding_state}:${router.registration.script_sha256}`}
+            router={router}
+            refresh={onReload}
+          />
+        )}
+        {tab === 'setup' && !router.registration && <HotspotSetupPanel router={router} />}
         {tab === 'onboarding' && (
           <div className="flex flex-col gap-8">
             <OnboardingPanel router={router} canManage={canManage} />
