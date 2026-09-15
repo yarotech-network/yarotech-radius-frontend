@@ -1,3 +1,6 @@
+import { planOptionsQuery } from '@/features/plans/queries';
+import { routerOptionsQuery } from '@/features/routers/queries';
+import { usePrincipal } from '@/app/auth/useAuth';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { PAGE_SIZE_DEFAULT } from '@/app/config/constants';
 import type { DeviceListParams, MacDeviceWrite } from '@/types/api';
@@ -25,7 +28,19 @@ export function devicesListQuery(params: DeviceListParams) {
 }
 
 export function useDevices(params: DeviceListParams) {
-  return useQuery({ ...devicesListQuery(params), placeholderData: keepPreviousData });
+  const principal = usePrincipal();
+  const scope =
+    principal.kind === 'member'
+      ? principal.tenantId
+      : principal.kind === 'platform_staff'
+        ? principal.activeTenantId
+        : null;
+  return useQuery({
+    ...devicesListQuery(params),
+    queryKey: [...deviceKeys.list(params), principal.user.id, scope],
+    enabled: scope !== null,
+    placeholderData: keepPreviousData,
+  });
 }
 
 function useInvalidateDevices() {
@@ -57,7 +72,41 @@ export function useUpdateDevice() {
 export function useDeleteDevice() {
   const invalidate = useInvalidateDevices();
   return useMutation({
-    mutationFn: (id: number) => devicesApi.remove(id),
+    mutationFn: ({ id, version }: { id: number; version: number }) =>
+      devicesApi.remove(id, version),
     onSuccess: () => void invalidate(),
+  });
+}
+
+export function useDeviceScope() {
+  const principal = usePrincipal();
+  return {
+    actorId: principal.user.id,
+    tenantId:
+      principal.kind === 'member'
+        ? principal.tenantId
+        : principal.kind === 'platform_staff'
+          ? principal.activeTenantId
+          : null,
+  };
+}
+
+export function useDevicePlans(activeOnly = true) {
+  const scope = useDeviceScope();
+  const options = planOptionsQuery(activeOnly);
+  return useQuery({
+    ...options,
+    queryKey: [...options.queryKey, 'devices', scope.actorId, scope.tenantId],
+    enabled: scope.tenantId !== null,
+  });
+}
+
+export function useDeviceRouters() {
+  const scope = useDeviceScope();
+  const options = routerOptionsQuery();
+  return useQuery({
+    ...options,
+    queryKey: [...options.queryKey, 'devices', scope.actorId, scope.tenantId],
+    enabled: scope.tenantId !== null,
   });
 }

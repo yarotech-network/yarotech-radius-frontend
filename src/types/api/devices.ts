@@ -2,11 +2,14 @@ import type { IsoDateTime, PageParams } from './common';
 
 export interface MacDevice {
   id: number;
+  version?: number;
+  status?: 'active' | 'suspended' | 'expired' | 'revoked' | 'deleted';
+  network_enforcement?: 'not_connected' | 'rest_configured';
   /** Normalised to XX:XX:XX:XX:XX:XX by the server. */
   mac_address: string;
   device_name: string;
-  plan: number;
-  plan_name: string;
+  plan: number | null;
+  plan_name: string | null;
   tenant: number;
   is_active: boolean;
   expires_at: IsoDateTime | null;
@@ -27,9 +30,10 @@ export interface MacDevice {
 }
 
 export interface MacDeviceWrite {
+  expected_version?: number;
   mac_address: string;
   device_name: string;
-  plan: number;
+  plan: number | null;
   is_active?: boolean;
   expires_at: IsoDateTime | null;
   router?: string | null;
@@ -39,6 +43,7 @@ export interface MacDeviceWrite {
 }
 
 export interface DeviceListParams extends PageParams {
+  include_deleted?: boolean;
   router?: string;
   is_active?: boolean;
   plan?: number;

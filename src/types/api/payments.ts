@@ -6,6 +6,7 @@ export type DeliveryStatus =
   'not_requested' | 'pending' | 'sending' | 'accepted' | 'failed' | 'unknown';
 
 export interface PaymentRecovery {
+  purchase_kind?: 'voucher' | 'iot';
   id: number;
   reference: string;
   amount: Kobo;
@@ -62,6 +63,11 @@ export interface PaymentCallbackPlan {
  * shared or logged reference stops being a usable credential after the first login.
  */
 export interface PaymentCallbackResponse {
+  kind?: 'voucher' | 'iot';
+  renewal_token?: string | null;
+  device_status?: string | null;
+  expires_at?: string | null;
+  network_enforcement?: string;
   fulfilled?: boolean;
   payment_verified?: boolean;
   status: PaymentStatus;

@@ -116,6 +116,7 @@ export interface PublicTenant {
 }
 
 export interface PublicPlan {
+  plan_type?: 'voucher' | 'iot_mac';
   max_devices?: number;
   id: number;
   name: string;

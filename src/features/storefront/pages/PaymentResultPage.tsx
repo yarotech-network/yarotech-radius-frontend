@@ -22,7 +22,7 @@ export default function PaymentResultPage() {
   const reference =
     params.get('reference') ??
     params.get('trxref') ??
-    (remembered?.kind === 'voucher' ? remembered.reference : null);
+    ((remembered?.kind === 'voucher' || remembered?.kind === 'iot') ? remembered.reference : null);
   const slug = remembered?.reference === reference ? remembered.slug : undefined;
   const result = usePaymentResult(reference);
   const verification = useVerifyPaymentResult();
@@ -88,7 +88,15 @@ export default function PaymentResultPage() {
               <CheckCircle2 className="size-6" aria-hidden />
               <h2 className="text-lg font-semibold">Payment successful</h2>
             </div>
-            {result.data.code_revealed === true && result.data.access_code ? (
+            {result.data.kind === 'iot' && paymentFulfilled(result.data) ? (
+              <div className="mt-3 space-y-3">
+                <p>Device access has been granted. Registration status: {result.data.device_status}.</p>
+                <p>Expires: {result.data.expires_at ? new Date(result.data.expires_at).toLocaleString() : 'No deadline'}.</p>
+                <p>Keep your renewal token private. You will need it to renew this device.</p>
+                <label className="block">Renewal token<textarea readOnly className="mt-2 w-full break-all rounded border p-2" value={result.data.renewal_token ?? ''} /></label>
+                <p>Connection depends on the assigned router. Contact the business if the device cannot connect.</p>
+              </div>
+            ) : result.data.code_revealed === true && result.data.access_code ? (
               <AccessCodePanel
                 code={result.data.access_code}
                 tenantName={result.data.tenant_name}

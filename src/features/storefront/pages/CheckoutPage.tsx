@@ -1,3 +1,4 @@
+import { IoTCheckout } from '../components/IoTCheckout';
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { useForm, useWatch } from 'react-hook-form';
@@ -69,7 +70,7 @@ export default function CheckoutPage({
               }
             />
           ) : (
-            <CheckoutForm plan={plan} slug={slug} />
+            plan.plan_type === 'iot_mac' ? <IoTCheckout key={plan.id} plan={plan} slug={slug} /> : <CheckoutForm key={plan.id} plan={plan} slug={slug} />
           )}
         </div>
         <aside className="order-1 lg:order-2" aria-label="Order summary">
@@ -137,8 +138,7 @@ function CheckoutForm({ plan, slug }: { plan: PublicPlan; slug: string }) {
             deviceLimit: reservation?.device_limit ?? values.device_limit,
           });
         setUnavailable(reference ?? '');
-        // The pending order behind this key is dead; a retry must create a fresh one.
-        setIdempotencyKey(newIdempotencyKey('buy'));
+        // Preserve the reserved payment request when initialization has an uncertain outcome.
         return;
       }
       captureError(error);

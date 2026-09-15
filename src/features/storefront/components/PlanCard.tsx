@@ -26,6 +26,7 @@ export function PlanCard({
         className,
       )}
     >
+      {plan.plan_type === 'iot_mac' && <p className="text-sm text-brand-700">IoT / MAC device access</p>}
       <h3 className="text-base font-semibold text-brand-950">{plan.name}</h3>
       <p className="mt-1 text-2xl font-semibold text-ink-900 tabular-nums">
         {formatKobo(plan.price)}

@@ -160,12 +160,20 @@ describe.runIf(import.meta.env.LIVE_API === '1')('phase 5 against live API', () 
   });
 
   it('devices: create normalises the MAC → filter by plan/is_active → patch → delete', async () => {
-    const [plan] = await plansApi.listAll({ activeOnly: true });
+    const plan = (await plansApi.listAll({ activeOnly: true })).find(
+      (p) => p.plan_type === 'iot_mac',
+    );
+    const router = (await routersApi.listAll()).find(
+      (r) => r.is_active && (!plan?.public_router || plan.public_router === r.id),
+    );
+    expect(router).toBeDefined();
     expect(plan).toBeDefined();
     const mac = `02-${(stamp % 0xffffffffff).toString(16).padStart(10, '0').match(/.{2}/g)!.join('-')}`;
     const created = await devicesApi.create({
       device_name: `IT device ${stamp}`,
       mac_address: mac,
+      router: router!.id,
+      access_type: 'timed',
       plan: plan!.id,
       is_active: true,
       expires_at: new Date(Date.now() + 86_400_000).toISOString(),
@@ -181,7 +189,10 @@ describe.runIf(import.meta.env.LIVE_API === '1')('phase 5 against live API', () 
       search: 'IT device',
     });
     expect(listed.results.some((d) => d.id === created.id)).toBe(true);
-    const patched = await devicesApi.update(created.id, { is_active: false });
+    const patched = await devicesApi.update(created.id, {
+      is_active: false,
+      expected_version: created.version!,
+    });
     expect(patched.is_active).toBe(false);
     const inactiveOnly = await devicesApi.list({ page: 1, page_size: 50, is_active: false });
     expect(inactiveOnly.results.some((d) => d.id === created.id)).toBe(true);
@@ -196,9 +207,9 @@ describe.runIf(import.meta.env.LIVE_API === '1')('phase 5 against live API', () 
       .catch((e: unknown) => e);
     expect((badMac as ApiError).fieldMessage('mac_address')).toMatch(/MAC/);
 
-    await devicesApi.remove(created.id);
-    const gone = await devicesApi.get(created.id).catch((e: unknown) => e);
-    expect((gone as ApiError).status).toBe(404);
+    await devicesApi.remove(created.id, patched.version!);
+    const retained = await devicesApi.get(created.id);
+    expect(retained.status).toBe('deleted');
   });
 
   it('staff cannot reach manager-only agent/operation endpoints (403 surfaces as forbidden)', async () => {

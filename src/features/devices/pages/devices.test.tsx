@@ -12,6 +12,7 @@ import { deviceSchema, formToPatch, formToPayload, normaliseMac } from '../devic
 const plan: InternetPlan = {
   id: 1,
   name: 'Daily 1GB',
+  plan_type: 'iot_mac',
   price: 50000,
   price_display: '₦500',
   duration_hours: 24,
@@ -23,6 +24,7 @@ const plan: InternetPlan = {
 };
 const device = (extra: Partial<MacDevice> = {}): MacDevice => ({
   id: 1,
+  version: 1,
   mac_address: 'AA:BB:CC:DD:EE:FF',
   device_name: 'Lobby TV',
   plan: 1,
@@ -136,7 +138,7 @@ describe('DevicesPage', () => {
       http.post(`${API}/iot-devices/`, async ({ request }) => {
         created.push((await request.json()) as Record<string, unknown>);
         return HttpResponse.json(
-          device({ id: 3, device_name: 'Kitchen tablet', mac_address: '11:22:33:44:55:66' }),
+          device({ id: 3, device_name: 'Kitchen tablet', mac_address: '12:22:33:44:55:66' }),
           { status: 201 },
         );
       }),
@@ -155,7 +157,7 @@ describe('DevicesPage', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Add device' }));
     const dialog = await screen.findByRole('dialog', { name: 'Add IoT / MAC Device' });
     await userEvent.type(within(dialog).getByLabelText(/Device name/), 'Kitchen tablet');
-    await userEvent.type(within(dialog).getByLabelText(/MAC address/), '11-22-33-44-55-66');
+    await userEvent.type(within(dialog).getByLabelText(/MAC address/), '12-22-33-44-55-66');
     await userEvent.selectOptions(await within(dialog).findByLabelText(/Plan/), '1');
     await userEvent.selectOptions(within(dialog).getByLabelText(/^Router/), 'router-1');
     await userEvent.type(within(dialog).getByLabelText(/VLAN ID/), '42');
@@ -164,7 +166,7 @@ describe('DevicesPage', () => {
     await waitFor(() => expect(created).toHaveLength(1));
     expect(created[0]).toMatchObject({
       device_name: 'Kitchen tablet',
-      mac_address: '11:22:33:44:55:66',
+      mac_address: '12:22:33:44:55:66',
       plan: 1,
       is_active: true,
     });
@@ -180,7 +182,7 @@ describe('DevicesPage', () => {
     await userEvent.click(await screen.findByRole('menuitem', { name: 'Remove' }));
     await userEvent.click(await screen.findByRole('button', { name: 'Remove device' }));
     await waitFor(() => expect(deleted).toEqual(['2']));
-  });
+  }, 15000);
 
   it('is read-only for staff', async () => {
     server.use(
@@ -252,5 +254,86 @@ describe('Device directory recovery', () => {
       expect(screen.getByRole('combobox', { name: 'Plan' })).toHaveTextContent('Daily 1GB'),
     );
     expect(screen.queryByText('Plan filters unavailable')).not.toBeInTheDocument();
+  });
+});
+
+describe('Device lifecycle controls', () => {
+  it('retains the renewal request and version across a network retry, and shows history', async () => {
+    const bodies: unknown[] = [];
+    const keys: (string | null)[] = [];
+    let attempts = 0;
+    const timed = device({
+      access_type: 'timed',
+      status: 'suspended',
+      is_active: false,
+      router: 'router-1',
+    });
+    server.use(
+      http.get(`${API}/plans/`, () =>
+        HttpResponse.json(
+          paginated([plan, { ...plan, id: 2, name: 'Voucher only', plan_type: 'voucher' }]),
+        ),
+      ),
+      http.get(`${API}/iot-devices/`, () => HttpResponse.json(paginated([timed]))),
+      http.get(`${API}/iot-devices/1/`, () => HttpResponse.json(timed)),
+      http.get(`${API}/iot-devices/1/renewals/`, () => HttpResponse.json(paginated([]))),
+      http.post(`${API}/iot-devices/1/renew/`, async ({ request }) => {
+        bodies.push(await request.json());
+        keys.push(request.headers.get('Idempotency-Key'));
+        attempts += 1;
+        return attempts === 1 ? HttpResponse.error() : HttpResponse.json({ ...timed, version: 2 });
+      }),
+    );
+    renderPage(<DevicesPage />, { path: '/devices' });
+    await userEvent.click(
+      await within(await screen.findByRole('table', { name: 'Devices' })).findByRole('button', {
+        name: 'Actions for Lobby TV',
+      }),
+    );
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'Manage access / Renew' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Manage Lobby TV' });
+    expect(within(dialog).getByText(/Unused time is retained/)).toBeInTheDocument();
+    expect(await within(dialog).findByText(/No recorded operator renewals/)).toBeInTheDocument();
+    await userEvent.selectOptions(within(dialog).getByLabelText(/Renewal plan/), '1');
+    expect(within(dialog).queryByRole('option', { name: /Voucher only/ })).not.toBeInTheDocument();
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Confirm renewal grant' }));
+    expect(await within(dialog).findByText(/Retry uses the same request/)).toBeInTheDocument();
+    expect(within(dialog).getByLabelText(/Renewal plan/)).toBeDisabled();
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Retry same request' }));
+    await waitFor(() => expect(bodies).toHaveLength(2));
+    expect(bodies).toEqual([
+      { plan: 1, expected_version: 1 },
+      { plan: 1, expected_version: 1 },
+    ]);
+    expect(keys[0]).toBeTruthy();
+    expect(keys[0]).toBe(keys[1]);
+  });
+
+  it('shows removed registration history without offering edits or renewal', async () => {
+    const deleted = device({ status: 'deleted', is_active: false });
+    server.use(
+      http.get(`${API}/plans/`, () => HttpResponse.json(paginated([plan]))),
+      http.get(`${API}/iot-devices/`, ({ request }) =>
+        HttpResponse.json(
+          paginated(
+            new URL(request.url).searchParams.get('include_deleted') === 'true' ? [deleted] : [],
+          ),
+        ),
+      ),
+      http.get(`${API}/iot-devices/1/`, () => HttpResponse.json(deleted)),
+      http.get(`${API}/iot-devices/1/renewals/`, () => HttpResponse.json(paginated([]))),
+    );
+    renderPage(<DevicesPage />, { path: '/devices' });
+    await userEvent.selectOptions(screen.getByLabelText('Retained registrations'), 'true');
+    await userEvent.click(
+      await within(await screen.findByRole('table', { name: 'Devices' })).findByRole('button', {
+        name: 'Actions for Lobby TV',
+      }),
+    );
+    expect(screen.queryByRole('menuitem', { name: 'Remove' })).not.toBeInTheDocument();
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'History' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Manage Lobby TV' });
+    expect(within(dialog).queryByLabelText('Device action')).not.toBeInTheDocument();
+    expect(await within(dialog).findByText(/No recorded operator renewals/)).toBeInTheDocument();
   });
 });

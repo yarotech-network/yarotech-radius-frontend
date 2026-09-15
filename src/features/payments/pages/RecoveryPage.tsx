@@ -80,7 +80,7 @@ export default function RecoveryPage() {
           {needsAttention(r) && (
             <p className="mt-1 text-xs font-medium text-warning-700">
               {r.fulfillment_status === 'paid_unfulfilled'
-                ? 'Payment received; voucher not issued'
+                ? (r.purchase_kind === 'iot' ? 'Payment received; device access not granted' : 'Payment received; voucher not issued')
                 : 'Voucher issued; credentials email failed'}
             </p>
           )}

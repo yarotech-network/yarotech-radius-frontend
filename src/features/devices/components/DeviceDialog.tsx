@@ -5,8 +5,8 @@ import { Button, Checkbox, Dialog, FormField, Input, Select } from '@/components
 import { Alert } from '@/components/feedback';
 import { useFormSubmit } from '@/lib/forms/useFormSubmit';
 import { newIdempotencyKey } from '@/lib/utilities/idempotency';
-import { useRouterOptions } from '@/features/routers/queries';
-import { usePlanOptions } from '@/features/plans/queries';
+import { useDeviceRouters } from '../queries';
+import { useDevicePlans } from '../queries';
 import type { MacDevice } from '@/types/api';
 import { useCreateDevice, useUpdateDevice } from '../queries';
 import {
@@ -51,7 +51,7 @@ export function DeviceDialog({
       title={device ? `Edit ${device.device_name}` : 'Add IoT / MAC Device'}
       description={
         device
-          ? 'Changes apply the next time the device authenticates.'
+          ? 'Update the registration. Confirm network enforcement with the configured RADIUS service.'
           : 'Register device access by MAC address. Network authentication must be configured separately.'
       }
     >
@@ -78,8 +78,8 @@ function DeviceForm({
 }) {
   const create = useCreateDevice();
   const update = useUpdateDevice();
-  const plans = usePlanOptions(true, 'all');
-  const routers = useRouterOptions();
+  const plans = useDevicePlans(true);
+  const routers = useDeviceRouters();
   const [idempotencyKey] = useState(() => newIdempotencyKey('device'));
   const form = useForm<DeviceInput, unknown, DeviceOutput>({
     resolver: zodResolver(deviceSchema),
@@ -108,15 +108,16 @@ function DeviceForm({
     }
   });
 
+  const availablePlans = (plans.data ?? []).filter((p) => p.plan_type === 'iot_mac');
   const planOptions = [
-    { value: '', label: plans.isPending ? 'Loading plans…' : 'Choose a plan' },
-    ...(plans.data ?? []).map((p) => ({
+    { value: '', label: plans.isPending ? 'Loading plans…' : 'No plan (manual settings)' },
+    ...availablePlans.map((p) => ({
       value: String(p.id),
       label: `${p.name} · ${p.price_display}`,
     })),
   ];
   // Keep the current plan selectable even if it has since been deactivated.
-  if (device && plans.data && !plans.data.some((p) => p.id === device.plan))
+  if (device?.plan && !availablePlans.some((p) => p.id === device.plan))
     planOptions.push({ value: String(device.plan), label: `${device.plan_name} (inactive)` });
 
   return (
@@ -180,8 +181,8 @@ function DeviceForm({
       </FormField>
       <FormField
         label="Plan"
-        required
-        hint="Speed and data limits applied to the device."
+        optionalLabel
+        hint="IoT plan limits are saved with this registration."
         error={errors.plan?.message}
       >
         <Select options={planOptions} disabled={plans.isPending} {...form.register('plan')} />
@@ -223,7 +224,8 @@ function DeviceForm({
             checked={field.value}
             onChange={(e) => field.onChange(e.target.checked)}
             label="Active"
-            description="Inactive devices are refused even before they expire."
+            disabled={device?.status === 'revoked'}
+            description="Registration state only; network enforcement requires separate configuration."
           />
         )}
       />

@@ -18,16 +18,28 @@ import { formatDateTime, formatRelative, isPast } from '@/lib/formatting/dates';
 import { useDebouncedValue } from '@/lib/utilities/useDebouncedValue';
 import { can } from '@/services/auth/principal';
 import { errorMessage } from '@/services/api/errors';
-import { useRouterOptions } from '@/features/routers/queries';
-import { usePlanOptions } from '@/features/plans/queries';
+import { useDeviceRouters } from '../queries';
+import { useDevicePlans } from '../queries';
 import type { DeviceListParams, MacDevice } from '@/types/api';
 import { useDeleteDevice, useDevices } from '../queries';
+import { DeviceLifecycleDialog } from '../components/DeviceLifecycleDialog';
 import { DeviceDialog } from '../components/DeviceDialog';
 
-const FILTERS = ['is_active', 'plan', 'router'] as const;
+const FILTERS = ['is_active', 'plan', 'router', 'include_deleted'] as const;
 const MoreIcon = () => <span aria-hidden>···</span>;
 
 export default function DevicesPage() {
+  const principal = usePrincipal();
+  const scope =
+    principal.kind === 'member'
+      ? principal.tenantId
+      : principal.kind === 'platform_staff'
+        ? principal.activeTenantId
+        : null;
+  return <DeviceDirectory key={`${principal.user.id}:${scope}`} />;
+}
+
+function DeviceDirectory() {
   useEffect(() => {
     document.title = 'IoT / MAC Devices | Yarotech RADIUS';
   }, []);
@@ -36,14 +48,16 @@ export default function DevicesPage() {
   const toast = useToast();
   const list = useListParams(FILTERS);
   const debouncedSearch = useDebouncedValue(list.state.search);
-  const plans = usePlanOptions(false, 'all');
-  const routers = useRouterOptions();
+  const plans = useDevicePlans(false);
+  const routers = useDeviceRouters();
   const remove = useDeleteDevice();
   const [dialog, setDialog] = useState<{ open: boolean; device?: MacDevice }>({ open: false });
+  const [managing, setManaging] = useState<MacDevice | null>(null);
   const [deleting, setDeleting] = useState<MacDevice | null>(null);
 
   const params = useMemo(() => {
     const p: DeviceListParams = { page: list.state.page, page_size: list.state.page_size };
+    if (list.state.filters.include_deleted) p.include_deleted = true;
     if (list.state.filters.router) p.router = list.state.filters.router;
     if (debouncedSearch) p.search = debouncedSearch;
     if (list.state.filters.is_active) p.is_active = list.state.filters.is_active === 'true';
@@ -65,7 +79,8 @@ export default function DevicesPage() {
               className="text-left font-semibold break-all text-brand-700 hover:underline focus-visible:outline-2 focus-visible:outline-brand-600"
               onClick={(event) => {
                 event.stopPropagation();
-                setDialog({ open: true, device: d });
+                if (d.status === 'deleted') setManaging(d);
+                else setDialog({ open: true, device: d });
               }}
             >
               {d.device_name}
@@ -110,9 +125,9 @@ export default function DevicesPage() {
       header: 'Status',
       cell: (d) => (
         <BooleanBadge
-          value={d.is_active}
-          trueLabel={isPast(d.expires_at) ? 'Expired' : 'Enabled'}
-          falseLabel="Inactive"
+          value={(d.status ?? (d.is_active ? 'active' : 'suspended')) === 'active'}
+          trueLabel={isPast(d.expires_at) ? 'Expired' : 'Active'}
+          falseLabel={d.status ?? 'Suspended'}
         />
       ),
     },
@@ -192,7 +207,7 @@ export default function DevicesPage() {
       />
       <Alert tone="info">
         Connection and usage figures reflect recorded MAC sessions. Saving a device does not confirm
-        network access.
+        network access. Access enforcement requires the configured RADIUS service and a successful router test.
       </Alert>
       <section aria-labelledby="device-directory-title" className="space-y-4">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -219,6 +234,15 @@ export default function DevicesPage() {
           }
           filters={
             <>
+              <Select
+                aria-label="Retained registrations"
+                value={list.state.filters.include_deleted ?? ''}
+                onChange={(e) => list.setFilter('include_deleted', e.target.value || undefined)}
+                options={[
+                  { value: '', label: 'Current registrations' },
+                  { value: 'true', label: 'Include removed registrations' },
+                ]}
+              />
               <Select
                 aria-label="Router"
                 size="sm"
@@ -308,7 +332,8 @@ export default function DevicesPage() {
           onRetry={() => void query.refetch()}
           {...(canManage
             ? {
-                onRowClick: (d: MacDevice) => setDialog({ open: true, device: d }),
+                onRowClick: (d: MacDevice) =>
+                  d.status === 'deleted' ? setManaging(d) : setDialog({ open: true, device: d }),
                 rowActions: (d: MacDevice) => (
                   <Menu
                     trigger={(props) => (
@@ -325,21 +350,30 @@ export default function DevicesPage() {
                         <MoreIcon />
                       </Button>
                     )}
-                    items={[
-                      {
-                        key: 'edit',
-                        label: 'Edit',
-                        icon: <Pencil className="h-4 w-4" aria-hidden />,
-                        onSelect: () => setDialog({ open: true, device: d }),
-                      },
-                      {
-                        key: 'delete',
-                        label: 'Remove',
-                        icon: <Trash2 className="h-4 w-4" aria-hidden />,
-                        tone: 'danger',
-                        onSelect: () => setDeleting(d),
-                      },
-                    ]}
+                    items={
+                      d.status === 'deleted'
+                        ? [{ key: 'history', label: 'History', onSelect: () => setManaging(d) }]
+                        : [
+                            {
+                              key: 'manage',
+                              label: 'Manage access / Renew',
+                              onSelect: () => setManaging(d),
+                            },
+                            {
+                              key: 'edit',
+                              label: 'Edit',
+                              icon: <Pencil className="h-4 w-4" aria-hidden />,
+                              onSelect: () => setDialog({ open: true, device: d }),
+                            },
+                            {
+                              key: 'delete',
+                              label: 'Remove',
+                              icon: <Trash2 className="h-4 w-4" aria-hidden />,
+                              tone: 'danger',
+                              onSelect: () => setDeleting(d),
+                            },
+                          ]
+                    }
                   />
                 ),
               }
@@ -362,7 +396,7 @@ export default function DevicesPage() {
                 title="No devices registered"
                 description={
                   canManage
-                    ? 'Register a MAC address to let a device connect without a voucher.'
+                    ? 'Register a device and its intended access policy.'
                     : 'Registered devices will appear here.'
                 }
                 action={
@@ -398,18 +432,26 @@ export default function DevicesPage() {
           );
         }}
       />
+      {managing && (
+        <DeviceLifecycleDialog
+          key={managing.id}
+          device={managing}
+          onClose={() => setManaging(null)}
+        />
+      )}
       <ConfirmDialog
         open={deleting !== null}
         onClose={() => setDeleting(null)}
         tone="danger"
         title={deleting ? `Remove ${deleting.device_name}?` : ''}
-        description="The device will no longer be allowed online by MAC address. You can register it again later."
+        description="Remove this registration from the current list while retaining its history. This does not confirm a network disconnection."
         confirmLabel="Remove device"
         onConfirm={async () => {
           if (!deleting || !canManage) return;
           try {
-            await remove.mutateAsync(deleting.id);
-            toast.success('Device removed', `${deleting.device_name} no longer has access.`);
+            if (!deleting.version) throw new Error('Reload the device before removing it.');
+            await remove.mutateAsync({ id: deleting.id, version: deleting.version });
+            toast.success('Device removed', `${deleting.device_name} history has been retained.`);
           } catch (error) {
             toast.error('Could not remove device', errorMessage(error));
           }

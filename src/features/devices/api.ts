@@ -16,7 +16,21 @@ export const devicesApi = {
   update(id: number, payload: Partial<MacDeviceWrite>) {
     return http.patch<MacDevice>(`/iot-devices/${id}/`, payload);
   },
-  remove(id: number) {
-    return http.delete(`/iot-devices/${id}/`);
+  renew(id: number, plan: number, version: number, idempotencyKey: string) {
+    return http.post<MacDevice>(
+      `/iot-devices/${id}/renew/`,
+      { plan, expected_version: version },
+      { idempotencyKey },
+    );
+  },
+  lifecycle(id: number, action: string, version: number, idempotencyKey: string) {
+    return http.post<MacDevice>(
+      `/iot-devices/${id}/lifecycle/`,
+      { action, expected_version: version },
+      { idempotencyKey },
+    );
+  },
+  remove(id: number, version: number) {
+    return http.delete(`/iot-devices/${id}/?expected_version=${version}`);
   },
 };

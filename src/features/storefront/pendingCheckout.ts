@@ -1,6 +1,6 @@
 import { STORAGE_KEYS } from '@/app/config/constants';
 
-export type CheckoutKind = 'voucher' | 'wallet' | 'subscription';
+export type CheckoutKind = 'voucher' | 'iot' | 'wallet' | 'subscription';
 
 export interface PendingCheckout {
   kind: CheckoutKind;

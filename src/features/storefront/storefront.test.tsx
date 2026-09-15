@@ -9,6 +9,7 @@ import type { PublicPlan } from '@/types/api';
 import StorefrontPage from './pages/StorefrontPage';
 import PaymentResultPage from './pages/PaymentResultPage';
 import PricingPage from './pages/PricingPage';
+import { IoTCheckout } from './components/IoTCheckout';
 import { pendingCheckout } from './pendingCheckout';
 import { Route, Routes } from 'react-router';
 
@@ -397,4 +398,40 @@ it('uses a new request key when the selected device count changes after rejectio
   await userEvent.click(screen.getByRole('button', {name:/Pay with Paystack/}));
   await waitFor(()=>expect(keys).toHaveLength(2));
   expect(keys[0]).not.toBe(keys[1]);
+});
+
+
+describe('public IoT checkout', () => {
+  it('retains the original request and payment reference after uncertain initialization', async () => {
+    const requests: { key: string | null; body: unknown }[] = [];
+    server.use(http.post(`${API}/buy/iot/`, async ({ request }) => {
+      requests.push({ key: request.headers.get('Idempotency-Key'), body: await request.json() });
+      return HttpResponse.json({ detail: 'Check original payment.', reference: 'iot-safe-reference' }, { status: 503 });
+    }));
+    renderWithProviders(<IoTCheckout plan={{ ...plans[0]!, plan_type: 'iot_mac' }} slug="wuse-hotspot" />);
+    const user = userEvent.setup();
+    await user.type(screen.getByRole('textbox', { name: 'Email address' }), 'iot@example.test');
+    await user.type(screen.getByRole('textbox', { name: 'Device name' }), 'Camera');
+    await user.type(screen.getByRole('textbox', { name: 'MAC address' }), 'AA:BB:CC:DD:EE:FF');
+    await user.click(screen.getByRole('button', { name: /^Pay / }));
+    expect(await screen.findByRole('link', { name: 'Check this payment' })).toHaveAttribute('href', '/pay/result?reference=iot-safe-reference');
+    expect(screen.getByRole('textbox', { name: 'MAC address' })).toBeDisabled();
+    await user.click(screen.getByRole('button', { name: 'Retry same purchase' }));
+    await waitFor(() => expect(requests).toHaveLength(2));
+    expect(requests[0]?.key).toBeTruthy();
+    expect(requests[1]).toEqual(requests[0]);
+    expect(pendingCheckout.load()?.kind).toBe('iot');
+  });
+
+  it('shows the renewal capability for a fulfilled device without claiming a voucher', async () => {
+    server.use(http.get(`${API}/payments/callback/`, () => HttpResponse.json({
+      kind: 'iot', status: 'success', fulfilled: true, payment_verified: true,
+      reference: 'iot-paid', voucher: null, access_code: null, code_revealed: false,
+      device_status: 'suspended', expires_at: '2030-01-01T00:00:00Z', renewal_token: 'private-renewal-token',
+    })));
+    renderStore('/pay/result?reference=iot-paid');
+    expect(await screen.findByLabelText('Renewal token')).toHaveValue('private-renewal-token');
+    expect(screen.getByText(/Registration status: suspended/)).toBeInTheDocument();
+    expect(screen.queryByText('Your voucher has been issued.')).not.toBeInTheDocument();
+  });
 });

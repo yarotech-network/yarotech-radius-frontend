@@ -66,6 +66,7 @@ function mockSessionEndpoints() {
 }
 
 beforeEach(() => {
+  server.use(mswHttp.get(`${API}/subscriptions/access/`, () => HttpResponse.json({ required: false, can_renew: true, status: 'active', expires_at: null })));
   tokenStore.clear();
   window.localStorage.clear();
   mockSessionEndpoints();

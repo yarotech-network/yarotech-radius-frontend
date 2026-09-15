@@ -72,7 +72,7 @@ function RecoveryDetail({ row }: { row: PaymentRecovery }) {
     try {
       const updated = await retry.mutateAsync(row.id);
       if (updated.fulfillment_status === 'fulfilled')
-        toast.success('Voucher issued', 'Fulfilment succeeded. You can now email the credentials.');
+        toast.success(updated.purchase_kind === 'iot' ? 'Device access granted' : 'Voucher issued', updated.purchase_kind === 'iot' ? 'The verified device purchase has been fulfilled.' : 'Fulfilment succeeded. You can now email the credentials.');
       else
         toast.info(
           'Verification complete',
@@ -193,7 +193,7 @@ function RecoveryDetail({ row }: { row: PaymentRecovery }) {
               disabled={!canRetry(row) || deliver.isPending}
               title={canRetry(row) ? undefined : 'Already fulfilled'}
             >
-              Re-verify & issue voucher
+              {row.purchase_kind === 'iot' ? 'Re-verify & grant device access' : 'Re-verify & issue voucher'}
             </Button>
             <Button
               variant={
@@ -219,8 +219,8 @@ function RecoveryDetail({ row }: { row: PaymentRecovery }) {
             </Button>
           </div>
           <p className="text-xs text-ink-500">
-            Re-verify asks Paystack for the payment's current state and issues the voucher if it was
-            paid. Emailing sends the voucher to the customer's address on the payment.
+            Re-verify checks the original payment and fulfils its reserved purchase if paid.
+            Only voucher purchases support emailing access credentials.
           </p>
           {ackOpen && (
             <div className="rounded-card border border-warning-100 bg-warning-50 p-3">

@@ -116,6 +116,7 @@ function mockSession(
 }
 
 beforeEach(() => {
+  server.use(mswHttp.get(`${API}/subscriptions/`, () => HttpResponse.json({ status: 'active', expires_at: '2035-01-01T00:00:00Z', plan: { name: 'Fixture' } })));
   server.use(mswHttp.get(`${API}/subscriptions/access/`, () => HttpResponse.json({required:false,can_renew:true,status:"active",expires_at:null})));
   tokenStore.clear();
   setActiveTenantHeader(null);

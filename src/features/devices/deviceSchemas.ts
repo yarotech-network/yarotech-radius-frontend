@@ -24,11 +24,22 @@ export const deviceSchema = z
           ),
         'Enter a valid MAC address',
       ),
-    plan: z.string().min(1, 'Choose a plan'),
+    plan: z.string(),
     expires_at: z.string(),
     is_active: z.boolean(),
   })
   .superRefine((values, ctx) => {
+    const compact = values.mac_address.replace(/[:.\-\s]/g, '').toUpperCase();
+    if (
+      compact === '000000000000' ||
+      compact === 'FFFFFFFFFFFF' ||
+      parseInt(compact.slice(0, 2), 16) & 1
+    )
+      ctx.addIssue({
+        code: 'custom',
+        path: ['mac_address'],
+        message: 'Use a unicast MAC address.',
+      });
     if (values.access_type === 'timed' && !fromDateTimeLocalInput(values.expires_at))
       ctx.addIssue({
         code: 'custom',
@@ -63,7 +74,7 @@ export function deviceToForm(device: MacDevice): DeviceInput {
     description: device.description ?? '',
     device_name: device.device_name,
     mac_address: device.mac_address,
-    plan: String(device.plan),
+    plan: device.plan == null ? '' : String(device.plan),
     expires_at: device.expires_at ? toDateTimeLocalInput(device.expires_at) : '',
     is_active: device.is_active,
   };
@@ -77,7 +88,7 @@ export function formToPayload(values: DeviceOutput): MacDeviceWrite {
     description: values.description,
     device_name: values.device_name,
     mac_address: normaliseMac(values.mac_address),
-    plan: Number(values.plan),
+    plan: values.plan ? Number(values.plan) : null,
     expires_at:
       values.access_type === 'permanent' ? null : fromDateTimeLocalInput(values.expires_at),
     is_active: values.is_active,
@@ -100,6 +111,8 @@ export function formToPatch(values: DeviceOutput, device: MacDevice): Partial<Ma
   )
     patch.expires_at = next.expires_at;
   if (next.is_active !== device.is_active) patch.is_active = values.is_active;
+  if (Object.keys(patch).length && device.version !== undefined)
+    patch.expected_version = device.version;
   return patch;
 }
 
