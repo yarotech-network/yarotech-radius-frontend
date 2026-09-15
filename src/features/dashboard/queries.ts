@@ -1,3 +1,5 @@
+import { usePrincipal } from '@/app/auth/useAuth';
+import { can } from '@/services/auth/principal';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { LIVE_POLL_INTERVAL_MS } from '@/app/config/constants';
 import type { LiveUsersParams } from '@/types/api';
@@ -52,5 +54,23 @@ export function useDisconnectSession() {
   return useMutation({
     mutationFn: (sessionId: number) => dashboardApi.disconnect(sessionId),
     onSuccess: () => client.invalidateQueries({ queryKey: [...dashboardKeys.all, 'live'] }),
+  });
+}
+
+export function useNetworkSummary(live = true) {
+  const principal = usePrincipal();
+  const tenant =
+    principal.kind === 'member'
+      ? principal.tenantId
+      : principal.kind === 'platform_staff'
+        ? principal.activeTenantId
+        : null;
+  return useQuery({
+    queryKey: [...dashboardKeys.all, 'network', principal.user.id, tenant],
+    queryFn: dashboardApi.network,
+    enabled: can(principal, 'sessions.view'),
+    staleTime: 15_000,
+    refetchInterval: live ? 30_000 : false,
+    refetchIntervalInBackground: false,
   });
 }

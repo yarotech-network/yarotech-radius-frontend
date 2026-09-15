@@ -1,3 +1,6 @@
+import { BusinessCards } from '../components/BusinessCards';
+import { NetworkCards } from '../components/NetworkCards';
+import { SubscriptionSummary } from '../components/SubscriptionSummary';
 import { Link } from 'react-router';
 import {
   Activity,
@@ -75,6 +78,7 @@ export default function DashboardPage() {
         }
       />
       <OverviewIntro />
+      <SubscriptionSummary />
       {s && s.paid_unfulfilled_payments > 0 && can(principal, 'payments.recovery.view') && (
         <Alert
           tone="warning"
@@ -128,7 +132,7 @@ export default function DashboardPage() {
               className="overview-metric overview-metric-purple"
             />
             <Stat
-              label="Revenue"
+              label="Online revenue"
               value={s ? formatKobo(s.total_revenue) : '—'}
               hint="Successful online payments | All time"
               icon={<Banknote />}
@@ -138,6 +142,8 @@ export default function DashboardPage() {
           </section>
         </>
       )}
+      <BusinessCards stats={s} loading={stats.isPending} />
+      <NetworkCards />
       <div className="overview-columns">
         <Card className="overview-activity" padded={false}>
           <div className="overview-panel-heading">
@@ -296,7 +302,7 @@ export default function DashboardPage() {
               </div>
               <div>
                 <dt>
-                  <AlertTriangle className="size-4" aria-hidden /> Pending payments
+                  <AlertTriangle className="size-4" aria-hidden /> Payment confirmation queue
                 </dt>
                 <dd>{s ? formatNumber(s.pending_payments) : '—'}</dd>
               </div>

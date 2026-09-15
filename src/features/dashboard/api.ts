@@ -1,6 +1,7 @@
 import { http } from '@/services/api/http';
 import type {
   DashboardStats,
+  NetworkSummary,
   DisconnectResult,
   LiveUsersParams,
   LiveUsersResponse,
@@ -8,6 +9,9 @@ import type {
 import { newIdempotencyKey } from '@/lib/utilities/idempotency';
 
 export const dashboardApi = {
+  network() {
+    return http.get<NetworkSummary>('/dashboard/network/');
+  },
   stats() {
     return http.get<DashboardStats>('/dashboard/stats/');
   },

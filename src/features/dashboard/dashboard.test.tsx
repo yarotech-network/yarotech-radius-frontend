@@ -1,5 +1,5 @@
 import { http, HttpResponse } from 'msw';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { server } from '@/test/server';
@@ -9,6 +9,17 @@ import { renderPage } from '@/test/renderPage';
 import type { DashboardStats, LiveUsersResponse } from '@/types/api';
 import DashboardPage from './pages/DashboardPage';
 import SessionsPage from '@/features/sessions/pages/SessionsPage';
+
+beforeEach(() => {
+  server.use(
+    http.get(`${API}/dashboard/network/`, () =>
+      HttpResponse.json({ detail: 'No accounting' }, { status: 503 }),
+    ),
+    http.get(`${API}/subscriptions/`, () =>
+      HttpResponse.json({ detail: 'No subscription' }, { status: 404 }),
+    ),
+  );
+});
 
 const stats: DashboardStats = {
   total_vouchers: 41,

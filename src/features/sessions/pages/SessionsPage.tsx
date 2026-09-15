@@ -1,3 +1,4 @@
+import { NetworkCards } from '@/features/dashboard/components/NetworkCards';
 import { useMemo, useState } from 'react';
 import { Activity, Pause, Play, RefreshCw, Unplug } from 'lucide-react';
 import { PageHeader } from '@/components/layout';
@@ -177,6 +178,7 @@ export default function SessionsPage() {
           </div>
         </div>
       </Card>
+      <NetworkCards live={!paused} />
       <section aria-labelledby="sessions-directory-title" className="space-y-4">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h2 id="sessions-directory-title" className="text-lg font-semibold text-brand-950">
