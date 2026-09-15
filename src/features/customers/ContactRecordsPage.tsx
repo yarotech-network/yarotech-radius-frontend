@@ -9,11 +9,29 @@ import { Pagination, SearchInput } from '@/components/data';
 import { usePrincipal } from '@/app/auth/useAuth';
 import { can } from '@/services/auth/principal';
 import { useDebouncedValue } from '@/lib/utilities/useDebouncedValue';
-import { customersApi, customersKey, type Customer } from './api';
+import { customersApi, customersKey, customerLabel, type Customer } from './api';
 import { CustomerForm } from './CustomerForm';
 import { CustomerImport } from './CustomerImport';
+import { CustomerPurchases } from './CustomerPurchases';
 
 export default function ContactRecordsPage() {
+  const principal = usePrincipal();
+  const scope =
+    principal.kind === 'member'
+      ? principal.tenantId
+      : principal.kind === 'platform_staff'
+        ? principal.activeTenantId
+        : null;
+  return (
+    <ContactWorkspace
+      key={`${principal.user.id}:${scope}`}
+      scope={scope}
+      actorId={principal.user.id}
+    />
+  );
+}
+
+function ContactWorkspace({ scope, actorId }: { scope: number | null; actorId: number }) {
   const manage = can(usePrincipal(), 'customers.manage');
   const client = useQueryClient();
   const toast = useToast();
@@ -26,17 +44,19 @@ export default function ContactRecordsPage() {
   const [selected, setSelected] = useState<number | null>(null);
   const [lifecycle, setLifecycle] = useState<Customer | null>(null);
   const debounced = useDebouncedValue(search);
+  const scopedKey = [...customersKey, actorId, scope];
   const params = { search: debounced, status, page, page_size: 12 };
   const query = useQuery({
-    queryKey: [...customersKey, 'list', params],
+    queryKey: [...scopedKey, 'list', params],
     queryFn: () => customersApi.list(params),
+    enabled: scope !== null,
   });
   const detail = useQuery({
-    queryKey: [...customersKey, 'detail', selected],
+    queryKey: [...scopedKey, 'detail', selected],
     queryFn: () => customersApi.get(selected!),
-    enabled: selected !== null,
+    enabled: selected !== null && scope !== null,
   });
-  const refresh = () => void client.invalidateQueries({ queryKey: customersKey });
+  const refresh = () => void client.invalidateQueries({ queryKey: scopedKey });
   const saved = () => {
     setEditor(null);
     setImporting(false);
@@ -47,7 +67,7 @@ export default function ContactRecordsPage() {
     <div className="space-y-6">
       <PageHeader
         title="Customers"
-        description="Your customer directory, separate from staff accounts and voucher purchases."
+        description="Your customer directory, with contact details and linked purchase history."
         actions={
           <>
             <Link
@@ -132,7 +152,7 @@ export default function ContactRecordsPage() {
                     className="mt-2 text-left text-lg font-semibold break-words text-brand-950 hover:underline"
                     onClick={() => setSelected(customer.id)}
                   >
-                    {customer.name}
+                    {customerLabel(customer)}
                   </button>
                 </div>
                 <span className="shrink-0 rounded-full bg-surface-muted px-2 py-1 text-xs text-ink-600">
@@ -216,13 +236,14 @@ export default function ContactRecordsPage() {
           <ErrorState error={detail.error} onRetry={() => void detail.refetch()} />
         ) : detail.data ? (
           <div className="space-y-4">
-            <h2 className="text-xl font-semibold break-words">{detail.data.name}</h2>
+            <h2 className="text-xl font-semibold break-words">{customerLabel(detail.data)}</h2>
             <dl className="space-y-3 text-sm">
               {[
                 ['Reference', detail.data.reference],
                 ['Record status', detail.data.archived_at ? 'Archived' : 'Current'],
                 ['Email', detail.data.email],
                 ['Phone', detail.data.phone],
+                ['Contact MAC (not verified device ownership)', detail.data.mac_address],
                 ['Address', detail.data.address],
                 ['Internal notes', detail.data.notes],
               ].map(([label, value]) => (
@@ -232,6 +253,14 @@ export default function ContactRecordsPage() {
                 </div>
               ))}
             </dl>
+            {manage && (
+              <CustomerPurchases
+                key={detail.data.id}
+                customerId={detail.data.id}
+                scope={scope}
+                actorId={actorId}
+              />
+            )}
             <p className="rounded-xl border border-border bg-surface-muted p-4 text-sm">
               Manage equipment access from{' '}
               <a href="/devices" className="font-semibold text-brand-700 underline">

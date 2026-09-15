@@ -80,6 +80,7 @@ function mount(path: string) {
 }
 
 beforeEach(() => {
+  server.use(mswHttp.get(`${API}/subscriptions/access/`, () => HttpResponse.json({ required: false, can_renew: true, status: 'active', expires_at: null })));
   server.use(
     mswHttp.get(`${API}/subscriptions/`, () =>
       HttpResponse.json({ detail: 'No subscription' }, { status: 404 }),

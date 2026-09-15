@@ -7,15 +7,19 @@ export type CustomerWrite = {
   phone: string;
   address: string;
   notes: string;
+  mac_address?: string;
 };
 export type Customer = CustomerWrite & {
   id: number;
+  display_name?: string;
   archived_at: string | null;
   has_service?: boolean;
   created_at: string;
   updated_at: string;
 };
 export type Preview = { count: number; rows: CustomerWrite[]; preview_token: string };
+export const customerLabel = (customer: CustomerWrite) =>
+  customer.name || customer.phone || customer.email || customer.reference;
 export const customersKey = ['customers'] as const;
 export const customersApi = {
   list: (params: Record<string, string | number>) =>

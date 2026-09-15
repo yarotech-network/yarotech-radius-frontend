@@ -24,6 +24,7 @@ export function CustomerForm({
     phone: customer?.phone ?? '',
     address: customer?.address ?? '',
     notes: customer?.notes ?? '',
+    mac_address: customer?.mac_address ?? '',
   });
   const [key, setKey] = useState(() => newIdempotencyKey('customer'));
   const save = useMutation({
@@ -56,9 +57,10 @@ export function CustomerForm({
           {(
             [
               { field: 'reference', label: 'Customer reference', max: 40, required: true },
-              { field: 'name', label: 'Full name or business name', max: 200, required: true },
+              { field: 'name', label: 'Full name or business name', max: 200 },
               { field: 'email', label: 'Email address', max: 254 },
               { field: 'phone', label: 'Phone number', max: 30 },
+              { field: 'mac_address', label: 'Contact MAC address (optional)', max: 32 },
             ] as const
           ).map((item) => {
             const error = isApiError(save.error) ? save.error.fieldMessage(item.field) : undefined;
@@ -88,7 +90,8 @@ export function CustomerForm({
         </div>
         <p className="text-xs text-ink-500">
           Use a unique reference such as CUST-001. It stays fixed and is reserved even after
-          archiving.
+          archiving. Names are optional. A contact MAC is a note only; it does not grant network
+          access.
         </p>
         <label className="block space-y-1 text-sm font-medium">
           Address

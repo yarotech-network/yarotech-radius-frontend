@@ -101,8 +101,8 @@ export function CustomerImport({
           />
         </label>
         <p className="text-xs text-ink-500">
-          Required headers: reference,name. Optional: email,phone,address,notes. Quote values that
-          contain commas.
+          Required headers: reference,name. Name values may be blank. Optional:
+          email,phone,address,notes,mac_address. Quote values that contain commas.
         </p>
       </fieldset>
       {preview && (
@@ -117,7 +117,7 @@ export function CustomerImport({
                 key={row.reference}
                 className="rounded-lg bg-surface-muted p-3 text-sm break-words"
               >
-                <strong>{row.name}</strong>
+                <strong>{row.name || row.phone || row.email || row.reference}</strong>
                 <div className="text-ink-500">
                   {row.reference} ? {row.email || 'No email'}
                 </div>

@@ -61,6 +61,7 @@ const PaymentsPage = lazyRoute(lazy(() => import('@/features/payments/pages/Paym
 const RecoveryPage = lazyRoute(lazy(() => import('@/features/payments/pages/RecoveryPage')));
 const AuditPage = lazyRoute(lazy(() => import('@/features/audit/pages/AuditPage')));
 const StorefrontPage = lazyRoute(lazy(() => import('@/features/storefront/pages/StorefrontPage')));
+const WhatsAppPage = lazyRoute(lazy(() => import('@/features/whatsapp/WhatsAppPage')));
 const StorefrontManagementPage = lazyRoute(
   lazy(() => import('@/features/storefront/pages/StorefrontManagementPage')),
 );
@@ -76,6 +77,7 @@ const AgentSellPage = lazyRoute(lazy(() => import('@/features/agent/pages/AgentS
 const AgentWalletPage = lazyRoute(lazy(() => import('@/features/agent/pages/AgentWalletPage')));
 const AgentVouchersPage = lazyRoute(lazy(() => import('@/features/agent/pages/AgentVouchersPage')));
 const AgentProfilePage = lazyRoute(lazy(() => import('@/features/agent/pages/AgentProfilePage')));
+const SharedEndpointPage = lazyRoute(lazy(() => import('@/features/whatsapp/SharedRouting')));
 const PlatformOverviewPage = lazyRoute(
   lazy(() => import('@/features/platform/pages/PlatformOverviewPage')),
 );
@@ -118,6 +120,7 @@ const devRoutes: RouteObject[] = import.meta.env.DEV
 
 /* ---------- workspace (tenant members + platform staff) ---------- */
 const workspaceRoutes: RouteObject[] = [
+  { element: <RequireCapability capability="whatsapp.view" />, children: [{ path: 'whatsapp', Component: WhatsAppPage }] },
   { path: 'dashboard', Component: DashboardPage },
   {
     element: <RequireCapability capability="pppoe.view" />,
@@ -224,6 +227,7 @@ const workspaceRoutes: RouteObject[] = [
 
 /* ---------- platform console (platform admin) ---------- */
 const platformRoutes: RouteObject[] = [
+  { path: 'whatsapp', Component: SharedEndpointPage },
   { index: true, Component: PlatformOverviewPage },
   { path: 'tenants', Component: TenantsPage },
   { path: 'tenants/:id', Component: TenantDetailPage },

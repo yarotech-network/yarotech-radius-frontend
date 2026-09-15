@@ -19,6 +19,7 @@ import {
   UserCircle,
   Users,
   Wallet,
+  MessageCircle,
 } from 'lucide-react';
 import type { Capability } from '@/services/auth/principal';
 import { can, canAny, type Principal } from '@/services/auth/principal';
@@ -172,6 +173,10 @@ export const WORKSPACE_NAV: NavGroup[] = [
         capabilities: ['settings.profile'],
       },
       {
+        key: 'whatsapp', label: 'WhatsApp', to: '/whatsapp', icon: MessageCircle,
+        capabilities: ['whatsapp.view'],
+      },
+      {
         key: 'agents',
         label: 'Agents',
         to: '/agents',
@@ -289,6 +294,7 @@ export const PLATFORM_NAV: NavGroup[] = [
       },
       { key: 'staff', label: 'Staff', to: '/platform/staff', icon: Users },
       { key: 'audit', label: 'Audit log', to: '/platform/audit', icon: ClipboardList },
+      { key: 'whatsapp', label: 'WhatsApp', to: '/platform/whatsapp', icon: MessageCircle },
     ],
   },
 ];
