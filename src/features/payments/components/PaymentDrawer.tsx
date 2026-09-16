@@ -1,5 +1,5 @@
 import { Link, useNavigate } from 'react-router';
-import { LifeBuoy, Check, Copy } from 'lucide-react';
+import { LifeBuoy } from 'lucide-react';
 import { Button, CopyButton, DescriptionList, Dialog, Skeleton } from '@/components/ui';
 import { Alert, QueryBoundary } from '@/components/feedback';
 import { StatusBadge } from '@/components/layout';

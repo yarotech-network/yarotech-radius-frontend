@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router';
-import { Users, Ticket, RefreshCw, Radio, Activity, ShieldCheck, ExternalLink } from 'lucide-react';
+import { Users, Ticket, RefreshCw, Radio, Activity } from 'lucide-react';
 import { Button, Card, Dialog, Select, Input } from '@/components/ui';
 import { ErrorState, Alert } from '@/components/feedback';
 import { Pagination, SearchInput, useListParams } from '@/components/data';

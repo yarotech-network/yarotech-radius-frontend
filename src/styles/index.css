@@ -177,38 +177,39 @@
   --color-brand-900: #dbeafe;
   --color-brand-950: #eff6ff;
 
-  /* Surfaces — deep navy/slate hierarchy */
-  --color-canvas:       #0d1117;
-  --color-surface:      #161b22;
-  --color-surface-muted:#1c2230;
-  --color-border:       #30363d;
-  --color-border-strong:#484f58;
+  /* Surfaces — deep navy hierarchy (matches sidebar: #0d1b2e) */
+  --color-canvas:        #071527;   /* page background — deepest navy   */
+  --color-surface:       #0d1b2e;   /* cards, panels                    */
+  --color-surface-muted: #112240;   /* inputs, table rows, hover wells  */
+  --color-border:        #1e3050;   /* default dividers                 */
+  --color-border-strong: #2a4a70;   /* stronger borders, focus rings    */
 
-  /* Ink / text */
-  --color-ink-900: #e6edf3;
-  --color-ink-700: #c9d1d9;
-  --color-ink-600: #b1bac4;
-  --color-ink-500: #8b949e;
-  --color-ink-400: #6e7681;
-  --color-ink-300: #484f58;
+  /* Ink / text — slightly warmer blue-white on navy */
+  --color-ink-900: #e2efff;
+  --color-ink-700: #c9dff8;
+  --color-ink-600: #9fbdd8;
+  --color-ink-500: #6b90b0;
+  --color-ink-400: #4a6b8a;
+  --color-ink-300: #2a4060;
 
-  /* Status — adjusted for dark surfaces */
+  /* Status — adjusted for dark navy surfaces */
   --color-success-700:  #4ade80;
   --color-success-600:  #22c55e;
-  --color-success-100:  #052e16;
-  --color-success-50:   #041a0c;
+  --color-success-100:  #032912;
+  --color-success-50:   #021a0c;
   --color-warning-700:  #fbbf24;
   --color-warning-600:  #f59e0b;
-  --color-warning-100:  #2d1e00;
+  --color-warning-100:  #2a1a00;
   --color-warning-50:   #1a1000;
   --color-danger-700:   #f87171;
   --color-danger-600:   #ef4444;
-  --color-danger-100:   #2d0a0a;
-  --color-danger-50:    #1a0505;
+  --color-danger-100:   #2a0808;
+  --color-danger-50:    #180505;
   --color-info-700:     #60a5fa;
   --color-info-100:     #0f2a5f;
-  --color-info-50:      #0a1e3d;
+  --color-info-50:      #071a3d;
 }
+
 
 /* ------------------------------------------------------------------ */
 /* Utilities                                                           */

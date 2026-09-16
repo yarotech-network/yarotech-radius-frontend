@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router';
+import { useSearchParams } from 'react-router';
 import { Check, Copy, CreditCard, LifeBuoy, Receipt, RefreshCw, ShieldCheck } from 'lucide-react';
 import { StatusBadge } from '@/components/layout';
 import { Badge, Button, ButtonLink, Card, Select } from '@/components/ui';
@@ -26,7 +26,6 @@ const FILTERS = ['status'] as const;
 
 export default function PaymentsPage() {
   const principal = usePrincipal();
-  const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const list = useListParams(FILTERS, { ordering: PAYMENTS_DEFAULT_ORDERING });
   const debouncedSearch = useDebouncedValue(list.state.search);

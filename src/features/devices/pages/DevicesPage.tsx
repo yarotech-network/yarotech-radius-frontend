@@ -1,7 +1,7 @@
 import { formatBytes } from '@/lib/formatting/units';
 import '../devices.css';
 import { useEffect, useMemo, useState } from 'react';
-import { Check, Copy, Cpu, Layers, MonitorSmartphone, MoreHorizontal, Pencil, Plus, RefreshCw, Router, Trash2, Wifi } from 'lucide-react';
+import { Check, Copy, Cpu, MonitorSmartphone, MoreHorizontal, Pencil, Plus, RefreshCw, Trash2, Wifi } from 'lucide-react';
 import { BooleanBadge } from '@/components/layout';
 import { Button, Card, ConfirmDialog, Menu, Select } from '@/components/ui';
 import { Alert, EmptyState, useToast } from '@/components/feedback';
@@ -509,12 +509,7 @@ function DeviceDirectory() {
       {canManage && managing !== null && (
         <DeviceLifecycleDialog
           device={managing}
-          open={managing !== null}
           onClose={() => setManaging(null)}
-          onSaved={() => {
-            setManaging(null);
-            void query.refetch();
-          }}
         />
       )}
 
@@ -528,7 +523,7 @@ function DeviceDirectory() {
           confirmLabel="Remove registration"
           onConfirm={async () => {
             try {
-              await remove.mutateAsync(deleting.id);
+              await remove.mutateAsync({ id: deleting.id, version: deleting.version });
               setDeleting(null);
               toast.success('Registration removed', deleting.device_name);
               void query.refetch();

@@ -3,7 +3,6 @@ import { Link } from 'react-router';
 import {
   ArrowRight,
   Banknote,
-  Cpu,
   Layers,
   MoreHorizontal,
   Pencil,

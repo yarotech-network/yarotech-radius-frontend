@@ -3,7 +3,7 @@ import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Link } from 'react-router';
-import { CreditCard, KeyRound, RefreshCw } from 'lucide-react';
+import { CreditCard, RefreshCw } from 'lucide-react';
 import { Button, Card, FormField, Input, Select, PasswordInput, Skeleton } from '@/components/ui';
 import { Alert, ErrorState, useToast } from '@/components/feedback';
 import { useFormSubmit } from '@/lib/forms/useFormSubmit';
@@ -121,17 +121,17 @@ function BillingForm({ settings }: { settings: TenantSetting }) {
     try {
       await update.mutateAsync(patch);
       toast.success('Billing preferences saved');
-      form.reset(data);
+      form.reset(data as unknown as BillingSettingsInput);
     } catch (error) {
-      captureError(error, 'Could not save billing preferences');
+      captureError(error);
     }
   }
 
   return (
     <form onSubmit={(e) => void form.handleSubmit(onSubmit)(e)} noValidate className="space-y-6">
       {message && (
-        <Alert tone="danger" title={message.title}>
-          {message.description}
+        <Alert tone="danger">
+          {message}
         </Alert>
       )}
       <SettingsCard
@@ -142,28 +142,18 @@ function BillingForm({ settings }: { settings: TenantSetting }) {
         <div className="space-y-4">
           <FormField
             label="Paystack secret key"
-            description={
-              settings.paystack_secret_key_configured
-                ? `Currently configured (${settings.paystack_secret_key_masked ?? 'saved'}). Enter a new secret key to replace it, or leave blank to keep existing.`
-                : 'Enter your secret key from your Paystack API keys dashboard.'
-            }
+            hint="Enter your secret key from your Paystack API keys dashboard. Keys are write-only and never displayed."
             error={form.formState.errors.paystack_secret_key?.message}
           >
             <PasswordInput
               {...form.register('paystack_secret_key')}
-              placeholder={
-                settings.paystack_secret_key_configured
-                  ? '••••••••••••••••'
-                  : 'sk_live_... or sk_test_...'
-              }
+              placeholder="sk_live_... or sk_test_..."
               autoComplete="off"
             />
           </FormField>
-          {settings.paystack_secret_key_configured && (
-            <p className="text-xs text-ink-500">
-              Key updated: {formatDateTime(settings.updated_at)}
-            </p>
-          )}
+          <p className="text-xs text-ink-500">
+            Last settings update: {formatDateTime(settings.updated_at)}
+          </p>
         </div>
       </SettingsCard>
 
@@ -175,14 +165,14 @@ function BillingForm({ settings }: { settings: TenantSetting }) {
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <FormField
             label="Voucher prefix"
-            description="Default prefix added to generated codes."
+            hint="Default prefix added to generated codes."
             error={form.formState.errors.voucher_prefix?.message}
           >
             <Input {...form.register('voucher_prefix')} placeholder="e.g. HOTSPOT" />
           </FormField>
           <FormField
             label="Code format"
-            description="Character set for access codes."
+            hint="Character set for access codes."
             error={form.formState.errors.default_voucher_code_format?.message}
           >
             <Select
@@ -192,7 +182,7 @@ function BillingForm({ settings }: { settings: TenantSetting }) {
           </FormField>
           <FormField
             label="Agent funding percentage fee (%)"
-            description="Fee percentage deducted on agent wallet deposits."
+            hint="Fee percentage deducted on agent wallet deposits."
             error={form.formState.errors.agent_funding_fee_percent?.message}
           >
             <Input
@@ -203,7 +193,7 @@ function BillingForm({ settings }: { settings: TenantSetting }) {
           </FormField>
           <FormField
             label="Agent funding flat fee (Kobo)"
-            description="Flat fee in Kobo for wallet deposits."
+            hint="Flat fee in Kobo for wallet deposits."
             error={form.formState.errors.agent_funding_flat_fee?.message}
           >
             <Input
@@ -213,7 +203,7 @@ function BillingForm({ settings }: { settings: TenantSetting }) {
           </FormField>
           <FormField
             label="Agent commission rate (%)"
-            description="Default commission percentage for sales."
+            hint="Default commission percentage for sales."
             error={form.formState.errors.agent_commission_percent?.message}
           >
             <Input

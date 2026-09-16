@@ -1,6 +1,6 @@
 import { useRef, useState, type FormEvent } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { MessageSquare, Phone, RefreshCw, Send, ShieldCheck, Zap } from 'lucide-react';
+import { MessageSquare, Phone, RefreshCw, Zap } from 'lucide-react';
 import { usePrincipal } from '@/app/auth/useAuth';
 import { can } from '@/services/auth/principal';
 import { http } from '@/services/api/http';
@@ -191,7 +191,7 @@ function ConnectionForm({
         <fieldset disabled={!canManage || busy} className="space-y-4">
           <FormField
             label="Meta phone number ID"
-            description="The identifier from your Meta configuration. This is different from your public WhatsApp number."
+            hint="The identifier from your Meta configuration. This is different from your public WhatsApp number."
           >
             <Input
               value={phoneId}
@@ -205,7 +205,7 @@ function ConnectionForm({
           </FormField>
           <FormField
             label="Public WhatsApp number"
-            description="Include the country code, for example +2348012345678. Existing records are not guessed from Meta IDs."
+            hint="Include the country code, for example +2348012345678. Existing records are not guessed from Meta IDs."
           >
             <Input
               value={displayNumber}
@@ -219,7 +219,7 @@ function ConnectionForm({
           {canManage && (
             <FormField
               label={connection ? 'Replace access token (optional)' : 'Access token'}
-              description="Saved tokens are never displayed. Leave blank to keep the existing token."
+              hint="Saved tokens are never displayed. Leave blank to keep the existing token."
             >
               <Input
                 type="password"

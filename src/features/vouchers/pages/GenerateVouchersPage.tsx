@@ -5,6 +5,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { CheckCircle2, Printer, RotateCcw, Ticket } from 'lucide-react';
 import { Button, Card, FormField, Input, Select, SegmentedControl } from '@/components/ui';
 import { Alert } from '@/components/feedback';
+import { PageHeader } from '@/components/layout';
+
 import { useFormSubmit } from '@/lib/forms/useFormSubmit';
 import { newIdempotencyKey } from '@/lib/utilities/idempotency';
 import { formatKobo } from '@/lib/formatting/money';

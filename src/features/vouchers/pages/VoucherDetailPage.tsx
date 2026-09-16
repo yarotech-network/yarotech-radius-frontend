@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router';
-import { ArrowLeft, Ban, Check, Copy, Pencil, Printer, RefreshCw, Ticket, Trash2, Zap } from 'lucide-react';
+import { ArrowLeft, Ban, Pencil, Printer, RefreshCw, Ticket, Trash2 } from 'lucide-react';
 import { StatusBadge } from '@/components/layout';
 import {
   Button,
