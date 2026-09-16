@@ -523,7 +523,7 @@ function DeviceDirectory() {
           confirmLabel="Remove registration"
           onConfirm={async () => {
             try {
-              await remove.mutateAsync({ id: deleting.id, version: deleting.version });
+              await remove.mutateAsync({ id: deleting.id, version: deleting.version ?? 0 });
               setDeleting(null);
               toast.success('Registration removed', deleting.device_name);
               void query.refetch();
