@@ -1,7 +1,6 @@
 import { useMemo } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { ArrowUpRight, Plus, Radio, RefreshCw } from 'lucide-react';
-import { PageHeader } from '@/components/layout';
+import { ArrowRight, ArrowUpRight, BookOpen, Cpu, Plus, Radio, RefreshCw, Wifi } from 'lucide-react';
 import {
   DataTable,
   FilterBar,
@@ -96,68 +95,99 @@ export default function RoutersPage() {
 
   return (
     <div className="router-page space-y-6">
-      <PageHeader
-        title="Routers"
-        description="MikroTik hotspots registered as RADIUS clients, with their onboarding and VPN status."
-        actions={
-          <div className="flex flex-wrap gap-2">
+
+      {/* Premium hero header */}
+      <div className="router-page-hero">
+        <div className="router-page-hero-inner">
+          <div className="router-page-hero-text">
+            <span className="router-page-hero-eyebrow">
+              <Wifi className="size-3" aria-hidden /> Network Infrastructure
+            </span>
+            <h1 className="router-page-hero-title">Router Fleet</h1>
+            <p className="router-page-hero-desc">
+              MikroTik hotspots registered as RADIUS clients — onboarding, VPN and provisioning in one place.
+            </p>
+          </div>
+          <div className="router-page-hero-actions">
             <Button
               variant="secondary"
               disabled={query.isFetching}
-              leadingIcon={<RefreshCw className={query.isFetching ? 'animate-spin' : ''} />}
+              leadingIcon={<RefreshCw className={query.isFetching ? 'animate-spin motion-reduce:animate-none' : ''} />}
               onClick={() => void query.refetch()}
             >
-              Refresh routers
+              {query.isFetching ? 'Refreshing...' : 'Refresh'}
             </Button>
-            {canManage ? (
-              <ButtonLink to="/routers/new" leadingIcon={<Plus className="h-4 w-4" aria-hidden />}>
+            {canManage && (
+              <ButtonLink to="/routers/new" leadingIcon={<Plus className="size-4" aria-hidden />}>
                 Add router
               </ButtonLink>
-            ) : null}
+            )}
           </div>
-        }
-      />
+        </div>
+
+        {/* Stats strip */}
+        <div className="router-page-hero-strip">
+          <div className="router-page-hero-stat">
+            <Radio className="size-4" aria-hidden />
+            <span>
+              {query.data
+                ? `${query.data.count} total router${query.data.count !== 1 ? 's' : ''}`
+                : 'Loading fleet...'}
+            </span>
+          </div>
+          <div className="router-page-hero-divider" />
+          <div className="router-page-hero-stat">
+            <Cpu className="size-4" aria-hidden />
+            <span>MikroTik · RADIUS NAS</span>
+          </div>
+          <div className="router-page-hero-divider" />
+          <div className="router-page-hero-links">
+            <Link to="/guide" className="router-page-hero-link">
+              <BookOpen className="size-3.5" aria-hidden /> Setup guide
+            </Link>
+            {canManage && (
+              <Link to="/routers/operations" className="router-page-hero-link">
+                <ArrowRight className="size-3.5" aria-hidden /> Provisioning ops
+              </Link>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Allowance + intro */}
       <div className="router-fleet-intro">
         <div className="router-intro-copy">
           <Radio className="size-6 shrink-0 text-brand-600" aria-hidden />
           <div>
             <h2>Connect and manage your MikroTik fleet</h2>
             <p>Review setup, configure VPN access and follow provisioning for each device.</p>
-            <div className="mt-3 flex flex-wrap gap-4">
-              <Link to="/guide" className="text-sm font-semibold text-brand-700 hover:underline">
-                Setup guide
-              </Link>
-              {canManage && (
-                <Link
-                  to="/routers/operations"
-                  className="text-sm font-semibold text-brand-700 hover:underline"
-                >
-                  Provisioning operations
-                </Link>
-              )}
-            </div>
           </div>
         </div>
         <RouterAllowance />
       </div>
+
+      {/* Router directory */}
       <section aria-labelledby="router-directory-title" className="space-y-4">
-        <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h2 id="router-directory-title" className="text-lg font-semibold text-brand-950">
-            Router directory
-          </h2>
-          <p role="status" className="text-sm text-ink-500">
-            {query.isPlaceholderData
-              ? 'Updating results...'
-              : query.data
-                ? `${query.data.count} routers in this view`
-                : query.isError
-                  ? 'Router count unavailable'
-                  : 'Loading routers...'}
-          </p>
+        <div className="router-directory-heading">
+          <div>
+            <h2 id="router-directory-title" className="router-directory-title">
+              Router directory
+            </h2>
+            <p role="status" className="router-directory-count">
+              {query.isPlaceholderData
+                ? 'Updating results...'
+                : query.data
+                  ? `${query.data.count} router${query.data.count !== 1 ? 's' : ''} in this view`
+                  : query.isError
+                    ? 'Router count unavailable'
+                    : 'Loading routers...'}
+            </p>
+          </div>
         </div>
+
         <div className="router-status-filters" role="group" aria-label="Quick setup filters">
           {[
-            { value: '', label: 'All setup states' },
+            { value: '', label: 'All states' },
             { value: 'pending', label: 'Pending review' },
             { value: 'waiting_for_vpn', label: 'Waiting for VPN' },
             { value: 'active', label: 'Active setup' },
@@ -177,6 +207,7 @@ export default function RoutersPage() {
           Setup states describe configuration progress. Last seen is a recorded observation, not a
           live connection indicator.
         </p>
+
         <FilterBar
           inline
           search={

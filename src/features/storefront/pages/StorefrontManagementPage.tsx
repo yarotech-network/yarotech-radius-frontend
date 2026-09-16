@@ -7,9 +7,11 @@ import {
   Copy,
   CreditCard,
   ExternalLink,
+  Globe,
   RefreshCw,
   ShoppingBag,
   Store,
+  Zap,
 } from 'lucide-react';
 import { usePrincipal } from '@/app/auth/useAuth';
 import { can } from '@/services/auth/principal';
@@ -36,31 +38,55 @@ export default function StorefrontManagementPage() {
 
   return (
     <div className="space-y-6">
-      <header className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold text-brand-950">Storefront</h1>
-          <p className="mt-1 text-sm text-ink-500">
-            Share your online shop so customers can choose an internet plan and purchase an access
-            code.
-          </p>
+      {/* Premium Hero Header */}
+      <div className="router-page-hero">
+        <div className="router-page-hero-inner">
+          <div className="router-page-hero-text">
+            <span className="router-page-hero-eyebrow">
+              <Store className="size-3" aria-hidden /> E-Commerce & Customer Sales
+            </span>
+            <h1 className="router-page-hero-title">Storefront</h1>
+            <p className="router-page-hero-desc">
+              Share your online shop so customers can choose an internet plan and purchase an access code instantly.
+            </p>
+          </div>
+          <div className="router-page-hero-actions">
+            <Button
+              variant="secondary"
+              leadingIcon={<RefreshCw className={profile.isFetching ? 'animate-spin motion-reduce:animate-none' : ''} />}
+              disabled={profile.isFetching}
+              onClick={() => void profile.refetch()}
+            >
+              {profile.isFetching ? 'Refreshing...' : 'Refresh profile'}
+            </Button>
+          </div>
         </div>
-        <Button
-          variant="secondary"
-          leadingIcon={<RefreshCw className={profile.isFetching ? 'animate-spin' : ''} />}
-          disabled={profile.isFetching}
-          onClick={() => void profile.refetch()}
-        >
-          Refresh profile
-        </Button>
-      </header>
+
+        {/* Hero Stats Strip */}
+        {profile.data && (
+          <div className="router-page-hero-strip">
+            <div className="router-page-hero-stat">
+              <Globe className="size-4" aria-hidden />
+              <span>/s/{profile.data.slug}</span>
+            </div>
+            <div className="router-page-hero-divider" />
+            <div className="router-page-hero-stat">
+              <Zap className="size-4 text-emerald-400" aria-hidden />
+              <span>{profile.data.is_active ? 'Storefront active' : 'Storefront inactive'}</span>
+            </div>
+          </div>
+        )}
+      </div>
+
       {profile.isError && profile.data && (
         <Alert tone="warning" title="Business details could not be refreshed">
           Showing the last loaded profile. Try refreshing again.
         </Alert>
       )}
+
       <QueryBoundary
         query={profile}
-        skeleton={<Skeleton className="h-64 w-full" />}
+        skeleton={<Skeleton className="h-64 w-full rounded-2xl" />}
         errorTitle="Could not load your storefront"
       >
         {(tenant) => <StorefrontDetails key={tenant.slug} tenant={tenant} />}
@@ -75,35 +101,35 @@ function StorefrontDetails({ tenant }: { tenant: TenantProfile }) {
   const url = new URL(path, window.location.origin).href;
 
   return (
-    <>
-      <Card className="overflow-hidden border-brand-100 bg-gradient-to-br from-brand-50 via-white to-sky-50">
+    <div className="space-y-6">
+      <Card className="overflow-hidden border-brand-200 bg-gradient-to-br from-brand-50/70 via-surface to-sky-50/50 dark:from-brand-950/40 dark:via-surface dark:to-slate-900/40">
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.65fr)]">
           <div className="min-w-0">
             <div className="mb-4 flex flex-wrap items-center gap-3">
-              <span className="rounded-xl bg-brand-600 p-3 text-white">
+              <span className="rounded-xl bg-brand-600 p-3 text-white shadow-md">
                 <Store className="size-6" aria-hidden />
               </span>
               <Badge tone={tenant.is_active ? 'success' : 'warning'} dot>
                 {tenant.is_active ? 'Business active' : 'Business inactive'}
               </Badge>
             </div>
-            <p className="text-xs font-semibold tracking-wider text-brand-700 uppercase">
+            <p className="text-xs font-semibold tracking-wider text-brand-600 dark:text-brand-400 uppercase">
               Your customer storefront
             </p>
-            <h2 className="mt-2 text-2xl font-semibold break-words text-brand-950">
+            <h2 className="mt-2 text-2xl font-bold break-words text-ink-900">
               {tenant.name}
             </h2>
             <p className="mt-2 text-sm leading-relaxed text-ink-600">
               One link for your internet plans. Customers can browse and purchase an access code
               without signing in to your dashboard.
             </p>
-            <div className="mt-5 rounded-xl border border-brand-100 bg-white p-4">
+            <div className="mt-5 rounded-xl border border-border bg-surface p-4 shadow-inner">
               <p className="mb-2 text-xs font-medium text-ink-500">Customer link</p>
               <a
                 href={path}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="block text-sm font-medium break-all text-brand-700 underline underline-offset-4"
+                className="block text-sm font-semibold break-all text-brand-600 hover:text-brand-700 underline underline-offset-4"
               >
                 {url}
               </a>
@@ -126,7 +152,7 @@ function StorefrontDetails({ tenant }: { tenant: TenantProfile }) {
                   Open storefront
                 </ButtonLink>
               </div>
-              <p role="status" className="mt-2 text-xs text-ink-600">
+              <p role="status" className="mt-2 text-xs text-ink-500">
                 {copyStatus === 'failed'
                   ? 'Could not copy automatically. Select and copy the customer link above.'
                   : copyStatus === 'copied'
@@ -135,8 +161,8 @@ function StorefrontDetails({ tenant }: { tenant: TenantProfile }) {
               </p>
             </div>
           </div>
-          <div className="min-w-0 rounded-xl border border-white bg-white/70 p-5">
-            <h3 className="font-semibold text-brand-950">How customers buy</h3>
+          <div className="min-w-0 rounded-xl border border-border bg-surface-muted/50 p-5">
+            <h3 className="font-semibold text-ink-900">How customers buy</h3>
             <ol className="mt-5 space-y-5">
               {[
                 ['Choose a plan', 'Compare the price, duration, data allowance and speed.'],
@@ -147,7 +173,7 @@ function StorefrontDetails({ tenant }: { tenant: TenantProfile }) {
                 ],
               ].map(([title, description], index) => (
                 <li key={title} className="flex gap-3">
-                  <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-brand-100 text-xs font-semibold text-brand-700">
+                  <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-brand-100 dark:bg-brand-950 text-xs font-bold text-brand-700 dark:text-brand-300">
                     {index + 1}
                   </span>
                   <div className="min-w-0">
@@ -161,14 +187,16 @@ function StorefrontDetails({ tenant }: { tenant: TenantProfile }) {
         </div>
       </Card>
 
-      <section aria-labelledby="storefront-setup-title">
-        <h2 id="storefront-setup-title" className="text-lg font-semibold text-brand-950">
-          Storefront setup
-        </h2>
-        <p className="mt-1 text-sm text-ink-500">
-          Keep your customer-facing details, plans and payment settings up to date.
-        </p>
-        <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
+      <section aria-labelledby="storefront-setup-title" className="space-y-4">
+        <div>
+          <h2 id="storefront-setup-title" className="text-lg font-bold text-ink-900">
+            Storefront setup
+          </h2>
+          <p className="mt-0.5 text-sm text-ink-500">
+            Keep your customer-facing details, plans and payment settings up to date.
+          </p>
+        </div>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           {[
             {
               title: 'Internet plans',
@@ -193,9 +221,11 @@ function StorefrontDetails({ tenant }: { tenant: TenantProfile }) {
               icon: CreditCard,
             },
           ].map(({ title, description, to, label, icon: Icon }) => (
-            <Card key={to} className="flex min-w-0 flex-col">
-              <Icon className="mb-3 size-5 text-brand-600" aria-hidden />
-              <h3 className="font-semibold text-brand-950">{title}</h3>
+            <Card key={to} className="flex min-w-0 flex-col border-border/70 hover:shadow-md transition-shadow">
+              <div className="mb-3 flex size-9 items-center justify-center rounded-lg bg-brand-50 text-brand-600 dark:bg-brand-950/60 dark:text-brand-400">
+                <Icon className="size-5" aria-hidden />
+              </div>
+              <h3 className="font-semibold text-ink-900">{title}</h3>
               <p className="mt-2 mb-4 flex-1 text-sm leading-relaxed text-ink-500">{description}</p>
               <ButtonLink to={to} variant="secondary" trailingIcon={<ArrowUpRight />}>
                 {label}
@@ -213,7 +243,7 @@ function StorefrontDetails({ tenant }: { tenant: TenantProfile }) {
           description="This business is inactive. Contact your platform administrator to restore customer access."
         />
       )}
-    </>
+    </div>
   );
 }
 
@@ -223,14 +253,14 @@ function PublishedPlans({ slug }: { slug: string }) {
     <section aria-labelledby="storefront-plans-title" className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 id="storefront-plans-title" className="text-lg font-semibold text-brand-950">
+          <h2 id="storefront-plans-title" className="text-lg font-bold text-ink-900">
             Customer plans
           </h2>
-          <p className="mt-1 mb-4 text-sm text-ink-500">
+          <p className="mt-0.5 text-sm text-ink-500">
             Preview the plans customers see, then open checkout to review their experience.
           </p>
           {plans.data && (
-            <p className="text-xs font-medium text-brand-700">
+            <p className="mt-1 text-xs font-semibold text-brand-600 dark:text-brand-400">
               Showing {plans.data.results.length} of {plans.data.count} customer plans
             </p>
           )}
@@ -238,10 +268,10 @@ function PublishedPlans({ slug }: { slug: string }) {
         <Button
           variant="secondary"
           disabled={plans.isFetching}
-          leadingIcon={<RefreshCw className={plans.isFetching ? 'animate-spin' : ''} />}
+          leadingIcon={<RefreshCw className={plans.isFetching ? 'animate-spin motion-reduce:animate-none' : ''} />}
           onClick={() => void plans.refetch()}
         >
-          Refresh plans
+          {plans.isFetching ? 'Refreshing...' : 'Refresh plans'}
         </Button>
       </div>
       {plans.isError && plans.data && (
@@ -272,7 +302,7 @@ function PublishedPlans({ slug }: { slug: string }) {
                 <li key={plan.id} className="min-w-0">
                   <PlanCard
                     plan={plan}
-                    className="border-brand-100 p-5 break-words"
+                    className="border-border/70 p-5 break-words hover:shadow-md transition-shadow"
                     action={
                       <ButtonLink
                         to={`/s/${encodeURIComponent(slug)}/checkout/${plan.id}`}

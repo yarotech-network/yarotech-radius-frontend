@@ -3,7 +3,6 @@ import { Link, useNavigate, useSearchParams } from 'react-router';
 import { Controller, useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { CheckCircle2, Printer, RotateCcw, Ticket } from 'lucide-react';
-import { PageHeader } from '@/components/layout';
 import { Button, Card, FormField, Input, Select, SegmentedControl } from '@/components/ui';
 import { Alert } from '@/components/feedback';
 import { useFormSubmit } from '@/lib/forms/useFormSubmit';
@@ -181,13 +180,29 @@ export default function GenerateVouchersPage() {
   }
 
   return (
-    <>
-      <PageHeader
-        title="Generate vouchers"
-        description="Choose a plan, set your batch size and review the value before creating access codes."
-        backTo="/vouchers"
-        crumbs={[{ label: 'Vouchers', to: '/vouchers' }, { label: 'Generate' }]}
-      />
+    <div className="space-y-6">
+      {/* Premium Hero Header */}
+      <div className="router-page-hero">
+        <div className="router-page-hero-inner">
+          <div className="router-page-hero-text">
+            <span className="router-page-hero-eyebrow">
+              <Ticket className="size-3" aria-hidden /> Batch Generation
+            </span>
+            <h1 className="router-page-hero-title">Generate Vouchers</h1>
+            <p className="router-page-hero-desc">
+              Choose a plan, set your batch size and review the value before creating access codes.
+            </p>
+          </div>
+          <div className="router-page-hero-actions">
+            <Link
+              to="/vouchers"
+              className="inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-semibold text-white bg-white/10 hover:bg-white/20 border border-white/20 backdrop-blur-sm transition"
+            >
+              Back to Voucher Desk
+            </Link>
+          </div>
+        </div>
+      </div>
       <form
         onSubmit={(e) => void submit(e)}
         noValidate
@@ -351,6 +366,6 @@ export default function GenerateVouchersPage() {
           </Card>
         </aside>
       </form>
-    </>
+    </div>
   );
 }

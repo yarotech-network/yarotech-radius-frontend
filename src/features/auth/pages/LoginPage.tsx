@@ -69,7 +69,7 @@ export default function LoginPage() {
         <>
           New here?{' '}
           <Link to="/register" className="font-medium text-brand-600 hover:underline">
-            Create a workspace
+            Create an account
           </Link>
           <span className="mx-2 text-ink-300">·</span>
           <Link to="/agent/login" className="font-medium text-brand-600 hover:underline">

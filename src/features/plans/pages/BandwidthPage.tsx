@@ -1,7 +1,6 @@
-﻿import { useState } from 'react';
+import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { ArrowDown, ArrowUp, Gauge, Plus, RefreshCw } from 'lucide-react';
-import { PageHeader } from '@/components/layout';
 import { Button, Card, Dialog, Input, Select, ConfirmDialog, Checkbox } from '@/components/ui';
 import { Alert, EmptyState, ErrorState, useToast } from '@/components/feedback';
 import { Pagination, SearchInput } from '@/components/data';
@@ -43,27 +42,52 @@ export default function BandwidthPage() {
   };
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Bandwidth Control"
-        description="Reusable upload and download speeds for your Hotspot packages."
-        actions={
-          <div className="flex flex-wrap gap-2">
+      {/* Premium Hero Header */}
+      <div className="router-page-hero">
+        <div className="router-page-hero-inner">
+          <div className="router-page-hero-text">
+            <span className="router-page-hero-eyebrow">
+              <Gauge className="size-3" aria-hidden /> Rate Limiting & Speed
+            </span>
+            <h1 className="router-page-hero-title">Bandwidth Control</h1>
+            <p className="router-page-hero-desc">
+              Reusable upload and download speeds for your Hotspot packages and RADIUS clients.
+            </p>
+          </div>
+          <div className="router-page-hero-actions">
             <Button
               variant="secondary"
               disabled={query.isFetching}
-              leadingIcon={<RefreshCw />}
+              leadingIcon={<RefreshCw className={query.isFetching ? 'animate-spin motion-reduce:animate-none' : ''} />}
               onClick={() => void query.refetch()}
             >
-              Refresh profiles
+              {query.isFetching ? 'Refreshing...' : 'Refresh'}
             </Button>
             {manage && (
-              <Button leadingIcon={<Plus />} onClick={() => setEditor({})}>
+              <Button leadingIcon={<Plus className="size-4" aria-hidden />} onClick={() => setEditor({})}>
                 New profile
               </Button>
             )}
           </div>
-        }
-      />
+        </div>
+
+        {/* Hero Stats Strip */}
+        <div className="router-page-hero-strip">
+          <div className="router-page-hero-stat">
+            <Gauge className="size-4" aria-hidden />
+            <span>
+              {query.data
+                ? `${query.data.count} speed profile${query.data.count !== 1 ? 's' : ''}`
+                : 'Loading profiles...'}
+            </span>
+          </div>
+          <div className="router-page-hero-divider" />
+          <div className="router-page-hero-stat">
+            <ArrowUp className="size-4 text-emerald-400" aria-hidden />
+            <span>Upload & Download rate limits</span>
+          </div>
+        </div>
+      </div>
       <ServicePlansNav />
       <Card className="border-brand-100 bg-brand-50">
         <div className="flex items-start gap-4">

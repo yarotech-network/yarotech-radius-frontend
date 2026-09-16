@@ -9,7 +9,7 @@ export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
 }
 
 export const inputClasses =
-  'h-10 w-full rounded-control border border-border bg-surface px-3 text-sm text-ink-900 placeholder:text-ink-400 transition-colors hover:border-border-strong focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-600/20 disabled:cursor-not-allowed disabled:bg-surface-muted disabled:text-ink-500 read-only:bg-surface-muted aria-[invalid=true]:border-danger-600 aria-[invalid=true]:focus:ring-danger-600/20';
+  'h-10 w-full rounded-control border border-border bg-surface px-3 text-sm text-ink-900 placeholder:text-ink-400 transition-all duration-200 hover:border-border-strong focus:border-brand-600 focus:outline-none focus:ring-4 focus:ring-brand-600/10 focus:shadow-sm disabled:cursor-not-allowed disabled:bg-surface-muted disabled:text-ink-500 read-only:bg-surface-muted aria-[invalid=true]:border-danger-600 aria-[invalid=true]:focus:ring-danger-600/20';
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
   { className, invalid, leadingIcon, trailingSlot, prefix, ...rest },

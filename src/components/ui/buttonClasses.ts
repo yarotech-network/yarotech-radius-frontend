@@ -3,7 +3,7 @@ import type { ButtonProps, ButtonSize, ButtonVariant } from './Button';
 
 const VARIANTS: Record<ButtonVariant, string> = {
   primary:
-    'bg-brand-600 text-white hover:bg-brand-700 active:bg-brand-800 disabled:bg-brand-300 border border-transparent',
+    'bg-brand-600 text-white hover:bg-brand-700 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-brand-600/30 active:translate-y-0 active:bg-brand-800 disabled:bg-brand-300 disabled:hover:translate-y-0 border border-transparent transition-all duration-200',
   secondary:
     'bg-surface text-ink-900 border border-border hover:bg-surface-muted hover:border-border-strong active:bg-slate-100 disabled:text-ink-400',
   ghost:

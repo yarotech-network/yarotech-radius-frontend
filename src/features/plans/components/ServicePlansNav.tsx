@@ -15,7 +15,11 @@ export function ServicePlansNav() {
           to={to!}
           end
           className={({ isActive }) =>
-            `rounded-lg px-4 py-2 text-sm font-semibold ${isActive ? 'bg-brand-600 text-white shadow-sm' : 'text-ink-600 hover:bg-white'}`
+            `rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
+              isActive
+                ? 'bg-brand-600 text-white shadow-sm'
+                : 'text-ink-600 hover:bg-surface hover:text-ink-900'
+            }`
           }
         >
           {label}

@@ -108,7 +108,7 @@ export function PublicLayout({ wide = false }: { wide?: boolean }) {
                 Go to dashboard <ArrowRight className="size-4" aria-hidden />
               </ButtonLink>
             ) : (
-              <ButtonLink to="/register">
+              <ButtonLink to="/login">
                 Get started <ArrowRight className="size-4" aria-hidden />
               </ButtonLink>
             )}
@@ -143,7 +143,7 @@ export function PublicLayout({ wide = false }: { wide?: boolean }) {
           </nav>
           <nav aria-label="Account">
             <h2>Your workspace</h2>
-            <Link to="/register">Create workspace</Link>
+            <Link to="/register">Register</Link>
             <Link to="/login">Sign in</Link>
             <Link to="/agent/login">Agent sign in</Link>
             <Link to="/forgot-password">Password help</Link>

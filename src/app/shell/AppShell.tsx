@@ -5,10 +5,12 @@ import { useQueryClient } from '@tanstack/react-query';
 import {
   Building2,
   Menu,
+  Moon,
   MoreHorizontal,
   PanelLeftClose,
   PanelLeftOpen,
   ShieldCheck,
+  Sun,
   X,
 } from 'lucide-react';
 import { STORAGE_KEYS } from '@/app/config/constants';
@@ -16,6 +18,7 @@ import type { NavGroup } from '@/app/navigation/navConfig';
 import { flattenNavItems, mobilePrimaryItems, visibleGroups } from '@/app/navigation/navConfig';
 import { prefetchRoute } from '@/app/navigation/prefetch';
 import { useAuth } from '@/app/auth/useAuth';
+import { useTheme } from '@/app/theme/ThemeProvider';
 import { ErrorBoundary } from '@/components/feedback/ErrorBoundary';
 import { Button } from '@/components/ui/Button';
 import { cn } from '@/lib/utilities/cn';
@@ -63,6 +66,7 @@ export function AppShell({
   accent = 'default',
 }: AppShellProps) {
   const { principal } = useAuth();
+  const { theme, setTheme } = useTheme();
   const location = useLocation();
   const queryClient = useQueryClient();
   const [collapsed, setCollapsed] = useState(readCollapsed);
@@ -184,40 +188,33 @@ export function AppShell({
       >
         <div
           className={cn(
-            'flex h-20 shrink-0 items-center border-b border-border',
-            collapsed ? 'justify-center' : 'justify-center px-4 lg:justify-start',
+            'sidebar-logo-header flex h-[72px] shrink-0 items-center border-b border-[#1e3050]',
+            collapsed ? 'justify-center px-3' : 'justify-center px-4 lg:justify-start lg:px-5',
           )}
         >
-          <Link to={homePath} className="rounded focus-visible:outline-brand-600" aria-label="Home">
-            {/* Full wordmark only when the sidebar is expanded on desktop; the rail shows the icon. */}
+          <Link
+            to={homePath}
+            className="rounded-lg focus-visible:outline-2 focus-visible:outline-brand-500"
+            aria-label="Home"
+          >
+            {/* Icon-only rail (collapsed or md breakpoint) */}
             <BrandMark
               inverse={accent !== 'workspace'}
               hideText
+              size="md"
               className={cn(!collapsed && 'lg:hidden')}
             />
+            {/* Full wordmark when expanded on desktop */}
             {!collapsed && (
-              <BrandMark inverse={accent !== 'workspace'} className="hidden lg:inline-flex" />
+              <BrandMark
+                inverse={accent !== 'workspace'}
+                size="xl"
+                className="hidden lg:inline-flex"
+              />
             )}
           </Link>
         </div>
-        {!collapsed &&
-          accent !== 'platform' &&
-          (homePath !== '/dashboard' || principal?.kind === 'member') && (
-            <div className="sidebar-workspace mx-3 mt-5 mb-2 hidden items-center gap-3 rounded-xl border border-border bg-white p-3 lg:flex">
-              <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-600">
-                <WorkspaceIcon className="size-5" aria-hidden />
-              </span>
-              <div className="min-w-0">
-                <p className="text-[10px] font-semibold tracking-wider text-ink-500 uppercase">
-                  {workspaceLabel}
-                </p>
-                <p className="mt-1 truncate text-sm font-medium" title={workspaceName}>
-                  {workspaceName}
-                </p>
-                {sidebarBadge && <div className="mt-2">{sidebarBadge}</div>}
-              </div>
-            </div>
-          )}
+
         <SidebarNav groups={visible} collapsed={collapsed} />
         <SidebarAccount collapsed={collapsed} profilePath={profilePath} />
         <button
@@ -276,7 +273,19 @@ export function AppShell({
             {topBarStart}
           </div>
         )}
-        <div className="shrink-0 border-l border-border pl-2 sm:pl-4">
+        <div className="shrink-0 flex items-center gap-1 border-l border-border pl-2 sm:pl-4">
+          <button
+            type="button"
+            aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            className="flex size-9 items-center justify-center rounded-xl border border-border bg-surface-muted text-ink-500 transition-all duration-200 hover:bg-brand-50 hover:text-brand-600 hover:border-brand-200 focus-visible:outline-2 focus-visible:outline-brand-600"
+          >
+            {theme === 'dark' ? (
+              <Sun className="size-4" aria-hidden />
+            ) : (
+              <Moon className="size-4" aria-hidden />
+            )}
+          </button>
           <UserMenu profilePath={profilePath} dashboard />
         </div>
       </header>

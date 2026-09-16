@@ -124,11 +124,14 @@ function RecoveryDetail({ row }: { row: PaymentRecovery }) {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-card border border-border bg-surface-muted px-4 py-3">
-        <span className="text-2xl font-semibold text-ink-900 tabular-nums">
-          {formatKobo(row.amount)}
-        </span>
-        <StatusBadge status={row.status} size="md" />
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-brand-200 bg-gradient-to-br from-brand-50/70 via-surface to-sky-50/50 dark:from-brand-950/40 dark:via-surface dark:to-slate-900/40 px-5 py-5 shadow-sm">
+        <div>
+          <p className="text-xs font-medium text-ink-500">Transaction Amount</p>
+          <p className="text-3xl font-bold text-ink-900 tabular-nums">
+            {formatKobo(row.amount)}
+          </p>
+        </div>
+        <StatusBadge status={row.status} size="md" dot />
       </div>
       <DescriptionList
         columns={2}

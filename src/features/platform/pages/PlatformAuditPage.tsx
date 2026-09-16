@@ -1,6 +1,8 @@
 import { useEffect, useMemo } from 'react';
 import { Link } from 'react-router';
+import { ShieldCheck, History, Building2 } from 'lucide-react';
 import { PageHeader } from '@/components/layout';
+import { Card } from '@/components/ui';
 import { useListParams, type Column } from '@/components/data';
 import { usePrincipal } from '@/app/auth/useAuth';
 import { useDebouncedValue } from '@/lib/utilities/useDebouncedValue';
@@ -44,13 +46,14 @@ export default function PlatformAuditPage() {
       hideBelow: 'sm',
       cell: (e) =>
         e.tenant === null ? (
-          <span className="text-ink-400">Platform</span>
+          <span className="text-slate-400 dark:text-slate-500 font-medium">Platform Global</span>
         ) : (
           <Link
             to={`/platform/tenants/${e.tenant}`}
             onClick={(ev) => ev.stopPropagation()}
-            className="text-brand-700 hover:underline"
+            className="text-brand-600 dark:text-brand-400 font-medium hover:underline inline-flex items-center gap-1.5"
           >
+            <Building2 className="size-3.5" />
             {tenantName(e.tenant)}
           </Link>
         ),
@@ -58,11 +61,31 @@ export default function PlatformAuditPage() {
   ];
 
   return (
-    <>
+    <div className="space-y-6">
       <PageHeader
-        title="Audit log"
-        description="Every recorded change across all tenants, plus platform-level staff and tenant administration."
+        title="Platform Audit Log"
+        description="Global system administration events, staff activities, and cross-tenant action logs."
       />
+
+      <Card className="router-page-hero border-slate-200/80 dark:border-slate-800 bg-gradient-to-br from-slate-900 via-slate-850 to-indigo-950 p-6 text-white shadow-xl relative overflow-hidden">
+        <div className="flex flex-col sm:flex-row items-start justify-between gap-4 relative z-10">
+          <div className="flex items-start gap-4">
+            <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-indigo-500/20 text-indigo-300 border border-indigo-400/30 backdrop-blur-md shadow-inner">
+              <History className="size-6" aria-hidden />
+            </span>
+            <div>
+              <div className="inline-flex items-center gap-2 rounded-full bg-indigo-500/10 px-3 py-0.5 text-xs font-semibold text-indigo-300 border border-indigo-500/20 mb-1">
+                <ShieldCheck className="size-3.5" /> Platform Governance
+              </div>
+              <h2 className="text-xl font-bold text-white">Cross-Tenant Audit Console</h2>
+              <p className="mt-1 text-sm leading-relaxed text-slate-300 max-w-2xl">
+                Comprehensive log of all tenant activity, platform staff invitations, permission changes, and system settings updates.
+              </p>
+            </div>
+          </div>
+        </div>
+      </Card>
+
       <AuditLogView
         query={query}
         list={list}
@@ -79,6 +102,7 @@ export default function PlatformAuditPage() {
         extraColumns={tenantColumn}
         emptyDescription="Actions taken anywhere on the platform will appear here."
       />
-    </>
+    </div>
   );
 }
+

@@ -1,63 +1,111 @@
-/* Tenant navigation only; platform and agent surfaces retain their own presentation. */
+/* ─────────────────────────────────────────────────────────────────────────────
+   Tenant workspace sidebar — deep navy theme
+   Palette:
+     Canvas:      #0d1b2e  (sidebar body)
+     Elevated:    #112240  (cards, account bar)
+     Border:      #1e3050  (dividers)
+     Muted text:  #7a9cc0  (labels, secondary)
+     Body text:   #b8d0ed  (links, nav items)
+     Active:      #2563eb  (active link fill)
+     Accent glow: #3b82f6  (hover + icon accents)
+───────────────────────────────────────────────────────────────────────────── */
+
+/* ── Sidebar canvas ── */
 .dashboard-shell[data-surface='workspace'] .dashboard-sidebar {
-  background: #fff;
-  color: #42536c;
-  border-color: #e3eaf3;
-  box-shadow: 4px 0 24px #0b1f3f04;
+  background: #0d1b2e;
+  color: #b8d0ed;
+  border-color: #1e3050;
+  box-shadow: 4px 0 32px #00081a30;
 }
 .dashboard-shell[data-surface='workspace'] .dashboard-sidebar > div:first-child {
-  border-color: #edf1f7;
+  border-color: #1e3050;
+  background: #0d1b2e;
+}
+
+/* ── Logo header zone ── */
+.dashboard-shell[data-surface='workspace'] .sidebar-logo-header {
+  background: linear-gradient(180deg, #0a1623, #0d1b2e);
+  border-color: #1e3050;
+  box-shadow: 0 1px 0 #1e3050, 0 4px 16px #00000018;
 }
 .dashboard-shell[data-surface='workspace'] .dashboard-sidebar :is(a, button):focus-visible {
-  outline: 2px solid #2563eb;
+  outline: 2px solid #3b82f6;
   outline-offset: 2px;
 }
+
+/* ── Workspace identity card (top of sidebar) ── */
 .dashboard-shell[data-surface='workspace'] .sidebar-workspace {
   flex-shrink: 0;
   margin-top: 1rem;
   padding: 0.9rem;
-  border: 1px solid #203f68;
+  border: 1px solid #1e3a5f;
   border-radius: 14px;
-  background: linear-gradient(120deg, #102a50, #183e70);
-  color: #fff;
-  box-shadow: 0 6px 16px #102a5014;
+  background: linear-gradient(135deg, #112240, #0d1f3c);
+  color: #e2efff;
+  box-shadow:
+    0 4px 16px #00081a28,
+    inset 0 1px 0 #ffffff0c;
 }
 .dashboard-shell[data-surface='workspace'] .sidebar-workspace > span {
-  background: #ffffff12;
-  color: #bfdbfe;
-  border: 1px solid #ffffff20;
+  background: #1e3a5f;
+  color: #7dd3fc;
+  border: 1px solid #2a4e78;
+  border-radius: 10px;
 }
 .dashboard-shell[data-surface='workspace'] .sidebar-workspace p:first-child {
-  color: #b8cdeb;
+  color: #5a82aa;
   font-size: 10px;
   letter-spacing: 0.12em;
+  text-transform: uppercase;
 }
+.dashboard-shell[data-surface='workspace'] .sidebar-workspace p:last-child {
+  color: #c9dffa;
+  font-weight: 600;
+}
+
+/* ── Navigation list ── */
 .dashboard-shell[data-surface='workspace'] .sidebar-navigation {
   gap: 1.3rem;
   padding: 1.1rem 0.75rem;
-  scrollbar-color: #c6d3e4 transparent;
+  scrollbar-color: #1e3050 transparent;
 }
+
+/* ── Group labels ── */
 .dashboard-shell[data-surface='workspace'] .sidebar-group-label {
-  padding: 0 0.75rem 0.5rem;
-  color: #66758b;
+  padding: 0 0.75rem 0.45rem;
+  color: #3d627a;
   font-size: 10px;
-  font-weight: 650;
-  letter-spacing: 0.13em;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
 }
+
+/* ── Group dividers (collapsed rail) ── */
+.dashboard-shell[data-surface='workspace'] .sidebar-navigation [aria-hidden][class*="border-t"] {
+  border-color: #1e3050;
+}
+
+/* ── Nav row (default + hover) ── */
 .dashboard-shell[data-surface='workspace'] .sidebar-row {
-  color: #42536c;
+  color: #7a9cc0;
   border-radius: 10px;
+  transition: background 140ms, color 140ms;
 }
 .dashboard-shell[data-surface='workspace'] .sidebar-row:hover {
-  color: #173f83;
-  background: #f2f6fc;
+  color: #c9dff8;
+  background: #132035;
 }
+
+/* ── Link layout ── */
 .dashboard-shell[data-surface='workspace'] .sidebar-link {
   min-height: 44px;
   padding-block: 0.35rem;
   gap: 0.65rem;
   font-size: 12.5px;
+  color: inherit;
 }
+
+/* ── Icon pill ── */
 .dashboard-shell[data-surface='workspace'] .sidebar-link-icon {
   display: grid;
   flex-shrink: 0;
@@ -65,114 +113,148 @@
   width: 28px;
   height: 28px;
   border-radius: 8px;
-  background: #f0f4fa;
+  background: #152339;
+  transition: background 140ms;
 }
 .dashboard-shell[data-surface='workspace'] .sidebar-link svg {
-  color: #627895;
+  color: #5080a8;
   width: 17px;
   height: 17px;
+  transition: color 140ms;
 }
+.dashboard-shell[data-surface='workspace'] .sidebar-row:hover .sidebar-link-icon {
+  background: #1c2f48;
+}
+.dashboard-shell[data-surface='workspace'] .sidebar-row:hover .sidebar-link svg {
+  color: #7ab8f5;
+}
+
+/* ── Active nav row ── */
 .dashboard-shell[data-surface='workspace'] .sidebar-row-active,
 .dashboard-shell[data-surface='workspace'] .sidebar-row-active:hover {
-  background: #1d4ed8;
-  border-color: #1d4ed8;
-  color: #fff;
-  box-shadow: 0 4px 10px #1d4ed81a;
+  background: #1e3a6e;
+  border-color: #2a5298;
+  color: #e2f0ff;
+  box-shadow: 0 2px 10px #1d4ed822, inset 0 0 0 1px #2d5cbf40;
 }
 .dashboard-shell[data-surface='workspace'] .sidebar-row-active::before {
   display: none;
 }
 .dashboard-shell[data-surface='workspace'] .sidebar-row-active .sidebar-link-icon {
-  background: #ffffff18;
+  background: #2563eb28;
 }
 .dashboard-shell[data-surface='workspace'] .sidebar-row-active .sidebar-link svg {
-  color: #fff;
+  color: #93c5fd;
 }
+
+/* ── Expand/collapse chevron button ── */
 .dashboard-shell[data-surface='workspace'] .sidebar-expand {
   width: 30px;
+  color: #4a6b8a;
 }
 .dashboard-shell[data-surface='workspace'] .sidebar-expand:hover {
-  background: #0b1f3f0a;
+  color: #93c5fd;
+  background: #132035;
 }
+
+/* ── Child nav list (sub-items) ── */
 .dashboard-shell[data-surface='workspace'] .sidebar-children {
-  border-color: #dce5f2;
+  border-color: #1e3050;
   margin-left: 1.55rem;
   padding-left: 0.85rem;
 }
 .dashboard-shell[data-surface='workspace'] .sidebar-child {
-  color: #52657f;
+  color: #5c7d9c;
   border-radius: 8px;
+  font-size: 12px;
+  transition: color 140ms, background 140ms;
 }
 .dashboard-shell[data-surface='workspace'] .sidebar-child:hover {
-  color: #1d4ed8;
-  background: #f2f6fc;
+  color: #b8d4f4;
+  background: #132035;
 }
 .dashboard-shell[data-surface='workspace'] .sidebar-child-active,
 .dashboard-shell[data-surface='workspace'] .sidebar-child-active:hover {
-  color: #1e40af;
-  background: #eaf1ff;
+  color: #93c5fd;
+  background: #142d50;
   box-shadow: inset 3px 0 #2563eb;
 }
+
+/* ── Account / identity area ── */
 .dashboard-shell[data-surface='workspace'] .sidebar-account {
-  background: #f8faff;
-  border-color: #e3eaf3;
+  background: #0b1829;
+  border-color: #1e3050;
   padding-block: 0.65rem;
 }
 .dashboard-shell[data-surface='workspace'] .sidebar-identity {
-  background: #fff;
-  border-color: #e3eaf3;
+  background: #112240;
+  border-color: #1e3050;
   padding: 0.6rem;
   border-radius: 12px;
+  transition: background 140ms;
 }
 .dashboard-shell[data-surface='workspace'] a.sidebar-identity:hover {
-  background: #edf3ff;
+  background: #1a2e4a;
 }
 .dashboard-shell[data-surface='workspace'] .sidebar-avatar {
-  color: #1d4ed8;
-  background: #eaf1ff;
-  border-color: #d5e3fc;
+  color: #60a5fa;
+  background: #1e3a5f;
+  border-color: #2a5090;
   border-radius: 10px;
 }
 .dashboard-shell[data-surface='workspace'] .sidebar-account-name {
-  color: #172d4e;
+  color: #c9dff8;
 }
 .dashboard-shell[data-surface='workspace'] .sidebar-account-role {
-  color: #1e40af;
+  color: #3b82f6;
 }
 .dashboard-shell[data-surface='workspace'] .sidebar-account-email {
-  color: #66758b;
+  color: #4a6b8a;
 }
+
+/* ── Sign-out button ── */
 .dashboard-shell[data-surface='workspace'] .sidebar-signout {
   min-height: 36px;
   margin-top: 0.35rem;
-  color: #42536c;
+  color: #5a7fa0;
+  transition: color 140ms, background 140ms, border-color 140ms;
 }
 .dashboard-shell[data-surface='workspace'] .sidebar-signout:hover {
-  color: #b42335;
-  background: #fff0f1;
-  border-color: #ffe0e4;
+  color: #fca5a5;
+  background: #2a0f12;
+  border-color: #5a1d22;
 }
+
+/* ── Collapse toggle button ── */
 .dashboard-shell[data-surface='workspace'] .sidebar-collapse {
-  background: #fff;
-  color: #52657f;
-  border-color: #dce5f2;
-  box-shadow: 0 3px 8px #102a5010;
+  background: #0e1e32;
+  color: #4a6b8a;
+  border-color: #1e3050;
+  box-shadow: 0 2px 8px #00081a28;
+  transition: color 140ms, background 140ms;
 }
 .dashboard-shell[data-surface='workspace'] .sidebar-collapse:hover {
-  color: #1d4ed8;
-  background: #eff6ff;
+  color: #93c5fd;
+  background: #132035;
 }
+
+/* ── Mobile drawer close button ── */
 .dashboard-shell[data-surface='workspace'] .sidebar-drawer-close {
-  color: #42536c;
+  color: #5a7fa0;
 }
 .dashboard-shell[data-surface='workspace'] .sidebar-drawer-close:hover {
-  background: #eff6ff;
+  color: #93c5fd;
+  background: #132035;
 }
+
+/* ── Collapsed rail: transparent identity card ── */
 .dashboard-shell[data-surface='workspace'] .sidebar-account-collapsed .sidebar-identity {
   padding: 0.35rem 0;
   border-color: transparent;
   background: transparent;
 }
+
+/* ── md rail (48–64rem): transparent identity card ── */
 @media (min-width: 48rem) and (max-width: 63.999rem) {
   .dashboard-shell[data-surface='workspace']
     .dashboard-sidebar:not(.sidebar-drawer)

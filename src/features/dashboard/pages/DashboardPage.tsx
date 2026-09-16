@@ -16,7 +16,7 @@ import {
   Ticket,
   Users,
 } from 'lucide-react';
-import { PageHeader, Section } from '@/components/layout';
+import { Section } from '@/components/layout';
 import { Button, ButtonLink, Card, Stat } from '@/components/ui';
 import { Alert, ErrorState } from '@/components/feedback';
 import { formatKobo } from '@/lib/formatting/money';
@@ -42,41 +42,45 @@ export default function DashboardPage() {
       : null;
   return (
     <div className="overview-page min-w-0 space-y-6">
-      <PageHeader
-        title={
-          <>
-            Welcome, <span className="text-brand-600">{name}</span>
-          </>
-        }
-        description={
-          <>Your workspace overview{observed ? ` | Figures observed ${observed}` : ''}</>
-        }
-        meta={<span className="overview-role">{principal.user.role.replaceAll('_', ' ')}</span>}
-        actions={
-          <div className="flex flex-wrap gap-2">
-            <Button
-              variant="secondary"
-              disabled={refreshing}
-              leadingIcon={
-                <RefreshCw
-                  className={refreshing ? 'animate-spin motion-reduce:animate-none' : ''}
-                />
-              }
-              onClick={() => {
-                void stats.refetch();
-                if (canSessions) void live.refetch();
-              }}
-            >
-              {refreshing ? 'Refreshing...' : 'Refresh overview'}
-            </Button>
-            {can(principal, 'vouchers.generate') && (
-              <ButtonLink to="/vouchers/generate" leadingIcon={<Ticket />}>
-                Generate vouchers
-              </ButtonLink>
+      {/* Premium welcome hero card */}
+      <div className="overview-welcome-hero">
+        <div className="overview-welcome-content">
+          <div className="overview-welcome-text">
+            <span className="overview-welcome-eyebrow">Workspace overview</span>
+            <h1 className="overview-welcome-title">
+              Welcome back, <span>{name}</span> 👋
+            </h1>
+            {observed && (
+              <p className="overview-welcome-observed">Figures observed {observed}</p>
             )}
           </div>
-        }
-      />
+          <div className="overview-welcome-meta">
+            <span className="overview-role">{principal.user.role.replaceAll('_', ' ')}</span>
+          </div>
+        </div>
+        <div className="overview-welcome-actions">
+          <Button
+            variant="secondary"
+            disabled={refreshing}
+            leadingIcon={
+              <RefreshCw
+                className={refreshing ? 'animate-spin motion-reduce:animate-none' : ''}
+              />
+            }
+            onClick={() => {
+              void stats.refetch();
+              if (canSessions) void live.refetch();
+            }}
+          >
+            {refreshing ? 'Refreshing...' : 'Refresh'}
+          </Button>
+          {can(principal, 'vouchers.generate') && (
+            <ButtonLink to="/vouchers/generate" leadingIcon={<Ticket />}>
+              Generate vouchers
+            </ButtonLink>
+          )}
+        </div>
+      </div>
       <OverviewIntro />
       <SubscriptionSummary />
       {s && s.paid_unfulfilled_payments > 0 && can(principal, 'payments.recovery.view') && (

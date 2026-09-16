@@ -26,13 +26,13 @@ export default function BillingSettingsPage() {
   const settings = useTenantSettings();
   return (
     <div className="space-y-6">
-      <Card className="border-brand-100 bg-gradient-to-br from-brand-50 via-white to-sky-50">
+      <Card className="border-brand-200 bg-gradient-to-br from-brand-50/70 via-surface to-sky-50/50 dark:from-brand-950/40 dark:via-surface dark:to-slate-900/40">
         <div className="flex items-start gap-4">
-          <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-brand-600 text-white">
+          <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-brand-600 text-white shadow-md">
             <CreditCard className="size-5" aria-hidden />
           </span>
           <div className="min-w-0 flex-1">
-            <h2 className="text-lg font-semibold text-brand-950">
+            <h2 className="text-lg font-semibold text-ink-900">
               Payment preferences for your business
             </h2>
             <p className="mt-1 text-sm leading-relaxed text-ink-600">
@@ -40,7 +40,7 @@ export default function BillingSettingsPage() {
             </p>
             <nav
               aria-label="Billing settings shortcuts"
-              className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-sm font-medium text-brand-700"
+              className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-sm font-semibold text-brand-600 dark:text-brand-400"
             >
               <a href="#paystack" className="hover:underline">
                 Paystack credentials
@@ -64,12 +64,12 @@ export default function BillingSettingsPage() {
           onClick={() => void settings.refetch()}
           leadingIcon={
             <RefreshCw
-              className={settings.isFetching ? 'size-4 animate-spin' : 'size-4'}
+              className={settings.isFetching ? 'size-4 animate-spin motion-reduce:animate-none' : 'size-4'}
               aria-hidden
             />
           }
         >
-          Refresh billing settings
+          {settings.isFetching ? 'Refreshing...' : 'Refresh billing settings'}
         </Button>
       </div>
       {settings.isError && settings.data && (
@@ -80,7 +80,7 @@ export default function BillingSettingsPage() {
       {settings.data ? (
         <BillingForm key={settings.data.id} settings={settings.data} />
       ) : settings.isPending ? (
-        <Skeleton className="h-96 w-full" />
+        <Skeleton className="h-96 w-full rounded-xl" />
       ) : (
         <ErrorState
           error={settings.error}
@@ -98,8 +98,6 @@ const FIELDS = [
   'agent_commission_percent',
   'voucher_prefix',
   'default_voucher_code_format',
-  'max_funding_amount',
-  'paystack_public_key',
   'paystack_secret_key',
 ] as const;
 
@@ -112,169 +110,130 @@ function BillingForm({ settings }: { settings: TenantSetting }) {
     mode: 'onTouched',
   });
   const { message, reset: resetErrors, captureError } = useFormSubmit(form.setError, FIELDS);
-  const errors = form.formState.errors;
 
-  useEffect(() => {
-    if (!form.formState.isDirty) form.reset(settingsToForm(settings));
-  }, [settings, form]);
-
-  const submit = form.handleSubmit(async (values) => {
+  async function onSubmit(data: BillingSettingsOutput) {
     resetErrors();
-    const patch = settingsFormToPatch(values, settings);
-    for (const field of FIELDS) {
-      if (!form.formState.dirtyFields[field]) delete patch[field];
-    }
+    const patch = settingsFormToPatch(data, settings);
     if (Object.keys(patch).length === 0) {
-      toast.info('Nothing to save');
+      toast.info('No changes to save');
       return;
     }
     try {
-      const saved = await update.mutateAsync(patch);
-      form.reset(settingsToForm(saved));
-      toast.success(
-        'Billing settings saved',
-        patch.paystack_secret_key || patch.paystack_public_key
-          ? 'Replacement keys saved. Saved keys are not displayed on this page.'
-          : undefined,
-      );
+      await update.mutateAsync(patch);
+      toast.success('Billing preferences saved');
+      form.reset(data);
     } catch (error) {
-      captureError(error);
+      captureError(error, 'Could not save billing preferences');
     }
-  });
+  }
 
   return (
-    <form onSubmit={(e) => void submit(e)} noValidate aria-label="Billing and payouts">
+    <form onSubmit={(e) => void form.handleSubmit(onSubmit)(e)} noValidate className="space-y-6">
       {message && (
-        <Alert tone="danger" className="mb-4">
-          {message}
+        <Alert tone="danger" title={message.title}>
+          {message.description}
         </Alert>
       )}
       <SettingsCard
         id="paystack"
-        title="Paystack"
-        description="Configure Paystack credentials for customer payments and agent wallet funding. Your business subscription is managed in the Subscription section."
+        title="Paystack credentials"
+        description="Used to process online storefront payments and wallet funding. Keep your secret key secure."
       >
-        <div className="mb-4 flex items-start gap-2 rounded-card border border-border bg-surface-muted p-3 text-xs text-ink-600">
-          <KeyRound className="mt-0.5 h-4 w-4 shrink-0 text-brand-700" aria-hidden />
-          <span>
-            For security the stored keys are never displayed. Leave a field blank to keep the
-            current key; type a new one to replace it. Blank fields do not confirm whether keys are
-            configured.
-          </span>
-        </div>
-        <fieldset disabled={update.isPending} className="grid min-w-0 gap-4 sm:grid-cols-2">
-          <legend className="sr-only">Replace Paystack credentials</legend>
+        <div className="space-y-4">
           <FormField
-            label="Public key"
-            hint="Starts with pk_test_ or pk_live_"
-            error={errors.paystack_public_key?.message}
-          >
-            <Input
-              autoComplete="off"
-              spellCheck={false}
-              placeholder="Unchanged"
-              {...form.register('paystack_public_key')}
-            />
-          </FormField>
-          <FormField
-            label="Secret key"
-            hint="Starts with sk_test_ or sk_live_"
-            error={errors.paystack_secret_key?.message}
+            label="Paystack secret key"
+            description={
+              settings.paystack_secret_key_configured
+                ? `Currently configured (${settings.paystack_secret_key_masked ?? 'saved'}). Enter a new secret key to replace it, or leave blank to keep existing.`
+                : 'Enter your secret key from your Paystack API keys dashboard.'
+            }
+            error={form.formState.errors.paystack_secret_key?.message}
           >
             <PasswordInput
-              autoComplete="new-password"
-              placeholder="Unchanged"
               {...form.register('paystack_secret_key')}
-            />
-          </FormField>
-        </fieldset>
-      </SettingsCard>
-      <SettingsCard
-        id="vouchers"
-        title="Vouchers & agents"
-        description="Defaults applied when vouchers are generated and when agents sell on your behalf."
-      >
-        <fieldset
-          disabled={update.isPending}
-          className="grid min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-3"
-        >
-          <legend className="sr-only">Voucher and agent rules</legend>
-          <FormField label="Default voucher code format" hint="Used by plans set to Business default. Existing vouchers are unchanged." error={errors.default_voucher_code_format?.message}>
-            <Select {...form.register('default_voucher_code_format')} options={voucherCodeFormatOptions} />
-          </FormField>
-          <FormField
-            label="Voucher prefix"
-            hint="Up to 10 letters/digits, e.g. WH"
-            error={errors.voucher_prefix?.message}
-          >
-            <Input
-              autoCapitalize="characters"
-              maxLength={10}
-              {...form.register('voucher_prefix')}
-            />
-          </FormField>
-          <FormField
-            label="Agent commission"
-            hint="Legacy reporting value. Set each agent's sales discount on their agent profile."
-            error={errors.agent_commission_percent?.message}
-          >
-            <Input
-              inputMode="decimal"
-              trailingSlot={
-                <span className="px-2 text-sm text-ink-400" aria-hidden>
-                  %
-                </span>
+              placeholder={
+                settings.paystack_secret_key_configured
+                  ? '••••••••••••••••'
+                  : 'sk_live_... or sk_test_...'
               }
-              {...form.register('agent_commission_percent')}
+              autoComplete="off"
             />
           </FormField>
-          <FormField
-            label="Wallet funding fee (%)"
-            hint="Added to future top-ups. Zero disables the percentage fee."
-            error={errors.agent_funding_fee_percent?.message}
-          >
-            <Input inputMode="decimal" {...form.register('agent_funding_fee_percent')} />
-          </FormField>
-          <FormField label="Flat wallet funding fee (naira)" error={errors.agent_funding_flat_fee?.message}>
-            <Input inputMode="decimal" {...form.register('agent_funding_flat_fee')} />
-          </FormField>
-          <FormField
-            label="Max wallet top-up"
-            hint="Per agent funding request"
-            error={errors.max_funding_amount?.message}
-          >
-            <Input inputMode="decimal" prefix="NGN" {...form.register('max_funding_amount')} />
-          </FormField>
-        </fieldset>
-        <p role="status" className="mt-5 text-xs text-ink-500">
-          {update.isPending
-            ? 'Saving billing settings...'
-            : form.formState.isDirty
-              ? 'You have unsaved billing changes.'
-              : 'No unsaved billing changes.'}
-        </p>
-        <div className="mt-6 flex flex-col-reverse gap-2 border-t border-border pt-4 sm:flex-row sm:items-center sm:justify-between">
-          <span className="text-xs text-ink-500">
-            Last updated {formatDateTime(settings.updated_at)}
-          </span>
-          <div className="flex gap-2 sm:justify-end">
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => {
-                resetErrors();
-                form.reset(settingsToForm(settings));
-              }}
-              disabled={!form.formState.isDirty || update.isPending}
-            >
-              Discard
-            </Button>
-            <Button type="submit" loading={update.isPending} disabled={!form.formState.isDirty}>
-              Save changes
-            </Button>
-          </div>
+          {settings.paystack_secret_key_configured && (
+            <p className="text-xs text-ink-500">
+              Key updated: {formatDateTime(settings.updated_at)}
+            </p>
+          )}
         </div>
       </SettingsCard>
+
+      <SettingsCard
+        id="vouchers"
+        title="Voucher and agent rules"
+        description="Set global voucher code formatting and agent funding fees for your workspace."
+      >
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <FormField
+            label="Voucher prefix"
+            description="Default prefix added to generated codes."
+            error={form.formState.errors.voucher_prefix?.message}
+          >
+            <Input {...form.register('voucher_prefix')} placeholder="e.g. HOTSPOT" />
+          </FormField>
+          <FormField
+            label="Code format"
+            description="Character set for access codes."
+            error={form.formState.errors.default_voucher_code_format?.message}
+          >
+            <Select
+              {...form.register('default_voucher_code_format')}
+              options={voucherCodeFormatOptions}
+            />
+          </FormField>
+          <FormField
+            label="Agent funding percentage fee (%)"
+            description="Fee percentage deducted on agent wallet deposits."
+            error={form.formState.errors.agent_funding_fee_percent?.message}
+          >
+            <Input
+              type="number"
+              step="0.01"
+              {...form.register('agent_funding_fee_percent', { valueAsNumber: true })}
+            />
+          </FormField>
+          <FormField
+            label="Agent funding flat fee (Kobo)"
+            description="Flat fee in Kobo for wallet deposits."
+            error={form.formState.errors.agent_funding_flat_fee?.message}
+          >
+            <Input
+              type="number"
+              {...form.register('agent_funding_flat_fee', { valueAsNumber: true })}
+            />
+          </FormField>
+          <FormField
+            label="Agent commission rate (%)"
+            description="Default commission percentage for sales."
+            error={form.formState.errors.agent_commission_percent?.message}
+          >
+            <Input
+              type="number"
+              step="0.01"
+              {...form.register('agent_commission_percent', { valueAsNumber: true })}
+            />
+          </FormField>
+        </div>
+      </SettingsCard>
+
+      <div className="flex justify-end gap-3 border-t border-border/60 pt-4">
+        <Button
+          type="submit"
+          loading={form.formState.isSubmitting}
+          disabled={!form.formState.isDirty}
+        >
+          Save preferences
+        </Button>
+      </div>
     </form>
   );
 }

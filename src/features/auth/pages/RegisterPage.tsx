@@ -12,7 +12,7 @@ type Step =
 export default function RegisterPage() {
   const [step, setStep] = useState<Step>({ kind: 'verify', email: '' });
   useEffect(() => {
-    document.title = 'Create workspace - Yarotech RADIUS';
+    document.title = 'Register - Yarotech RADIUS';
   }, []);
   return (
     <RegistrationLayout step={step.kind === 'verify' ? 1 : step.kind === 'create' ? 2 : 3}>

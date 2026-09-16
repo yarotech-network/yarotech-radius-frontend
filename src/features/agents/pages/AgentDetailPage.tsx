@@ -130,21 +130,21 @@ function AgentDetail({
         }
       />
 
-      <Card className="border-brand-100 bg-gradient-to-br from-brand-50 via-white to-sky-50">
+      <Card className="router-page-hero border-brand-100 dark:border-slate-800 bg-gradient-to-br from-brand-50 via-white to-sky-50 dark:from-slate-900 dark:via-slate-900 dark:to-brand-950/40 p-6">
         <div className="flex items-start gap-4">
-          <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-brand-600 text-white">
-            <Store className="size-5" aria-hidden />
+          <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-brand-600 dark:bg-brand-500 text-white shadow-md shadow-brand-500/20">
+            <Store className="size-6" aria-hidden />
           </span>
           <div className="min-w-0">
-            <h2 className="text-lg font-semibold text-brand-950">Reseller account</h2>
-            <p className="mt-1 text-sm leading-relaxed text-ink-600">
-              Review this agent's profile, prepaid wallet and commission. Open voucher history to
-              inspect the vouchers they generated.
+            <h2 className="text-xl font-bold text-brand-950 dark:text-slate-100">Reseller Account Overview</h2>
+            <p className="mt-1 text-sm leading-relaxed text-ink-600 dark:text-slate-400">
+              Review this agent's profile, prepaid wallet balance, and commission rate. Monitor real-time voucher sales and credit transaction history below.
             </p>
-            <p className="mt-3 text-sm text-brand-800">
-              Joined {formatDateTime(agent.created_at)}. Status changes control access to the agent
-              portal.
-            </p>
+            <div className="mt-3 inline-flex items-center gap-2 rounded-lg bg-brand-100/60 dark:bg-slate-800/80 px-3 py-1 text-xs font-medium text-brand-800 dark:text-brand-300">
+              <span>Member since {formatDateTime(agent.created_at)}</span>
+              <span>•</span>
+              <span>Status updates directly affect agent portal access</span>
+            </div>
           </div>
         </div>
       </Card>
@@ -164,38 +164,43 @@ function AgentDetail({
         </Alert>
       )}
 
-      <div className="mb-4 grid gap-3 sm:grid-cols-3">
-        <Stat
-          label="Wallet balance"
-          value={agent.wallet_balance === null ? 'Unavailable' : formatKobo(agent.wallet_balance)}
-          hint="Prepaid credit for voucher sales"
-        />
-        <Stat
-          label="Commission"
-          value={`${formatCommission(agent.commission_rate)}%`}
-          hint="Of each sale"
-        />
-        <Stat
-          label="Status"
-          value={AGENT_STATUS_LABELS[agent.status]}
-          hint={`Joined ${formatRelative(agent.created_at)}`}
-        />
+      <div className="grid gap-4 sm:grid-cols-3">
+        <div className="rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-sm transition-all hover:shadow-md">
+          <Stat
+            label="Wallet Balance"
+            value={agent.wallet_balance === null ? 'Unavailable' : formatKobo(agent.wallet_balance)}
+            hint="Prepaid credit for voucher sales"
+          />
+        </div>
+        <div className="rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-sm transition-all hover:shadow-md">
+          <Stat
+            label="Commission Rate"
+            value={`${formatCommission(agent.commission_rate)}%`}
+            hint="Percentage earned per voucher sold"
+          />
+        </div>
+        <div className="rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-sm transition-all hover:shadow-md">
+          <Stat
+            label="Account Status"
+            value={AGENT_STATUS_LABELS[agent.status]}
+            hint={`Joined ${formatRelative(agent.created_at)}`}
+          />
+        </div>
       </div>
 
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto border-b border-slate-200 dark:border-slate-800 pb-2">
         <Tabs
           items={[
-            { value: 'overview', label: 'Profile' },
-            { value: 'sales', label: 'Vouchers sold' },
-            ...(canManageCredit ? [{ value: 'credit' as const, label: 'Credit account' }] : []),
+            { value: 'overview', label: 'Profile Details' },
+            { value: 'sales', label: 'Vouchers Sold' },
+            ...(canManageCredit ? [{ value: 'credit' as const, label: 'Credit Management' }] : []),
           ]}
           value={tab}
           onChange={setTab}
           ariaLabel="Agent sections"
-          className="mb-4"
         />
       </div>
-      <Card>
+      <Card className="border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-sm">
         {tab === 'overview' && (
           <DescriptionList
             columns={2}

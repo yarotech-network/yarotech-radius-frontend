@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { PageHeader } from '@/components/layout';
 import { Button, Card, Dialog, Input } from '@/components/ui';
 import { Alert, ErrorState } from '@/components/feedback';
 import { Pagination, SearchInput } from '@/components/data';
@@ -12,6 +11,8 @@ import { useDebouncedValue } from '@/lib/utilities/useDebouncedValue';
 import { pppoeApi } from '@/features/customers/pppoe';
 import { BandwidthPicker } from '../components/BandwidthPicker';
 import { ServicePlansNav } from '../components/ServicePlansNav';
+import { Layers, Network, Plus, RefreshCw } from 'lucide-react';
+
 export default function PPPoEPlansPage() {
   const manage = can(usePrincipal(), 'pppoe.manage');
   const client = useQueryClient();
@@ -32,11 +33,52 @@ export default function PPPoEPlansPage() {
   });
   return (
     <div className="space-y-5">
-      <PageHeader
-        title="PPPoE Plans"
-        description="Fixed subscriber access periods and bandwidth profiles. Manual renewal does not collect a payment."
-        actions={manage ? <Button onClick={() => setOpen(true)}>New PPPoE plan</Button> : undefined}
-      />
+      {/* Premium Hero Header */}
+      <div className="router-page-hero">
+        <div className="router-page-hero-inner">
+          <div className="router-page-hero-text">
+            <span className="router-page-hero-eyebrow">
+              <Network className="size-3" aria-hidden /> Fixed Subscriber Services
+            </span>
+            <h1 className="router-page-hero-title">PPPoE Plans</h1>
+            <p className="router-page-hero-desc">
+              Fixed subscriber access periods and bandwidth profiles for wired and wireless subscribers.
+            </p>
+          </div>
+          <div className="router-page-hero-actions">
+            <Button
+              variant="secondary"
+              disabled={query.isFetching}
+              leadingIcon={<RefreshCw className={query.isFetching ? 'animate-spin motion-reduce:animate-none' : ''} />}
+              onClick={() => void query.refetch()}
+            >
+              {query.isFetching ? 'Refreshing...' : 'Refresh'}
+            </Button>
+            {manage && (
+              <Button leadingIcon={<Plus className="size-4" aria-hidden />} onClick={() => setOpen(true)}>
+                New PPPoE plan
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {/* Hero Stats Strip */}
+        <div className="router-page-hero-strip">
+          <div className="router-page-hero-stat">
+            <Layers className="size-4" aria-hidden />
+            <span>
+              {query.data
+                ? `${query.data.count} PPPoE plan${query.data.count !== 1 ? 's' : ''}`
+                : 'Loading PPPoE plans...'}
+            </span>
+          </div>
+          <div className="router-page-hero-divider" />
+          <div className="router-page-hero-stat">
+            <Network className="size-4" aria-hidden />
+            <span>Broadband & PPPoE Access</span>
+          </div>
+        </div>
+      </div>
       <ServicePlansNav />
       <SearchInput
         value={search}

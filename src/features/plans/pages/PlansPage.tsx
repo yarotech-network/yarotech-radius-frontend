@@ -1,6 +1,9 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router';
 import {
+  ArrowRight,
+  Banknote,
+  Cpu,
   Layers,
   MoreHorizontal,
   Pencil,
@@ -9,8 +12,8 @@ import {
   Store,
   Ticket,
   Trash2,
+  Zap,
 } from 'lucide-react';
-import { PageHeader } from '@/components/layout';
 import { BooleanBadge } from '@/components/layout/StatusBadge';
 import {
   DataTable,
@@ -124,39 +127,78 @@ export default function PlansPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Hotspot Plans"
-        description="Internet packages your customers buy. Every voucher is generated from a plan."
-        actions={
-          <div className="flex flex-wrap gap-2">
+      {/* Premium Hero Header */}
+      <div className="router-page-hero">
+        <div className="router-page-hero-inner">
+          <div className="router-page-hero-text">
+            <span className="router-page-hero-eyebrow">
+              <Layers className="size-3" aria-hidden /> Service Catalogue
+            </span>
+            <h1 className="router-page-hero-title">Hotspot Plans</h1>
+            <p className="router-page-hero-desc">
+              Internet packages your customers buy. Every voucher is generated from an active plan.
+            </p>
+          </div>
+          <div className="router-page-hero-actions">
             <Button
               variant="secondary"
-              leadingIcon={<RefreshCw className={query.isFetching ? 'animate-spin' : ''} />}
+              leadingIcon={<RefreshCw className={query.isFetching ? 'animate-spin motion-reduce:animate-none' : ''} />}
               disabled={query.isFetching}
               onClick={() => void query.refetch()}
             >
-              Refresh plans
+              {query.isFetching ? 'Refreshing...' : 'Refresh'}
             </Button>
-            {canManage ? (
+            {canManage && (
               <Button
-                leadingIcon={<Plus className="h-4 w-4" aria-hidden />}
+                leadingIcon={<Plus className="size-4" aria-hidden />}
                 onClick={() => setEditor({ open: true })}
               >
                 New plan
               </Button>
-            ) : null}
+            )}
           </div>
-        }
-      />
+        </div>
+
+        {/* Hero Stats Strip */}
+        <div className="router-page-hero-strip">
+          <div className="router-page-hero-stat">
+            <Layers className="size-4" aria-hidden />
+            <span>
+              {query.data
+                ? `${query.data.count} total package${query.data.count !== 1 ? 's' : ''}`
+                : 'Loading catalogue...'}
+            </span>
+          </div>
+          <div className="router-page-hero-divider" />
+          <div className="router-page-hero-stat">
+            <Banknote className="size-4" aria-hidden />
+            <span>Pricing in NGN (₦)</span>
+          </div>
+          <div className="router-page-hero-divider" />
+          <div className="router-page-hero-links">
+            {can(principal, 'settings.profile') && (
+              <Link to="/storefront" className="router-page-hero-link">
+                <Store className="size-3.5" aria-hidden /> View storefront
+              </Link>
+            )}
+            <Link to="/plans/bandwidth" className="router-page-hero-link">
+              <Zap className="size-3.5" aria-hidden /> Bandwidth profiles
+            </Link>
+          </div>
+        </div>
+      </div>
+
       <ServicePlansNav />
-      <Card className="border-brand-100 bg-gradient-to-br from-brand-50 via-white to-sky-50">
+
+      {/* Intro Hero Banner */}
+      <Card className="border-brand-200 bg-gradient-to-br from-brand-50/70 via-surface to-sky-50/50 dark:from-brand-950/40 dark:via-surface dark:to-slate-900/40">
         <div className="flex flex-wrap items-start justify-between gap-5">
           <div className="flex min-w-0 flex-1 gap-4">
-            <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-brand-600 text-white">
+            <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-brand-600 text-white shadow-md">
               <Layers className="size-5" aria-hidden />
             </span>
             <div className="min-w-0">
-              <h2 className="text-lg font-semibold text-brand-950">
+              <h2 className="text-lg font-semibold text-ink-900">
                 Build your internet catalogue
               </h2>
               <p className="mt-1 max-w-2xl text-sm leading-relaxed text-ink-600">
@@ -172,9 +214,10 @@ export default function PlansPage() {
           )}
         </div>
       </Card>
+
       <section aria-labelledby="plan-catalogue-title" className="space-y-4">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h2 id="plan-catalogue-title" className="text-lg font-semibold text-brand-950">
+          <h2 id="plan-catalogue-title" className="text-lg font-semibold text-ink-900">
             Plan catalogue
           </h2>
           <p role="status" className="text-sm text-ink-500">
@@ -323,32 +366,38 @@ export default function PlansPage() {
         )}
       </section>
 
+      {/* Info Feature Cards */}
       <div className="grid gap-4 sm:grid-cols-2">
-        <Card>
-          <h2 className="font-semibold text-ink-900">Free Hotspot access</h2>
-          <span className="mt-2 inline-block rounded-full bg-surface-muted px-2 py-1 text-xs text-ink-600">
-            Not available
-          </span>
-          <p className="mt-2 text-sm text-ink-500">
+        <Card className="border-border/60 transition-shadow hover:shadow-md">
+          <div className="flex items-center gap-2">
+            <h2 className="font-semibold text-ink-900">Free Hotspot access</h2>
+            <span className="rounded-full bg-surface-muted px-2.5 py-0.5 text-xs font-medium text-ink-600">
+              Not available
+            </span>
+          </div>
+          <p className="mt-2 text-sm leading-relaxed text-ink-500">
             Free access needs enforced time limits, repeat-visit cooldowns and router support. A
             zero-price plan is not an automatic free-access policy.
           </p>
         </Card>
-        <Card>
-          <h2 className="font-semibold text-ink-900">
-            <Link to="/devices" className="hover:underline">
-              IoT / MAC devices
-            </Link>
-          </h2>
-          <span className="mt-2 inline-block rounded-full bg-surface-muted px-2 py-1 text-xs text-ink-600">
-            Device access
-          </span>
-          <p className="mt-2 text-sm text-ink-500">
+        <Card className="border-border/60 transition-shadow hover:shadow-md">
+          <div className="flex items-center gap-2">
+            <h2 className="font-semibold text-ink-900">
+              <Link to="/devices" className="inline-flex items-center gap-1 hover:underline text-brand-600">
+                IoT / MAC devices <ArrowRight className="size-3.5" />
+              </Link>
+            </h2>
+            <span className="rounded-full bg-surface-muted px-2.5 py-0.5 text-xs font-medium text-ink-600">
+              Device access
+            </span>
+          </div>
+          <p className="mt-2 text-sm leading-relaxed text-ink-500">
             Register equipment by MAC address, assign its router and plan, and choose permanent or
             time-limited access.
           </p>
         </Card>
       </div>
+
       <PlanDialog
         open={editor.open}
         {...(editor.plan ? { plan: editor.plan } : {})}

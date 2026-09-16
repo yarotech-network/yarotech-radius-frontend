@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useSearchParams } from 'react-router';
 import { LifeBuoy, RefreshCw } from 'lucide-react';
-import { PageHeader, StatusBadge } from '@/components/layout';
+import { StatusBadge } from '@/components/layout';
 import { Button, Card, Select, Tooltip } from '@/components/ui';
 import { Alert, EmptyState } from '@/components/feedback';
 import {
@@ -131,22 +131,42 @@ export default function RecoveryPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Payment recovery"
-        actions={
-          <Button
-            variant="secondary"
-            disabled={query.isFetching}
-            leadingIcon={<RefreshCw className={query.isFetching ? 'animate-spin' : ''} />}
-            onClick={() => void query.refetch()}
-          >
-            Refresh recovery
-          </Button>
-        }
-        description="Find customers who paid but did not get their voucher, re-run fulfilment, and resend credentials."
-        backTo="/payments"
-        crumbs={[{ label: 'Payments', to: '/payments' }, { label: 'Recovery' }]}
-      />
+      {/* Premium Hero Header */}
+      <div className="router-page-hero">
+        <div className="router-page-hero-inner">
+          <div className="router-page-hero-text">
+            <span className="router-page-hero-eyebrow">
+              <LifeBuoy className="size-3" aria-hidden /> Support & Fulfilment
+            </span>
+            <h1 className="router-page-hero-title">Payment Recovery</h1>
+            <p className="router-page-hero-desc">
+              Find customers who paid but did not get their voucher, re-run fulfilment, and resend credentials.
+            </p>
+          </div>
+          <div className="router-page-hero-actions">
+            <Button
+              variant="secondary"
+              disabled={query.isFetching}
+              leadingIcon={<RefreshCw className={query.isFetching ? 'animate-spin motion-reduce:animate-none' : ''} />}
+              onClick={() => void query.refetch()}
+            >
+              {query.isFetching ? 'Refreshing...' : 'Refresh'}
+            </Button>
+          </div>
+        </div>
+
+        {/* Hero Stats Strip */}
+        <div className="router-page-hero-strip">
+          <div className="router-page-hero-stat">
+            <LifeBuoy className="size-4 text-amber-400" aria-hidden />
+            <span>
+              {attentionCount > 0
+                ? `${attentionCount} payment${attentionCount !== 1 ? 's' : ''} need attention on this view`
+                : 'All payments fulfilled'}
+            </span>
+          </div>
+        </div>
+      </div>
       <Card className="border-brand-100 bg-gradient-to-br from-brand-50 via-white to-sky-50">
         <div className="flex items-start gap-4">
           <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-brand-600 text-white">

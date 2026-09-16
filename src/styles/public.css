@@ -332,21 +332,34 @@
 }
 .public-auth-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+  background-color: var(--color-surface-muted); /* Soft background for mobile card feel */
 }
 .public-auth-form-side {
   min-width: 0;
   display: flex;
   flex-direction: column;
+  background-color: var(--color-surface);
+  box-shadow: 20px 0 40px rgba(0,0,0,0.02); /* subtle depth */
+  z-index: 10;
+  /* Ensure it can scroll if screen is too short */
+  overflow-y: auto;
 }
 .public-auth-header {
   padding: 2rem clamp(1.25rem, 4vw, 3rem);
 }
 .public-auth-main {
   width: 100%;
-  max-width: 580px;
+  max-width: 520px;
   margin: auto;
-  padding: 2rem clamp(1.25rem, 4vw, 3rem) 4rem;
+  padding: 2rem clamp(1.25rem, 4vw, 3rem) 3rem;
+  /* Add entrance animation */
+  animation: authFadeIn 0.6s ease-out backwards;
+  flex-shrink: 0;
+}
+@keyframes authFadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 .public-auth-title {
   font-size: clamp(1.9rem, 3vw, 2.6rem);
@@ -439,15 +452,29 @@
     grid-template-columns: repeat(2, 1fr);
   }
   .public-auth-layout {
-    grid-template-columns: 1fr;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background: linear-gradient(135deg, #f0f4fd 0%, #ffffff 100%);
+    padding: clamp(1.5rem, 4vw, 3rem);
+    min-height: 100dvh;
+  }
+  .public-auth-form-side {
+    max-width: 520px;
+    width: 100%;
+    margin: auto 0; /* allows it to center but not clip top */
+    border-radius: 24px;
+    box-shadow: 0 24px 64px rgba(15, 42, 95, 0.08);
+    background: white;
   }
   .public-auth-panel {
     display: none;
   }
   .public-auth-main {
-    max-width: 600px;
+    max-width: 100%;
     margin: 0 auto;
-    padding-top: 1.5rem;
+    padding: 1.5rem clamp(1.25rem, 4vw, 2rem) 2.5rem;
   }
 }
 @media (max-width: 767px) {

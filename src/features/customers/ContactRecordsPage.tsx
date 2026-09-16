@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router';
 import { Users, Plus, Upload, ArrowRight } from 'lucide-react';
-import { PageHeader } from '@/components/layout';
 import { Button, Card, Dialog, ConfirmDialog, Select } from '@/components/ui';
 import { ErrorState, useToast } from '@/components/feedback';
 import { Pagination, SearchInput } from '@/components/data';
@@ -65,14 +64,22 @@ function ContactWorkspace({ scope, actorId }: { scope: number | null; actorId: n
   };
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Customers"
-        description="Your customer directory, with contact details and linked purchase history."
-        actions={
-          <>
+      {/* Premium Hero Header */}
+      <div className="router-page-hero">
+        <div className="router-page-hero-inner">
+          <div className="router-page-hero-text">
+            <span className="router-page-hero-eyebrow">
+              <Users className="size-3" aria-hidden /> Customer Management
+            </span>
+            <h1 className="router-page-hero-title">Customer Directory</h1>
+            <p className="router-page-hero-desc">
+              Your subscriber directory with contact details, identity records, and purchase history.
+            </p>
+          </div>
+          <div className="router-page-hero-actions">
             <Link
               to="/sessions"
-              className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-brand-700"
+              className="inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-semibold text-white bg-white/10 hover:bg-white/20 border border-white/20 backdrop-blur-sm transition"
             >
               Live sessions <ArrowRight className="size-4" />
             </Link>
@@ -80,19 +87,37 @@ function ContactWorkspace({ scope, actorId }: { scope: number | null; actorId: n
               <>
                 <Button
                   variant="secondary"
-                  leadingIcon={<Upload />}
+                  leadingIcon={<Upload className="size-4" aria-hidden />}
                   onClick={() => setImporting(true)}
                 >
                   Import CSV
                 </Button>
-                <Button leadingIcon={<Plus />} onClick={() => setEditor({})}>
+                <Button leadingIcon={<Plus className="size-4" aria-hidden />} onClick={() => setEditor({})}>
                   Add customer
                 </Button>
               </>
             )}
-          </>
-        }
-      />
+          </div>
+        </div>
+
+        {/* Hero Stats Strip */}
+        <div className="router-page-hero-strip">
+          <div className="router-page-hero-stat">
+            <Users className="size-4" aria-hidden />
+            <span>
+              {query.data
+                ? `${query.data.count} registered customer${query.data.count !== 1 ? 's' : ''}`
+                : 'Loading Directory...'}
+            </span>
+          </div>
+          <div className="router-page-hero-divider" />
+          <div className="router-page-hero-links">
+            <Link to="/customers" className="router-page-hero-link">
+              <Users className="size-3.5" aria-hidden /> Observed devices
+            </Link>
+          </div>
+        </div>
+      </div>
       <Card className="grid gap-4 p-4 lg:grid-cols-[minmax(0,1fr)_12rem_auto] lg:items-center">
         <div className="min-w-0 flex-1">
           <SearchInput

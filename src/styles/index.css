@@ -119,6 +119,7 @@
     -webkit-text-size-adjust: 100%;
     font-feature-settings: 'cv11', 'ss01';
     scroll-behavior: smooth;
+    transition: background-color 0.2s ease, color 0.2s ease;
   }
   body {
     @apply bg-canvas font-sans text-sm text-ink-900 antialiased;
@@ -155,6 +156,58 @@
       scroll-behavior: auto !important;
     }
   }
+}
+
+/* ------------------------------------------------------------------ */
+/* Dark mode — applied via .dark class on <html>                       */
+/* ------------------------------------------------------------------ */
+.dark {
+  color-scheme: dark;
+
+  /* Brand blues stay vibrant but slightly brightened for dark bg */
+  --color-brand-50: #0f2a5f;
+  --color-brand-100: #163a82;
+  --color-brand-200: #1e40af;
+  --color-brand-300: #1d4ed8;
+  --color-brand-400: #2563eb;
+  --color-brand-500: #3b82f6;
+  --color-brand-600: #60a5fa;
+  --color-brand-700: #93c5fd;
+  --color-brand-800: #bfdbfe;
+  --color-brand-900: #dbeafe;
+  --color-brand-950: #eff6ff;
+
+  /* Surfaces — deep navy/slate hierarchy */
+  --color-canvas:       #0d1117;
+  --color-surface:      #161b22;
+  --color-surface-muted:#1c2230;
+  --color-border:       #30363d;
+  --color-border-strong:#484f58;
+
+  /* Ink / text */
+  --color-ink-900: #e6edf3;
+  --color-ink-700: #c9d1d9;
+  --color-ink-600: #b1bac4;
+  --color-ink-500: #8b949e;
+  --color-ink-400: #6e7681;
+  --color-ink-300: #484f58;
+
+  /* Status — adjusted for dark surfaces */
+  --color-success-700:  #4ade80;
+  --color-success-600:  #22c55e;
+  --color-success-100:  #052e16;
+  --color-success-50:   #041a0c;
+  --color-warning-700:  #fbbf24;
+  --color-warning-600:  #f59e0b;
+  --color-warning-100:  #2d1e00;
+  --color-warning-50:   #1a1000;
+  --color-danger-700:   #f87171;
+  --color-danger-600:   #ef4444;
+  --color-danger-100:   #2d0a0a;
+  --color-danger-50:    #1a0505;
+  --color-info-700:     #60a5fa;
+  --color-info-100:     #0f2a5f;
+  --color-info-50:      #0a1e3d;
 }
 
 /* ------------------------------------------------------------------ */

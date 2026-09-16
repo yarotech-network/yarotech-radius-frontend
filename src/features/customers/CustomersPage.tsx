@@ -1,8 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router';
-import { Users, Ticket, RefreshCw } from 'lucide-react';
-import { PageHeader } from '@/components/layout';
+import { Users, Ticket, RefreshCw, Radio, Activity, ShieldCheck, ExternalLink } from 'lucide-react';
 import { Button, Card, Dialog, Select, Input } from '@/components/ui';
 import { ErrorState, Alert } from '@/components/feedback';
 import { Pagination, SearchInput, useListParams } from '@/components/data';
@@ -63,47 +62,96 @@ export default function CustomersPage() {
   };
   return (
     <div className="min-w-0 space-y-6">
-      <PageHeader
-        title="Customers"
-        description="Internet users identified by device MAC address. Access codes used, not purchases or login attempts."
-        actions={
-          <div className="flex flex-wrap gap-2">
+      {/* Premium Hero Header */}
+      <div className="router-page-hero">
+        <div className="router-page-hero-inner">
+          <div className="router-page-hero-text">
+            <span className="router-page-hero-eyebrow">
+              <Users className="size-3" aria-hidden /> Subscriber Analytics
+            </span>
+            <h1 className="router-page-hero-title">Observed Customers</h1>
+            <p className="router-page-hero-desc">
+              Internet users identified by device MAC address and access codes used across RADIUS sessions.
+            </p>
+          </div>
+          <div className="router-page-hero-actions">
             <Link
               to="/sessions"
-              className="rounded-lg px-3 py-2 text-sm font-medium text-brand-700"
+              className="inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-semibold text-white bg-white/10 hover:bg-white/20 border border-white/20 backdrop-blur-sm transition"
             >
-              Live sessions
+              <Activity className="size-4 text-emerald-400" aria-hidden /> Live sessions
             </Link>
             <Button
               variant="secondary"
-              leadingIcon={<RefreshCw />}
+              leadingIcon={<RefreshCw className={query.isFetching ? 'animate-spin motion-reduce:animate-none' : ''} />}
               disabled={query.isFetching || !validDates}
               onClick={() => void query.refetch()}
             >
-              Refresh
+              {query.isFetching ? 'Refreshing...' : 'Refresh'}
             </Button>
           </div>
-        }
-      />
+        </div>
+
+        {/* Hero Stats Strip */}
+        <div className="router-page-hero-strip">
+          <div className="router-page-hero-stat">
+            <Radio className="size-4" aria-hidden />
+            <span>
+              {validDates && query.data
+                ? `${query.data.summary.devices} active device${query.data.summary.devices !== 1 ? 's' : ''}`
+                : 'Loading subscriber stats...'}
+            </span>
+          </div>
+          <div className="router-page-hero-divider" />
+          <div className="router-page-hero-stat">
+            <Ticket className="size-4" aria-hidden />
+            <span>
+              {validDates && query.data
+                ? `${query.data.summary.distinct_codes} distinct access codes`
+                : 'Access code tracking'}
+            </span>
+          </div>
+          <div className="router-page-hero-divider" />
+          <div className="router-page-hero-links">
+            <Link to="/customers/contacts" className="router-page-hero-link">
+              <Users className="size-3.5" aria-hidden /> Contact records
+            </Link>
+          </div>
+        </div>
+      </div>
+
+      {/* Summary Cards */}
       <div className="grid gap-4 sm:grid-cols-2">
-        <Card className="p-5">
-          <Users className="mb-3 size-5 text-brand-600" />
-          <p className="text-sm text-ink-500">Devices in selected period</p>
-          <p className="mt-1 text-3xl font-semibold">
+        <Card className="p-5 border-border/60 transition-shadow hover:shadow-md">
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-medium text-ink-500">Devices in selected period</p>
+            <div className="flex size-9 items-center justify-center rounded-lg bg-brand-50 text-brand-600 dark:bg-brand-950/60 dark:text-brand-400">
+              <Users className="size-5" />
+            </div>
+          </div>
+          <p className="mt-2 text-3xl font-bold tracking-tight text-ink-900">
             {validDates ? (query.data?.summary.devices ?? '--') : '--'}
           </p>
         </Card>
-        <Card className="p-5">
-          <Ticket className="mb-3 size-5 text-brand-600" />
-          <p className="text-sm text-ink-500">Distinct access codes used</p>
-          <p className="mt-1 text-3xl font-semibold">
+        <Card className="p-5 border-border/60 transition-shadow hover:shadow-md">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-ink-500">Distinct access codes used</p>
+              <p className="mt-0.5 text-xs text-ink-400">
+                A shared code counts once across matching devices
+              </p>
+            </div>
+            <div className="flex size-9 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-400">
+              <Ticket className="size-5" />
+            </div>
+          </div>
+          <p className="mt-2 text-3xl font-bold tracking-tight text-ink-900">
             {validDates ? (query.data?.summary.distinct_codes ?? '--') : '--'}
-          </p>
-          <p className="mt-2 text-xs text-ink-500">
-            A shared code counts once across matching devices.
           </p>
         </Card>
       </div>
+
+      {/* Filter Controls */}
       <Card className="grid gap-4 p-4 md:grid-cols-3">
         <SearchInput
           value={list.state.search}
@@ -146,6 +194,7 @@ export default function CustomersPage() {
           </>
         )}
       </Card>
+
       {!validDates ? (
         <Alert tone="info">Choose a start date and an end date on or after it.</Alert>
       ) : query.isError ? (
@@ -165,7 +214,7 @@ export default function CustomersPage() {
           {!query.data.results.length ? (
             <Card className="px-6 py-12 text-center">
               <Users className="mx-auto mb-4 size-9 text-brand-600" />
-              <h2 className="text-lg font-semibold">No observed devices</h2>
+              <h2 className="text-lg font-semibold text-ink-900">No observed devices</h2>
               <p className="mt-2 text-sm text-ink-500">
                 Devices appear automatically after accounting records include their MAC and a tenant
                 access code. Try a different period or connection filter.
@@ -174,43 +223,44 @@ export default function CustomersPage() {
           ) : (
             <div className="grid gap-4 lg:grid-cols-2">
               {query.data.results.map((device) => (
-                <Card key={device.mac_address} className="min-w-0 p-5">
+                <Card key={device.mac_address} className="min-w-0 p-5 border-border/60 hover:shadow-md transition-shadow">
                   <div className="flex flex-wrap items-center justify-between gap-3">
-                    <h2 className="font-mono font-semibold break-all">{device.mac_address}</h2>
+                    <h2 className="font-mono font-semibold break-all text-ink-900">{device.mac_address}</h2>
                     <span
                       className={
                         device.status === 'online'
-                          ? 'text-xs text-success-700'
-                          : 'text-xs text-ink-500'
+                          ? 'inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400'
+                          : 'inline-flex items-center gap-1.5 rounded-full bg-surface-muted px-2.5 py-0.5 text-xs font-medium text-ink-500'
                       }
                     >
+                      {device.status === 'online' && <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />}
                       {statuses[device.status]}
                     </span>
                   </div>
                   <dl className="mt-5 grid grid-cols-2 gap-4 text-sm">
                     <div>
                       <dt className="text-ink-500">Codes used in period</dt>
-                      <dd className="mt-1 text-2xl font-semibold">{device.codes_used}</dd>
+                      <dd className="mt-1 text-2xl font-bold text-ink-900">{device.codes_used}</dd>
                     </div>
                     <div>
                       <dt className="text-ink-500">Lifetime codes used</dt>
-                      <dd className="mt-1 text-2xl font-semibold">{device.lifetime_codes_used}</dd>
+                      <dd className="mt-1 text-2xl font-bold text-ink-900">{device.lifetime_codes_used}</dd>
                     </div>
                     <div>
                       <dt className="text-ink-500">Recorded sessions</dt>
-                      <dd>{device.sessions}</dd>
+                      <dd className="font-medium text-ink-800">{device.sessions}</dd>
                     </div>
                     <div>
                       <dt className="text-ink-500">Recorded data</dt>
-                      <dd>{formatBytes(device.bytes_total)}</dd>
+                      <dd className="font-medium text-ink-800">{formatBytes(device.bytes_total)}</dd>
                     </div>
                     <div>
                       <dt className="text-ink-500">First matching session</dt>
-                      <dd>{formatDateTime(device.first_seen)}</dd>
+                      <dd className="text-ink-700">{formatDateTime(device.first_seen)}</dd>
                     </div>
                     <div>
                       <dt className="text-ink-500">Last recorded activity</dt>
-                      <dd>{formatDateTime(device.last_seen)}</dd>
+                      <dd className="text-ink-700">{formatDateTime(device.last_seen)}</dd>
                     </div>
                   </dl>
                   <Button
@@ -261,35 +311,35 @@ export default function CustomersPage() {
             </p>
             {!detail.data.results.length && <p>No codes used in this period.</p>}
             {detail.data.results.map((code) => (
-              <Card key={code.voucher_id} className="p-4">
+              <Card key={code.voucher_id} className="p-4 border-border/60">
                 <div className="flex flex-wrap justify-between gap-2">
-                  <h3 className="font-mono font-semibold break-all">
+                  <h3 className="font-mono font-semibold break-all text-ink-900">
                     {code.access_code}{' '}
                     <span className="font-sans text-xs text-ink-500">
                       Voucher #{code.voucher_id}
                     </span>
                   </h3>
-                  <span className="text-sm capitalize">{code.status}</span>
+                  <span className="text-sm capitalize font-medium text-ink-700">{code.status}</span>
                 </div>
-                <p className="mt-2 text-sm">
+                <p className="mt-2 text-sm text-ink-600">
                   {code.plan} | Device allowance: {code.device_limit}
                 </p>
                 <dl className="mt-3 grid grid-cols-2 gap-3 text-sm">
                   <div>
                     <dt className="text-ink-500">First matching use</dt>
-                    <dd>{formatDateTime(code.first_seen)}</dd>
+                    <dd className="text-ink-800">{formatDateTime(code.first_seen)}</dd>
                   </div>
                   <div>
                     <dt className="text-ink-500">Last used</dt>
-                    <dd>{formatDateTime(code.last_seen)}</dd>
+                    <dd className="text-ink-800">{formatDateTime(code.last_seen)}</dd>
                   </div>
                   <div>
                     <dt className="text-ink-500">Expires</dt>
-                    <dd>{code.expires_at ? formatDateTime(code.expires_at) : 'Not set'}</dd>
+                    <dd className="text-ink-800">{code.expires_at ? formatDateTime(code.expires_at) : 'Not set'}</dd>
                   </div>
                   <div>
                     <dt className="text-ink-500">Sessions / data</dt>
-                    <dd>
+                    <dd className="text-ink-800">
                       {code.sessions} / {formatBytes(code.bytes_total)}
                     </dd>
                   </div>
