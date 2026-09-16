@@ -4,7 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Link, useNavigate, useSearchParams } from 'react-router';
 import { KeyRound } from 'lucide-react';
-import { AuthCard } from '@/app/shell/AuthCard';
+import { AuthSplitLayout } from '@/app/shell/AuthSplitLayout';
 import { Alert } from '@/components/feedback/Alert';
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { Button, FormField } from '@/components/ui';
@@ -37,7 +37,7 @@ export default function ResetPasswordPage() {
 
   if (!uid || !token) {
     return (
-      <AuthCard
+      <AuthSplitLayout
         title="Invalid reset link"
         footer={
           <Link to="/forgot-password" className="font-medium text-brand-600 hover:underline">
@@ -49,13 +49,13 @@ export default function ResetPasswordPage() {
           This link is missing its security token. Open the link from your email again, or request a
           new one.
         </Alert>
-      </AuthCard>
+      </AuthSplitLayout>
     );
   }
 
   if (done) {
     return (
-      <AuthCard title="Password updated">
+      <AuthSplitLayout title="Password updated">
         <EmptyState
           icon={<KeyRound />}
           title="You can sign in now"
@@ -65,7 +65,7 @@ export default function ResetPasswordPage() {
             <Button onClick={() => navigate('/login', { replace: true })}>Go to sign in</Button>
           }
         />
-      </AuthCard>
+      </AuthSplitLayout>
     );
   }
 
@@ -88,7 +88,7 @@ export default function ResetPasswordPage() {
   });
 
   return (
-    <AuthCard
+    <AuthSplitLayout
       title="Choose a new password"
       footer={
         <Link to="/login" className="font-medium text-brand-600 hover:underline">
@@ -117,6 +117,6 @@ export default function ResetPasswordPage() {
           Update password
         </Button>
       </form>
-    </AuthCard>
+    </AuthSplitLayout>
   );
 }

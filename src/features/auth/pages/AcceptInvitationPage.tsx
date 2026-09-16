@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { Link, useNavigate, useSearchParams } from 'react-router';
 import { BadgeCheck } from 'lucide-react';
 import { useAuth } from '@/app/auth/useAuth';
-import { AuthCard } from '@/app/shell/AuthCard';
+import { AuthSplitLayout } from '@/app/shell/AuthSplitLayout';
 import { Alert } from '@/components/feedback/Alert';
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { Button, FormField, Input } from '@/components/ui';
@@ -48,17 +48,17 @@ export default function AcceptInvitationPage() {
 
   if (!token) {
     return (
-      <AuthCard title="Invalid invitation link">
+      <AuthSplitLayout title="Invalid invitation link">
         <Alert tone="danger">
           This link is missing its invitation token. Ask the administrator to send the link again.
         </Alert>
-      </AuthCard>
+      </AuthSplitLayout>
     );
   }
 
   if (accepted) {
     return (
-      <AuthCard title="Invitation accepted">
+      <AuthSplitLayout title="Invitation accepted">
         <EmptyState
           icon={<BadgeCheck />}
           title="You now have staff access"
@@ -68,7 +68,7 @@ export default function AcceptInvitationPage() {
             <Button onClick={() => navigate('/select-tenant', { replace: true })}>Continue</Button>
           }
         />
-      </AuthCard>
+      </AuthSplitLayout>
     );
   }
 
@@ -108,7 +108,7 @@ export default function AcceptInvitationPage() {
 
   if (signedIn) {
     return (
-      <AuthCard
+      <AuthSplitLayout
         title="Accept staff invitation"
         description={`You are signed in as ${displayName(principal.user)} (${principal.user.email}).`}
       >
@@ -125,12 +125,12 @@ export default function AcceptInvitationPage() {
             Sign out and use a different account
           </Button>
         </div>
-      </AuthCard>
+      </AuthSplitLayout>
     );
   }
 
   return (
-    <AuthCard
+    <AuthSplitLayout
       title="Accept staff invitation"
       description="Create your account to accept. The email address is taken from the invitation."
       footer={
@@ -176,6 +176,6 @@ export default function AcceptInvitationPage() {
           Create account & accept
         </Button>
       </form>
-    </AuthCard>
+    </AuthSplitLayout>
   );
 }

@@ -9,7 +9,9 @@ import { BrandMark } from './BrandMark';
 export function PublicLayout({ wide = false }: { wide?: boolean }) {
   const { principal } = useAuth();
   const location = useLocation();
-  const [open, setOpen] = useState(false);
+  const [openAt, setOpenAt] = useState<string | null>(null);
+  const open = openAt === location.key;
+  const setOpen = (value: boolean) => setOpenAt(value ? location.key : null);
   const toggle = useRef<HTMLButtonElement>(null);
   // These private account screens share the layout but retain their compact presentation.
   const privatePage = ['/select-tenant', '/no-access'].includes(location.pathname);
@@ -51,7 +53,18 @@ export function PublicLayout({ wide = false }: { wide?: boolean }) {
       <a className="public-skip" href="#public-content">
         Skip to content
       </a>
-      <header className="public-header">
+      <header
+        className="public-header"
+        onKeyDown={(event) => {
+          if (event.key === 'Escape' && open) {
+            setOpen(false);
+            toggle.current?.focus();
+          }
+        }}
+        onBlur={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false);
+        }}
+      >
         <div className="public-container public-nav-row">
           <Link to="/" aria-label="Home">
             <BrandMark />
@@ -71,7 +84,12 @@ export function PublicLayout({ wide = false }: { wide?: boolean }) {
             id="public-navigation"
             className={`public-navigation ${open ? 'is-open' : ''}`}
             aria-label="Public"
-            onClick={() => setOpen(false)}
+            onClick={(event) => {
+              if ((event.target as HTMLElement).closest('a')) {
+                setOpen(false);
+                document.getElementById('public-content')?.focus({ preventScroll: true });
+              }
+            }}
             onKeyDown={(event) => {
               if (event.key === 'Escape') {
                 setOpen(false);
@@ -79,20 +97,20 @@ export function PublicLayout({ wide = false }: { wide?: boolean }) {
               }
             }}
           >
-            <a href="/#features">Features</a>
-            <NavLink to="/pricing">Pricing</NavLink>
-            <a href="/#about">About</a>
+            <NavLink to="/" end>
+              Home
+            </NavLink>
+            <NavLink to="/about">About</NavLink>
+            <NavLink to="/pricing">Business Plans</NavLink>
+            <NavLink to="/contact">Contact</NavLink>
             {principal ? (
               <ButtonLink to={homePathFor(principal)}>
                 Go to dashboard <ArrowRight className="size-4" aria-hidden />
               </ButtonLink>
             ) : (
-              <>
-                <Link to="/login">Sign in</Link>
-                <ButtonLink to="/register">
-                  Get started <ArrowRight className="size-4" aria-hidden />
-                </ButtonLink>
-              </>
+              <ButtonLink to="/register">
+                Get started <ArrowRight className="size-4" aria-hidden />
+              </ButtonLink>
             )}
           </nav>
         </div>
@@ -117,9 +135,11 @@ export function PublicLayout({ wide = false }: { wide?: boolean }) {
           </div>
           <nav aria-label="Product">
             <h2>Explore</h2>
-            <a href="/#features">Features</a>
+            <Link to="/#features">Features</Link>
             <Link to="/pricing">Business pricing</Link>
-            <a href="/#about">About Yarotech</a>
+            <Link to="/about">About Yarotech</Link>
+            <Link to="/guide">Getting started</Link>
+            <Link to="/contact">Contact</Link>
           </nav>
           <nav aria-label="Account">
             <h2>Your workspace</h2>

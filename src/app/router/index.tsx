@@ -9,6 +9,7 @@ import {
   RequireSurface,
 } from '@/app/auth/guards';
 import { PublicLayout } from '@/app/shell/PublicLayout';
+import { PurchaseLayout } from '@/app/shell/PurchaseLayout';
 import { RootGate } from './RootGate';
 import { WorkspaceLayout } from '@/app/shell/WorkspaceLayout';
 import { PlatformLayout } from '@/app/shell/PlatformLayout';
@@ -18,6 +19,8 @@ import { RequireCapability } from '@/app/auth/RequireCapability';
 import { PaymentRedirect } from '@/features/payments/pages/PaymentRedirect';
 
 /* ---------- lazily loaded pages (one chunk per page) ---------- */
+const AboutPage = lazyRoute(lazy(() => import('@/features/storefront/pages/AboutPage')));
+const ContactPage = lazyRoute(lazy(() => import('@/features/storefront/pages/ContactPage')));
 const GettingStartedPage = lazyRoute(
   lazy(() => import('@/features/auth/pages/GettingStartedPage')),
 );
@@ -120,7 +123,10 @@ const devRoutes: RouteObject[] = import.meta.env.DEV
 
 /* ---------- workspace (tenant members + platform staff) ---------- */
 const workspaceRoutes: RouteObject[] = [
-  { element: <RequireCapability capability="whatsapp.view" />, children: [{ path: 'whatsapp', Component: WhatsAppPage }] },
+  {
+    element: <RequireCapability capability="whatsapp.view" />,
+    children: [{ path: 'whatsapp', Component: WhatsAppPage }],
+  },
   { path: 'dashboard', Component: DashboardPage },
   {
     element: <RequireCapability capability="pppoe.view" />,
@@ -262,13 +268,8 @@ export const router = createBrowserRouter([
           { path: '/agent/login', Component: AgentLoginPage },
           { path: '/register', Component: RegisterPage },
           { path: '/verify-email', Component: VerifyEmailPage },
-          {
-            Component: PublicLayout,
-            children: [
-              { path: '/forgot-password', Component: ForgotPasswordPage },
-              { path: '/reset-password', Component: ResetPasswordPage },
-            ],
-          },
+          { path: '/forgot-password', Component: ForgotPasswordPage },
+          { path: '/reset-password', Component: ResetPasswordPage },
         ],
       },
       /* Public pages that work with or without a session */
@@ -288,19 +289,38 @@ export const router = createBrowserRouter([
           </RequireBooted>
         ),
         children: [
-          { path: '/accept-invitation', Component: AcceptInvitationPage },
-          { path: '/s/:slug/*', Component: StorefrontPage },
-          { path: '/pay/result', Component: PaymentResultPage },
+          { path: '/about', Component: AboutPage },
+          { path: '/get-started', element: <Navigate to="/register" replace /> },
+          { path: '/contact', Component: ContactPage },
           { path: '/pricing', Component: PricingPage },
           { path: '/guide', Component: GettingStartedPage },
           ...devRoutes,
+        ],
+      },
+      {
+        element: (
+          <RequireBooted>
+            <AcceptInvitationPage />
+          </RequireBooted>
+        ),
+        path: '/accept-invitation',
+      },
+      {
+        element: (
+          <RequireBooted>
+            <PurchaseLayout />
+          </RequireBooted>
+        ),
+        children: [
+          { path: '/s/:slug/*', Component: StorefrontPage },
+          { path: '/pay/result', Component: PaymentResultPage },
         ],
       },
       /* Authenticated */
       {
         Component: RequireAuth,
         children: [
-          { path: "/renew-subscription", element: null },
+          { path: '/renew-subscription', element: null },
           {
             Component: PublicLayout,
             children: [

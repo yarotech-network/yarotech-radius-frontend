@@ -4,7 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Link } from 'react-router';
 import { MailCheck } from 'lucide-react';
-import { AuthCard } from '@/app/shell/AuthCard';
+import { AuthSplitLayout } from '@/app/shell/AuthSplitLayout';
 import { Alert } from '@/components/feedback/Alert';
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { Button, FormField, Input } from '@/components/ui';
@@ -39,7 +39,7 @@ export default function ForgotPasswordPage() {
 
   if (sent) {
     return (
-      <AuthCard
+      <AuthSplitLayout
         title="Check your email"
         footer={
           <Link to="/login" className="font-medium text-brand-600 hover:underline">
@@ -58,12 +58,12 @@ export default function ForgotPasswordPage() {
             </Button>
           }
         />
-      </AuthCard>
+      </AuthSplitLayout>
     );
   }
 
   return (
-    <AuthCard
+    <AuthSplitLayout
       title="Forgot your password?"
       description="Enter your account email and we will send a reset link."
       footer={
@@ -96,6 +96,6 @@ export default function ForgotPasswordPage() {
           Send reset link
         </Button>
       </form>
-    </AuthCard>
+    </AuthSplitLayout>
   );
 }

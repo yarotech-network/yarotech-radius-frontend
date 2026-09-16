@@ -22,14 +22,20 @@ export default function PaymentResultPage() {
   const reference =
     params.get('reference') ??
     params.get('trxref') ??
-    ((remembered?.kind === 'voucher' || remembered?.kind === 'iot') ? remembered.reference : null);
+    (remembered?.kind === 'voucher' || remembered?.kind === 'iot' ? remembered.reference : null);
   const slug = remembered?.reference === reference ? remembered.slug : undefined;
   const result = usePaymentResult(reference);
   const verification = useVerifyPaymentResult();
   const { mutate: verify } = verification;
   const attempted = useRef<string | null>(null);
   useEffect(() => {
-    if (reference && result.data && (result.data.status === 'pending' || (result.data.status === 'success' && !paymentFulfilled(result.data))) && attempted.current !== reference) {
+    if (
+      reference &&
+      result.data &&
+      (result.data.status === 'pending' ||
+        (result.data.status === 'success' && !paymentFulfilled(result.data))) &&
+      attempted.current !== reference
+    ) {
       attempted.current = reference;
       verify(reference);
     }
@@ -39,12 +45,18 @@ export default function PaymentResultPage() {
     document.title = 'Payment result · Yarotech RADIUS';
   }, []);
   useEffect(() => {
-    if (result.data && ((result.data.status === 'success' && paymentFulfilled(result.data)) || ['failed', 'abandoned'].includes(result.data.status))) pendingCheckout.clear();
+    if (
+      result.data &&
+      ((result.data.status === 'success' && paymentFulfilled(result.data)) ||
+        ['failed', 'abandoned'].includes(result.data.status))
+    )
+      pendingCheckout.clear();
   }, [result.data]);
 
   if (!reference) {
     return (
       <div className="mx-auto w-full max-w-lg py-10">
+        <h1 className="public-section-title mb-6">Payment result</h1>
         <EmptyState
           icon={<Clock className="size-6" aria-hidden />}
           title="No payment to check"
@@ -55,7 +67,8 @@ export default function PaymentResultPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-lg py-6">
+    <div className="public-payment-result py-6">
+      <p className="public-eyebrow">Your purchase</p>
       <h1 className="text-2xl font-semibold text-brand-950">Payment result</h1>
       <p className="mt-1 text-sm text-ink-500">
         Reference <code className="font-mono break-all text-ink-700">{reference}</code>
@@ -86,15 +99,37 @@ export default function PaymentResultPage() {
           >
             <div className="flex items-center gap-2 text-success-700">
               <CheckCircle2 className="size-6" aria-hidden />
-              <h2 className="text-lg font-semibold">Payment successful</h2>
+              <h2 className="text-lg font-semibold">
+                {paymentFulfilled(result.data)
+                  ? 'Payment successful'
+                  : 'Payment confirmed; access pending'}
+              </h2>
             </div>
             {result.data.kind === 'iot' && paymentFulfilled(result.data) ? (
               <div className="mt-3 space-y-3">
-                <p>Device access has been granted. Registration status: {result.data.device_status}.</p>
-                <p>Expires: {result.data.expires_at ? new Date(result.data.expires_at).toLocaleString() : 'No deadline'}.</p>
+                <p>
+                  Device access has been granted. Registration status: {result.data.device_status}.
+                </p>
+                <p>
+                  Expires:{' '}
+                  {result.data.expires_at
+                    ? new Date(result.data.expires_at).toLocaleString()
+                    : 'No deadline'}
+                  .
+                </p>
                 <p>Keep your renewal token private. You will need it to renew this device.</p>
-                <label className="block">Renewal token<textarea readOnly className="mt-2 w-full break-all rounded border p-2" value={result.data.renewal_token ?? ''} /></label>
-                <p>Connection depends on the assigned router. Contact the business if the device cannot connect.</p>
+                <label className="block">
+                  Renewal token
+                  <textarea
+                    readOnly
+                    className="mt-2 w-full rounded border p-2 break-all"
+                    value={result.data.renewal_token ?? ''}
+                  />
+                </label>
+                <p>
+                  Connection depends on the assigned router. Contact the business if the device
+                  cannot connect.
+                </p>
               </div>
             ) : result.data.code_revealed === true && result.data.access_code ? (
               <AccessCodePanel
@@ -109,8 +144,8 @@ export default function PaymentResultPage() {
                   Your voucher has been issued. Its credentials are not shown on this page.
                 </p>
                 <p className="mt-3 text-sm text-ink-600">
-                  Check your purchase email, or contact{' '}
-                  {result.data.tenant_name ?? 'the business'} with this reference for help.
+                  Check your purchase email, or contact {result.data.tenant_name ?? 'the business'}{' '}
+                  with this reference for help.
                 </p>
               </>
             ) : (
@@ -131,7 +166,11 @@ export default function PaymentResultPage() {
                 className={cn('size-5', result.isFetching && 'animate-spin')}
                 aria-hidden
               />
-              <h2 className="text-lg font-semibold">{result.data.payment_verified ? 'Payment confirmed; access code pending' : 'Waiting for confirmation'}</h2>
+              <h2 className="text-lg font-semibold">
+                {result.data.payment_verified
+                  ? 'Payment confirmed; access code pending'
+                  : 'Waiting for confirmation'}
+              </h2>
             </div>
             <p className="mt-2 text-sm text-ink-600">
               {result.data.payment_verified
@@ -160,16 +199,26 @@ export default function PaymentResultPage() {
               </h2>
             </div>
             <p className="mt-2 text-sm text-ink-700">
-              This order is not confirmed as paid. If you were charged, contact the business with this reference before paying again.
+              This order is not confirmed as paid. If you were charged, contact the business with
+              this reference before paying again.
             </p>
           </section>
         )}
       </div>
       {result.data?.status === 'success' && !paymentFulfilled(result.data) && (
-        <Button className="mt-4" variant="secondary" onClick={() => verify(reference)} loading={verification.isPending}>Check again</Button>
+        <Button
+          className="mt-4"
+          variant="secondary"
+          onClick={() => verify(reference)}
+          loading={verification.isPending}
+        >
+          Check again
+        </Button>
       )}
       {verification.isError && result.data && !paymentFulfilled(result.data) && (
-        <Alert tone="warning" className="mt-4">{errorMessage(verification.error)}</Alert>
+        <Alert tone="warning" className="mt-4">
+          {errorMessage(verification.error)}
+        </Alert>
       )}
       <div className="mt-6 flex flex-wrap gap-3">
         {slug && (

@@ -1,0 +1,184 @@
+/* Tenant navigation only; platform and agent surfaces retain their own presentation. */
+.dashboard-shell[data-surface='workspace'] .dashboard-sidebar {
+  background: #fff;
+  color: #42536c;
+  border-color: #e3eaf3;
+  box-shadow: 4px 0 24px #0b1f3f04;
+}
+.dashboard-shell[data-surface='workspace'] .dashboard-sidebar > div:first-child {
+  border-color: #edf1f7;
+}
+.dashboard-shell[data-surface='workspace'] .dashboard-sidebar :is(a, button):focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+.dashboard-shell[data-surface='workspace'] .sidebar-workspace {
+  flex-shrink: 0;
+  margin-top: 1rem;
+  padding: 0.9rem;
+  border: 1px solid #203f68;
+  border-radius: 14px;
+  background: linear-gradient(120deg, #102a50, #183e70);
+  color: #fff;
+  box-shadow: 0 6px 16px #102a5014;
+}
+.dashboard-shell[data-surface='workspace'] .sidebar-workspace > span {
+  background: #ffffff12;
+  color: #bfdbfe;
+  border: 1px solid #ffffff20;
+}
+.dashboard-shell[data-surface='workspace'] .sidebar-workspace p:first-child {
+  color: #b8cdeb;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+}
+.dashboard-shell[data-surface='workspace'] .sidebar-navigation {
+  gap: 1.3rem;
+  padding: 1.1rem 0.75rem;
+  scrollbar-color: #c6d3e4 transparent;
+}
+.dashboard-shell[data-surface='workspace'] .sidebar-group-label {
+  padding: 0 0.75rem 0.5rem;
+  color: #66758b;
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.13em;
+}
+.dashboard-shell[data-surface='workspace'] .sidebar-row {
+  color: #42536c;
+  border-radius: 10px;
+}
+.dashboard-shell[data-surface='workspace'] .sidebar-row:hover {
+  color: #173f83;
+  background: #f2f6fc;
+}
+.dashboard-shell[data-surface='workspace'] .sidebar-link {
+  min-height: 44px;
+  padding-block: 0.35rem;
+  gap: 0.65rem;
+  font-size: 12.5px;
+}
+.dashboard-shell[data-surface='workspace'] .sidebar-link-icon {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: #f0f4fa;
+}
+.dashboard-shell[data-surface='workspace'] .sidebar-link svg {
+  color: #627895;
+  width: 17px;
+  height: 17px;
+}
+.dashboard-shell[data-surface='workspace'] .sidebar-row-active,
+.dashboard-shell[data-surface='workspace'] .sidebar-row-active:hover {
+  background: #1d4ed8;
+  border-color: #1d4ed8;
+  color: #fff;
+  box-shadow: 0 4px 10px #1d4ed81a;
+}
+.dashboard-shell[data-surface='workspace'] .sidebar-row-active::before {
+  display: none;
+}
+.dashboard-shell[data-surface='workspace'] .sidebar-row-active .sidebar-link-icon {
+  background: #ffffff18;
+}
+.dashboard-shell[data-surface='workspace'] .sidebar-row-active .sidebar-link svg {
+  color: #fff;
+}
+.dashboard-shell[data-surface='workspace'] .sidebar-expand {
+  width: 30px;
+}
+.dashboard-shell[data-surface='workspace'] .sidebar-expand:hover {
+  background: #0b1f3f0a;
+}
+.dashboard-shell[data-surface='workspace'] .sidebar-children {
+  border-color: #dce5f2;
+  margin-left: 1.55rem;
+  padding-left: 0.85rem;
+}
+.dashboard-shell[data-surface='workspace'] .sidebar-child {
+  color: #52657f;
+  border-radius: 8px;
+}
+.dashboard-shell[data-surface='workspace'] .sidebar-child:hover {
+  color: #1d4ed8;
+  background: #f2f6fc;
+}
+.dashboard-shell[data-surface='workspace'] .sidebar-child-active,
+.dashboard-shell[data-surface='workspace'] .sidebar-child-active:hover {
+  color: #1e40af;
+  background: #eaf1ff;
+  box-shadow: inset 3px 0 #2563eb;
+}
+.dashboard-shell[data-surface='workspace'] .sidebar-account {
+  background: #f8faff;
+  border-color: #e3eaf3;
+  padding-block: 0.65rem;
+}
+.dashboard-shell[data-surface='workspace'] .sidebar-identity {
+  background: #fff;
+  border-color: #e3eaf3;
+  padding: 0.6rem;
+  border-radius: 12px;
+}
+.dashboard-shell[data-surface='workspace'] a.sidebar-identity:hover {
+  background: #edf3ff;
+}
+.dashboard-shell[data-surface='workspace'] .sidebar-avatar {
+  color: #1d4ed8;
+  background: #eaf1ff;
+  border-color: #d5e3fc;
+  border-radius: 10px;
+}
+.dashboard-shell[data-surface='workspace'] .sidebar-account-name {
+  color: #172d4e;
+}
+.dashboard-shell[data-surface='workspace'] .sidebar-account-role {
+  color: #1e40af;
+}
+.dashboard-shell[data-surface='workspace'] .sidebar-account-email {
+  color: #66758b;
+}
+.dashboard-shell[data-surface='workspace'] .sidebar-signout {
+  min-height: 36px;
+  margin-top: 0.35rem;
+  color: #42536c;
+}
+.dashboard-shell[data-surface='workspace'] .sidebar-signout:hover {
+  color: #b42335;
+  background: #fff0f1;
+  border-color: #ffe0e4;
+}
+.dashboard-shell[data-surface='workspace'] .sidebar-collapse {
+  background: #fff;
+  color: #52657f;
+  border-color: #dce5f2;
+  box-shadow: 0 3px 8px #102a5010;
+}
+.dashboard-shell[data-surface='workspace'] .sidebar-collapse:hover {
+  color: #1d4ed8;
+  background: #eff6ff;
+}
+.dashboard-shell[data-surface='workspace'] .sidebar-drawer-close {
+  color: #42536c;
+}
+.dashboard-shell[data-surface='workspace'] .sidebar-drawer-close:hover {
+  background: #eff6ff;
+}
+.dashboard-shell[data-surface='workspace'] .sidebar-account-collapsed .sidebar-identity {
+  padding: 0.35rem 0;
+  border-color: transparent;
+  background: transparent;
+}
+@media (min-width: 48rem) and (max-width: 63.999rem) {
+  .dashboard-shell[data-surface='workspace']
+    .dashboard-sidebar:not(.sidebar-drawer)
+    .sidebar-identity {
+    padding: 0.35rem 0;
+    border-color: transparent;
+    background: transparent;
+  }
+}

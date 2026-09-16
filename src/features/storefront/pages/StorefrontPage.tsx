@@ -30,7 +30,7 @@ export default function StorefrontPage() {
 
   return (
     <div className="public-storefront">
-      <Routes>
+      <Routes key={slug}>
         <Route
           index
           element={

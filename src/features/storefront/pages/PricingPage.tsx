@@ -1,9 +1,8 @@
-import { PlanLimits } from '@/features/settings/components/PlanLimits';
+import { BusinessPlanCard } from '../components/BusinessPlanCard';
 import { useEffect } from 'react';
-import { Check } from 'lucide-react';
-import { ButtonLink } from '@/components/ui';
+import { Link } from 'react-router';
+import { PublicFAQ } from '../components/PublicContent';
 import { EmptyState, ErrorState } from '@/components/feedback';
-import { formatKobo } from '@/lib/formatting/money';
 import { usePlatformPricing } from '../queries';
 import { PlanCardSkeleton } from '../components/PlanCard';
 
@@ -19,12 +18,12 @@ export default function PricingPage() {
         <p className="public-eyebrow">Business plans</p>
         <h1 className="public-section-title">Simple pricing for hotspot operators</h1>
         <p className="mt-2 text-sm text-ink-500">
-          Run vouchers, routers, agents and payments from one workspace. Choose the duration that
-          fits your business and pay with Paystack.
+          Compare subscriptions for managing your hotspot business. Create a workspace, then choose
+          and pay for your subscription in Settings. Internet service is supplied separately.
         </p>
       </header>
       {pricing.isPending ? (
-        <ul className="grid gap-4 sm:grid-cols-2">
+        <ul className="public-business-grid">
           {[0, 1].map((i) => (
             <li key={i}>
               <PlanCardSkeleton />
@@ -40,41 +39,22 @@ export default function PricingPage() {
       ) : pricing.data.length === 0 ? (
         <EmptyState title="Pricing coming soon" description="Plans have not been published yet." />
       ) : (
-        <ul className="grid gap-4 sm:grid-cols-2">
+        <ul className="public-business-grid">
           {pricing.data.map((plan) => (
-            <li key={plan.id} className="public-plan">
-              <h2 className="text-lg font-semibold text-brand-950">{plan.name}</h2>
-              <p className="mt-1 text-3xl font-semibold text-ink-900 tabular-nums">
-                {formatKobo(plan.price)}{' '}
-                <span className="text-sm font-normal text-ink-500">
-                  / {plan.duration_days} days
-                </span>
-              </p>
-              <PlanLimits plan={plan} />
-              {plan.features.length > 0 && (
-                <ul className="mt-4 space-y-2 text-sm text-ink-700">
-                  {plan.features.map((f, i) => (
-                    <li key={i} className="flex items-start gap-2">
-                      <Check className="mt-0.5 size-4 shrink-0 text-brand-700" aria-hidden />
-                      <span>{typeof f === 'string' ? f : JSON.stringify(f)}</span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-              <ButtonLink to="/register" className="mt-6" block>
-                Get started
-              </ButtonLink>
+            <li key={plan.id}>
+              <BusinessPlanCard plan={plan} heading="h2" />
             </li>
           ))}
         </ul>
       )}
       <p className="mt-8 text-center text-sm text-ink-600">
         Already have a workspace?{' '}
-        <a href="/login" className="font-medium text-brand-600 hover:underline">
+        <Link to="/login" className="font-medium text-brand-600 hover:underline">
           Sign in
-        </a>{' '}
+        </Link>{' '}
         and open Settings → Subscription to choose a plan.
       </p>
+      <PublicFAQ />
     </div>
   );
 }

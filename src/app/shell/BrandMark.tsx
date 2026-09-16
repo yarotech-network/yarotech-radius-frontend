@@ -1,6 +1,6 @@
 import { env } from '@/app/config/env';
 import { cn } from '@/lib/utilities/cn';
-import logoUrl from '@/assets/brand/yarotech-logo.png';
+import logoUrl from '@/assets/brand/yarotech-logo-small.webp';
 
 export function BrandMark({
   size = 'md',

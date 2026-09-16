@@ -42,6 +42,7 @@ export default function CheckoutPage({
       >
         <ChevronLeft className="size-4" aria-hidden /> All plans
       </Link>
+      <p className="public-eyebrow mb-3">Your next connection</p>
       <h1 className="text-2xl font-semibold text-brand-950">Checkout</h1>
       <p className="mt-1 text-sm text-ink-500">
         {tenantName ? `Buying from ${tenantName}.` : ''} You will be taken to Paystack to pay.
@@ -69,11 +70,14 @@ export default function CheckoutPage({
                 </ButtonLink>
               }
             />
+          ) : plan.plan_type === 'iot_mac' ? (
+            <IoTCheckout key={plan.id} plan={plan} slug={slug} />
           ) : (
-            plan.plan_type === 'iot_mac' ? <IoTCheckout key={plan.id} plan={plan} slug={slug} /> : <CheckoutForm key={plan.id} plan={plan} slug={slug} />
+            <CheckoutForm key={plan.id} plan={plan} slug={slug} />
           )}
         </div>
         <aside className="order-1 lg:order-2" aria-label="Order summary">
+          <h2 className="public-order-label">Your selected plan</h2>
           {plan ? <PlanCard plan={plan} selected /> : <PlanCardSkeleton />}
         </aside>
       </div>
@@ -101,17 +105,21 @@ function CheckoutForm({ plan, slug }: { plan: PublicPlan; slug: string }) {
     setUnavailable(null);
     try {
       if (values.device_limit > maxDevices) {
-        form.setError('device_limit', {message: `Choose at most ${maxDevices} device(s).`});
+        form.setError('device_limit', { message: `Choose at most ${maxDevices} device(s).` });
         return;
       }
       const payload = {
-        plan_id: plan.id, email: values.email,
-        ...(values.device_limit > 1 ? {device_limit: values.device_limit} : {}),
-        ...(values.name ? {name: values.name} : {}),
-        ...(values.phone ? {phone: values.phone} : {}),
+        plan_id: plan.id,
+        email: values.email,
+        ...(values.device_limit > 1 ? { device_limit: values.device_limit } : {}),
+        ...(values.name ? { name: values.name } : {}),
+        ...(values.phone ? { phone: values.phone } : {}),
       };
       const fingerprint = JSON.stringify(payload);
-      const key = previousPayload && previousPayload !== fingerprint ? newIdempotencyKey('buy') : idempotencyKey;
+      const key =
+        previousPayload && previousPayload !== fingerprint
+          ? newIdempotencyKey('buy')
+          : idempotencyKey;
       setPreviousPayload(fingerprint);
       if (key !== idempotencyKey) setIdempotencyKey(key);
       const result = await storefrontApi.buy(payload, key);
@@ -126,7 +134,11 @@ function CheckoutForm({ plan, slug }: { plan: PublicPlan; slug: string }) {
       window.location.assign(result.authorization_url);
     } catch (error) {
       if (isApiError(error) && error.status === 503) {
-        const reservation = error.body as {reference?: string; amount?: number; device_limit?: number} | null;
+        const reservation = error.body as {
+          reference?: string;
+          amount?: number;
+          device_limit?: number;
+        } | null;
         const reference = reservation?.reference;
         if (reference)
           pendingCheckout.save({
@@ -164,8 +176,19 @@ function CheckoutForm({ plan, slug }: { plan: PublicPlan; slug: string }) {
           )}
         </Alert>
       )}
-      <FormField label="Devices per voucher" hint="The selected devices share this voucher?s code, duration and data allowance." error={errors.device_limit?.message}>
-        <Select {...form.register('device_limit')} options={Array.from({length: maxDevices}, (_, i) => ({value:String(i+1), label:`${i+1} device${i ? 's' : ''}`}))} disabled={form.formState.isSubmitting} />
+      <FormField
+        label="Devices per voucher"
+        hint="The selected devices share this voucher's code, duration and data allowance."
+        error={errors.device_limit?.message}
+      >
+        <Select
+          {...form.register('device_limit')}
+          options={Array.from({ length: maxDevices }, (_, i) => ({
+            value: String(i + 1),
+            label: `${i + 1} device${i ? 's' : ''}`,
+          }))}
+          disabled={form.formState.isSubmitting}
+        />
       </FormField>
       <FormField
         label="Email address"

@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { Outlet, useLocation } from 'react-router';
 import { ErrorBoundary } from '@/components/feedback/ErrorBoundary';
+import { PublicRouteMeta } from './shell/PublicRouteMeta';
 import { titleForPathname } from './documentTitle';
 
 export function RootLayout() {
@@ -11,6 +12,7 @@ export function RootLayout() {
   }, [location.pathname]);
   return (
     <ErrorBoundary resetKey={location.pathname}>
+      <PublicRouteMeta />
       <Outlet />
     </ErrorBoundary>
   );

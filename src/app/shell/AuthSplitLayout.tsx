@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router';
 import { Check } from 'lucide-react';
-import dashboardPreview from '@/assets/images/dashboard-preview.jpg';
+import { PublicImage } from '@/features/storefront/components/PublicContent';
 import { cn } from '@/lib/utilities/cn';
 import { BrandMark } from './BrandMark';
 
@@ -36,6 +36,9 @@ export function AuthSplitLayout({
 }) {
   return (
     <div className="public-site public-auth-layout">
+      <a className="public-skip" href="#public-content">
+        Skip to form
+      </a>
       {/* form side */}
       <div className="public-auth-form-side">
         <header className="public-auth-header">
@@ -43,9 +46,9 @@ export function AuthSplitLayout({
             <BrandMark />
           </Link>
         </header>
-        <main className="public-auth-main">
+        <main id="public-content" tabIndex={-1} className="public-auth-main">
           <div className={cn('public-auth-form', className)}>
-            <h1 className="public-auth-title">{title}</h1>
+            {title && <h1 className="public-auth-title">{title}</h1>}
             {description && (
               <p className="mt-3 text-base leading-relaxed text-ink-600">{description}</p>
             )}
@@ -57,13 +60,7 @@ export function AuthSplitLayout({
 
       {/* brand side */}
       <aside className="public-auth-panel">
-        <img
-          src={dashboardPreview}
-          alt="Preview of the Yarotech RADIUS workspace dashboard"
-          className="public-auth-preview"
-          loading="lazy"
-          decoding="async"
-        />
+        <PublicImage scene="infrastructure" className="public-auth-preview" />
         <div className="public-auth-panel-copy">
           <h2 className="text-3xl font-semibold tracking-tight text-white">{panelTitle}</h2>
           <p className="mt-3 text-sm leading-relaxed text-brand-100">{panelDescription}</p>

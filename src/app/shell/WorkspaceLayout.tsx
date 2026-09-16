@@ -10,6 +10,7 @@ export function WorkspaceLayout() {
   const tenantName = principal?.kind === 'member' ? principal.tenantName : null;
   return (
     <AppShell
+      accent="workspace"
       groups={WORKSPACE_NAV}
       homePath="/dashboard"
       profilePath="/settings/general"

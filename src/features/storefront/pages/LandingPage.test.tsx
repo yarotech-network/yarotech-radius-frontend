@@ -1,29 +1,10 @@
 import { http, HttpResponse } from 'msw';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { screen, within } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import { server } from '@/test/server';
 import { API, paginated } from '@/test/fixtures';
 import { renderWithProviders } from '@/test/render';
 import LandingPage from './LandingPage';
-
-const plans = [
-  {
-    id: 1,
-    name: 'Daily 1GB',
-    price: 50000,
-    duration_hours: 24,
-    rate_limit: '5M/10M',
-    data_limit: 1024,
-  },
-  {
-    id: 2,
-    name: 'Weekly Unlimited',
-    price: 250000,
-    duration_hours: 168,
-    rate_limit: '10M/20M',
-    data_limit: 0,
-  },
-];
 
 function mockPricing() {
   server.use(
@@ -56,11 +37,11 @@ describe('public landing page', () => {
     renderWithProviders(<LandingPage />);
 
     expect(screen.getByRole('heading', { name: /run your wi-fi business/i })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /create your workspace/i })).toHaveAttribute(
+    expect(screen.getAllByRole('link', { name: /create workspace/i })[0]).toHaveAttribute(
       'href',
       '/register',
     );
-    expect(screen.getByRole('link', { name: /see business pricing/i })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: /view business plans/i })).toHaveAttribute(
       'href',
       '/pricing',
     );
@@ -74,30 +55,14 @@ describe('public landing page', () => {
     ).not.toBeInTheDocument();
   });
 
-  it('shows the featured storefront plans when a slug is configured', async () => {
+  it('keeps customer purchases within storefronts even when a featured slug is configured', async () => {
     vi.stubEnv('VITE_FEATURED_STOREFRONT_SLUG', 'wuse-hotspot');
-    server.use(
-      http.get(`${API}/public/tenants/wuse-hotspot/`, () =>
-        HttpResponse.json({ id: 2, slug: 'wuse-hotspot', name: 'Wuse Hotspot' }),
-      ),
-      http.get(`${API}/public/tenants/wuse-hotspot/plans/`, () =>
-        HttpResponse.json(paginated(plans)),
-      ),
-      http.get(`${API}/pricing/`, () => HttpResponse.json(paginated([]))),
-    );
-
+    mockPricing();
     renderWithProviders(<LandingPage />);
-
-    const section = await screen.findByRole('region', { name: /buy a wi-fi access code/i });
-    expect(await within(section).findByRole('heading', { name: 'Daily 1GB' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Starter' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Buy access code' })).not.toBeInTheDocument();
     expect(
-      await within(section).findByRole('heading', { name: 'Weekly Unlimited' }),
+      screen.getByText('Does a business subscription include internet access?'),
     ).toBeInTheDocument();
-    const buyLinks = within(section).getAllByRole('link', { name: 'Buy access code' });
-    expect(buyLinks).toHaveLength(2);
-    expect(buyLinks[0]).toHaveAttribute('href', '/s/wuse-hotspot/checkout/1');
-    expect(
-      within(section).getByRole('link', { name: /all plans and business details/i }),
-    ).toHaveAttribute('href', '/s/wuse-hotspot');
   });
 });

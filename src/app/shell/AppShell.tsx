@@ -24,6 +24,7 @@ import { SidebarNav } from './SidebarNav';
 import { UserMenu } from './UserMenu';
 import { SidebarAccount } from './SidebarAccount';
 import '@/styles/dashboard.css';
+import '@/styles/tenant-sidebar.css';
 
 export interface AppShellProps {
   groups: NavGroup[];
@@ -35,7 +36,7 @@ export interface AppShellProps {
   /** Extra items shown under the workspace name in the sidebar. */
   sidebarBadge?: ReactNode;
   /** Distinguishes platform administration from a tenant workspace. */
-  accent?: 'default' | 'platform';
+  accent?: 'default' | 'platform' | 'workspace';
 }
 
 function readCollapsed(): boolean {
@@ -165,7 +166,7 @@ export function AppShell({
   const sidebarWidth = collapsed ? 'lg:w-[72px]' : 'lg:w-[264px]';
 
   return (
-    <div className="dashboard-shell min-h-dvh bg-canvas">
+    <div className="dashboard-shell min-h-dvh bg-canvas" data-surface={accent}>
       <a
         href="#main"
         className="sr-only z-50 rounded-control bg-brand-950 px-3 py-2 text-white focus:not-sr-only focus:fixed focus:top-2 focus:left-2"
@@ -189,26 +190,34 @@ export function AppShell({
         >
           <Link to={homePath} className="rounded focus-visible:outline-brand-600" aria-label="Home">
             {/* Full wordmark only when the sidebar is expanded on desktop; the rail shows the icon. */}
-            <BrandMark inverse hideText className={cn(!collapsed && 'lg:hidden')} />
-            {!collapsed && <BrandMark inverse className="hidden lg:inline-flex" />}
+            <BrandMark
+              inverse={accent !== 'workspace'}
+              hideText
+              className={cn(!collapsed && 'lg:hidden')}
+            />
+            {!collapsed && (
+              <BrandMark inverse={accent !== 'workspace'} className="hidden lg:inline-flex" />
+            )}
           </Link>
         </div>
-        {!collapsed && accent !== 'platform' && homePath !== '/dashboard' && (
-          <div className="sidebar-workspace mx-3 mt-5 mb-2 hidden items-center gap-3 rounded-xl border border-border bg-white p-3 lg:flex">
-            <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-600">
-              <WorkspaceIcon className="size-5" aria-hidden />
-            </span>
-            <div className="min-w-0">
-              <p className="text-[10px] font-semibold tracking-wider text-ink-500 uppercase">
-                {workspaceLabel}
-              </p>
-              <p className="mt-1 truncate text-sm font-medium" title={workspaceName}>
-                {workspaceName}
-              </p>
-              {sidebarBadge && <div className="mt-2">{sidebarBadge}</div>}
+        {!collapsed &&
+          accent !== 'platform' &&
+          (homePath !== '/dashboard' || principal?.kind === 'member') && (
+            <div className="sidebar-workspace mx-3 mt-5 mb-2 hidden items-center gap-3 rounded-xl border border-border bg-white p-3 lg:flex">
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-600">
+                <WorkspaceIcon className="size-5" aria-hidden />
+              </span>
+              <div className="min-w-0">
+                <p className="text-[10px] font-semibold tracking-wider text-ink-500 uppercase">
+                  {workspaceLabel}
+                </p>
+                <p className="mt-1 truncate text-sm font-medium" title={workspaceName}>
+                  {workspaceName}
+                </p>
+                {sidebarBadge && <div className="mt-2">{sidebarBadge}</div>}
+              </div>
             </div>
-          </div>
-        )}
+          )}
         <SidebarNav groups={visible} collapsed={collapsed} />
         <SidebarAccount collapsed={collapsed} profilePath={profilePath} />
         <button
@@ -381,7 +390,7 @@ export function AppShell({
             className="dashboard-sidebar sidebar-drawer absolute inset-y-0 left-0 flex w-[86vw] max-w-xs flex-col bg-surface-muted text-ink-700 shadow-2xl"
           >
             <div className="flex h-20 shrink-0 items-center justify-between border-b border-border px-4">
-              <BrandMark inverse />
+              <BrandMark inverse={accent !== 'workspace'} />
               <Button
                 ref={drawerCloseRef}
                 variant="ghost"
@@ -393,16 +402,19 @@ export function AppShell({
                 <X className="size-5" />
               </Button>
             </div>
-            {accent !== 'platform' && homePath !== '/dashboard' && (
-              <div className="sidebar-workspace mx-3 mt-4 rounded-xl border border-border bg-white p-3">
-                <p className="text-[10px] font-semibold tracking-wider text-ink-500 uppercase">
-                  {workspaceLabel}
-                </p>
-                <p className="mt-1 truncate text-sm font-medium">{workspaceName}</p>
-                {sidebarBadge && <div className="mt-2">{sidebarBadge}</div>}
-                {principal?.kind === 'platform_staff' && <div className="mt-2">{topBarStart}</div>}
-              </div>
-            )}
+            {accent !== 'platform' &&
+              (homePath !== '/dashboard' || principal?.kind === 'member') && (
+                <div className="sidebar-workspace mx-3 mt-4 rounded-xl border border-border bg-white p-3">
+                  <p className="text-[10px] font-semibold tracking-wider text-ink-500 uppercase">
+                    {workspaceLabel}
+                  </p>
+                  <p className="mt-1 truncate text-sm font-medium">{workspaceName}</p>
+                  {sidebarBadge && <div className="mt-2">{sidebarBadge}</div>}
+                  {principal?.kind === 'platform_staff' && (
+                    <div className="mt-2">{topBarStart}</div>
+                  )}
+                </div>
+              )}
             {homePath === '/dashboard' && principal?.kind === 'platform_staff' && topBarStart && (
               <div className="mx-3 mt-4 rounded-xl bg-white p-3 text-ink-700">{topBarStart}</div>
             )}

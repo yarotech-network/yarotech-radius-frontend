@@ -40,7 +40,9 @@ function NavigationItem({
           onFocus={() => prefetchRoute(item.to, queryClient)}
           className={cn('sidebar-link', collapsed && 'sidebar-link-collapsed')}
         >
-          <item.icon className="size-[18px] shrink-0" aria-hidden />
+          <span className="sidebar-link-icon" aria-hidden>
+            <item.icon className="size-[18px] shrink-0" />
+          </span>
           <span className={collapsed ? 'sr-only' : 'sidebar-link-label'}>{item.label}</span>
         </NavLink>
         {!collapsed && children.length > 0 && (
