@@ -39,7 +39,8 @@ const SelectTenantPage = lazyRoute(lazy(() => import('@/features/auth/pages/Sele
 const NoAccessPage = lazyRoute(lazy(() => import('@/features/auth/pages/NoAccessPage')));
 
 const DashboardPage = lazyRoute(lazy(() => import('@/features/dashboard/pages/DashboardPage')));
-const CustomersPage = lazyRoute(lazy(() => import('@/features/customers/CustomersPage')));
+const CustomersPage = lazyRoute(lazy(() => import('@/features/customers/AccessCustomersPage')));
+const CustomerDevicesPage = lazyRoute(lazy(() => import('@/features/customers/CustomersPage')));
 const SessionsPage = lazyRoute(lazy(() => import('@/features/sessions/pages/SessionsPage')));
 const BandwidthPage = lazyRoute(lazy(() => import('@/features/plans/pages/BandwidthPage')));
 const PPPoEPlansPage = lazyRoute(lazy(() => import('@/features/plans/pages/PPPoEPlansPage')));
@@ -134,7 +135,7 @@ const workspaceRoutes: RouteObject[] = [
   },
   {
     element: <RequireCapability capability="customers.view" />,
-    children: [{ path: 'customers', Component: CustomersPage }],
+    children: [{ path: 'customers', Component: CustomersPage }, { path: 'customers/devices', Component: CustomerDevicesPage }],
   },
   {
     element: <RequireCapability capability="settings.profile" />,

@@ -1,3 +1,4 @@
+import { CustomerTabs } from './CustomerTabs';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router';
@@ -11,7 +12,7 @@ import { formatBytes } from '@/lib/formatting/units';
 import { formatDateTime } from '@/lib/formatting/dates';
 import { deviceUsageApi } from './deviceUsageApi';
 
-const FILTERS = ['period', 'activity', 'start', 'end'] as const;
+const FILTERS = ['period', 'activity', 'start', 'end', 'voucher'] as const;
 const statuses = {
   online: 'Online (recent accounting)',
   offline: 'Offline',
@@ -34,6 +35,7 @@ export default function CustomersPage() {
   const end = list.state.filters.end || '';
   const validDates = period !== 'custom' || Boolean(start && end && start <= end);
   const params = {
+    ...(list.state.filters.voucher ? { voucher: list.state.filters.voucher } : {}),
     period,
     activity,
     search,
@@ -47,7 +49,7 @@ export default function CustomersPage() {
     queryKey: ['customer-devices', scope, principal.user.id, params],
     queryFn: () => deviceUsageApi.list(params),
     enabled: validDates,
-    refetchInterval: 60_000,
+    refetchInterval: 30_000,
   });
   const detailParams = { ...params, page: codePage, page_size: 10 };
   const detail = useQuery({
@@ -62,6 +64,7 @@ export default function CustomersPage() {
   };
   return (
     <div className="min-w-0 space-y-6">
+      <CustomerTabs />
       {/* Premium Hero Header */}
       <div className="router-page-hero">
         <div className="router-page-hero-inner">
@@ -69,7 +72,7 @@ export default function CustomersPage() {
             <span className="router-page-hero-eyebrow">
               <Users className="size-3" aria-hidden /> Subscriber Analytics
             </span>
-            <h1 className="router-page-hero-title">Observed Customers</h1>
+            <h1 className="router-page-hero-title">Devices</h1>
             <p className="router-page-hero-desc">
               Internet users identified by device MAC address and access codes used across RADIUS sessions.
             </p>
@@ -98,7 +101,7 @@ export default function CustomersPage() {
             <Radio className="size-4" aria-hidden />
             <span>
               {validDates && query.data
-                ? `${query.data.summary.devices} active device${query.data.summary.devices !== 1 ? 's' : ''}`
+                ? `${query.data.summary.devices} observed device${query.data.summary.devices !== 1 ? 's' : ''}`
                 : 'Loading subscriber stats...'}
             </span>
           </div>

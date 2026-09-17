@@ -1,3 +1,4 @@
+import { CustomerTabs } from '@/features/customers/CustomerTabs';
 import { NetworkCards } from '@/features/dashboard/components/NetworkCards';
 import { useMemo, useState } from 'react';
 import { Activity, Pause, Play, RefreshCw, Unplug } from 'lucide-react';
@@ -103,6 +104,7 @@ export default function SessionsPage() {
 
   return (
     <div className="space-y-6">
+      <CustomerTabs />
       <PageHeader
         title="Live sessions"
         description="Devices currently online through your routers."

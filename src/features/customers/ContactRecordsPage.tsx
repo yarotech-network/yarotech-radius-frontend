@@ -1,3 +1,4 @@
+import { CustomerTabs } from './CustomerTabs';
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router';
@@ -64,6 +65,7 @@ function ContactWorkspace({ scope, actorId }: { scope: number | null; actorId: n
   };
   return (
     <div className="space-y-6">
+      <CustomerTabs />
       {/* Premium Hero Header */}
       <div className="router-page-hero">
         <div className="router-page-hero-inner">
