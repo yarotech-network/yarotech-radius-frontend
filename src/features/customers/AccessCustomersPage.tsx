@@ -4,7 +4,7 @@ import { Link } from 'react-router';
 import { usePrincipal } from '@/app/auth/useAuth';
 import { Button, Card, Select, Input, Dialog } from '@/components/ui';
 import { Alert, ErrorState } from '@/components/feedback';
-import { Pagination, SearchInput, useListParams } from '@/components/data';
+import { DataTable, Pagination, SearchInput, useListParams, type Column } from '@/components/data';
 import { http } from '@/services/api/http';
 import type { Paginated } from '@/types/api';
 import { useDebouncedValue } from '@/lib/utilities/useDebouncedValue';
@@ -65,6 +65,88 @@ export default function AccessCustomersPage() {
     enabled: selected !== null,
     gcTime: 0,
   });
+  const columns: Column<Access>[] = [
+    {
+      key: 'name',
+      header: 'Name',
+      cell: (row) => (
+        <div className="min-w-40">
+          <p className="font-semibold">{row.buyer_name || 'Name not provided'}</p>
+          <p className="text-xs text-ink-500">{row.reference}</p>
+        </div>
+      ),
+    },
+    {
+      key: 'email',
+      header: 'Email',
+      cell: (row) => (
+        <div>
+          <p>{row.buyer_email || 'Not provided'}</p>
+          {row.buyer_phone && <p className="text-xs text-ink-500">{row.buyer_phone}</p>}
+        </div>
+      ),
+    },
+    {
+      key: 'plan',
+      header: 'Plan',
+      cell: (row) => (
+        <div>
+          <p>{row.plan}</p>
+          <p className="text-xs text-ink-500 capitalize">{row.source}</p>
+        </div>
+      ),
+    },
+    {
+      key: 'devices',
+      header: 'Devices',
+      align: 'right',
+      cell: (row) => (
+        <div>
+          <p className="font-semibold tabular-nums">{row.devices}</p>
+          <p className="text-xs whitespace-nowrap text-ink-500">{row.sessions} sessions</p>
+        </div>
+      ),
+    },
+    {
+      key: 'status',
+      header: 'Code status',
+      cell: (row) => <span className="capitalize">{row.status}</span>,
+    },
+    {
+      key: 'connection',
+      header: 'Connection',
+      cell: (row) => <span className="whitespace-nowrap capitalize">{label(row.connection)}</span>,
+    },
+    {
+      key: 'usage',
+      header: 'Data used',
+      align: 'right',
+      cell: (row) => <span className="whitespace-nowrap">{formatBytes(row.bytes_total)}</span>,
+    },
+    {
+      key: 'seen',
+      header: 'Last seen',
+      cell: (row) => (
+        <span className="whitespace-nowrap">
+          {row.last_seen ? formatDateTime(row.last_seen) : 'No recorded session'}
+        </span>
+      ),
+    },
+    {
+      key: 'date',
+      header: 'Purchased / issued',
+      cell: (row) => <span className="whitespace-nowrap">{formatDateTime(row.date)}</span>,
+    },
+    {
+      key: 'actions',
+      header: 'Actions',
+      cell: (row) => (
+        <Button variant="secondary" onClick={() => setSelected(row.id)}>
+          View details
+        </Button>
+      ),
+    },
+  ];
   const filters = [
     ['status', 'Code status', ['unused', 'sold', 'used', 'active', 'expired', 'disabled']],
     ['activity', 'Connection', ['online', 'offline', 'never_connected', 'unknown']],
@@ -94,7 +176,12 @@ export default function AccessCustomersPage() {
               { value: '', label: `All ${title.toLowerCase()}` },
               ...values.map((value) => ({
                 value,
-                label: value === 'used' ? 'Used (ever used)' : label(value),
+                label:
+                  value === 'used'
+                    ? 'Used (ever used)'
+                    : value === 'sold'
+                      ? 'Sold (purchase history)'
+                      : label(value),
               })),
             ]}
           />
@@ -138,8 +225,8 @@ export default function AccessCustomersPage() {
         </Button>
       </Card>
       <p className="text-sm text-ink-500">
-        Used means ever used and can include expired or disabled codes. Never connected means no
-        recorded session.
+        Sold includes successful purchases; Used means ever used. Both can include expired or
+        disabled codes. Never connected means no recorded session.
       </p>
       {!valid ? (
         <Alert tone="info">End date must not precede start date.</Alert>
@@ -156,40 +243,21 @@ export default function AccessCustomersPage() {
             </Alert>
           )}
           <p>
-            {query.data.count} matching records ? Last accounting sync:{' '}
+            {query.data.count} matching records | Last accounting sync:{' '}
             {query.data.synced_at ? formatDateTime(query.data.synced_at) : 'Not yet recorded'}
           </p>
-          {!query.data.results.length && (
-            <Card className="p-6">No purchases or observed voucher users match these filters.</Card>
-          )}
-          <div className="grid gap-4 lg:grid-cols-2">
-            {query.data.results.map((row) => (
-              <Card key={row.id} className="space-y-3 p-5">
-                <h2 className="font-semibold">
-                  {row.buyer_name || row.buyer_email || 'Unidentified voucher user'}
-                </h2>
-                <p>
-                  {row.buyer_email} {row.buyer_phone}
-                </p>
-                <p>
-                  {row.reference} ? {row.plan} ? {row.source}
-                </p>
-                <p>
-                  Code: {row.status} ? Connection: {label(row.connection)}
-                </p>
-                <p>
-                  {row.devices} devices ? {row.sessions} sessions ? {formatBytes(row.bytes_total)}
-                </p>
-                <p>Purchased / issued: {formatDateTime(row.date)}</p>
-                <p>
-                  Last seen: {row.last_seen ? formatDateTime(row.last_seen) : 'No recorded session'}
-                </p>
-                <Button variant="secondary" onClick={() => setSelected(row.id)}>
-                  View details
-                </Button>
-              </Card>
-            ))}
-          </div>
+          <DataTable
+            columns={columns}
+            rows={query.data.results}
+            rowKey={(row) => row.id}
+            caption="Customer purchases and voucher users"
+            mobileCards={false}
+            dense
+            refreshing={query.isFetching}
+            empty={
+              <p className="p-6">No purchases or observed voucher users match these filters.</p>
+            }
+          />
           <Pagination
             count={query.data.count}
             page={list.state.page}

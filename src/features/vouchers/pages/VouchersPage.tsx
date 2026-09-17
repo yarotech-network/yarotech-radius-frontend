@@ -293,7 +293,7 @@ export default function VouchersPage() {
               Voucher Directory
             </h2>
             <p className="mt-0.5 text-xs text-ink-500">
-              Used means ever used, including codes later expired or disabled. Expired is based on the deadline; Disabled takes precedence.
+              Sold includes successful purchases; Used means ever used. Both include codes later expired or disabled. Expired is based on the deadline; Disabled takes precedence.
             </p>
           </div>
           <p role="status" className="text-xs font-medium text-ink-500 rounded-full bg-surface-muted px-3 py-1 border border-border/50">
