@@ -14,6 +14,7 @@ import type { PublicPlan } from '@/types/api';
 import { storefrontApi } from '../api';
 import { usePublicPlans } from '../queries';
 import { pendingCheckout } from '../pendingCheckout';
+import { checkoutUrl } from '../checkoutUrl';
 import { checkoutSchema, type CheckoutInput, type CheckoutOutput } from '../checkoutSchema';
 import { PlanCard, PlanCardSkeleton } from '../components/PlanCard';
 
@@ -45,7 +46,8 @@ export default function CheckoutPage({
       <p className="public-eyebrow mb-3">Your next connection</p>
       <h1 className="text-2xl font-semibold text-brand-950">Checkout</h1>
       <p className="mt-1 text-sm text-ink-500">
-        {tenantName ? `Buying from ${tenantName}.` : ''} You will be taken to Paystack to pay.
+        {tenantName ? `Buying from ${tenantName}.` : ''} You will be taken to the business’s secure
+        payment provider.
       </p>
       <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
         <div className="order-2 lg:order-1">
@@ -131,7 +133,7 @@ function CheckoutForm({ plan, slug }: { plan: PublicPlan; slug: string }) {
         amount: result.amount ?? displayedTotal,
         deviceLimit: result.device_limit ?? values.device_limit,
       });
-      window.location.assign(result.authorization_url);
+      window.location.assign(checkoutUrl(result.authorization_url));
     } catch (error) {
       if (isApiError(error) && error.status === 503) {
         const reservation = error.body as {
@@ -167,11 +169,14 @@ function CheckoutForm({ plan, slug }: { plan: PublicPlan; slug: string }) {
       {message && <Alert tone="danger">{message}</Alert>}
       {unavailable !== null && (
         <Alert tone="warning" title="Payments are temporarily unavailable">
-          We could not reach the payment provider. You have not been charged — please try again in a
-          few minutes.
+          We could not confirm payment setup with the provider. If you attempted payment, check this
+          order before trying again to avoid paying twice.
           {unavailable && (
             <span className="mt-1 block text-xs">
               Order reference: <code className="font-mono">{unavailable}</code>
+              <Link className="ml-2 underline" to={`/pay/result?reference=${encodeURIComponent(unavailable)}`}>
+                Check this payment
+              </Link>
             </span>
           )}
         </Alert>
@@ -231,12 +236,12 @@ function CheckoutForm({ plan, slug }: { plan: PublicPlan; slug: string }) {
           loading={form.formState.isSubmitting}
           trailingIcon={<ExternalLink className="size-4" aria-hidden />}
         >
-          Pay with Paystack
+          Continue to payment
         </Button>
       </div>
       <p className="flex items-center gap-1.5 text-xs text-ink-400">
-        <Lock className="size-3.5" aria-hidden /> Card details are entered on Paystack's secure
-        page, never here.
+        <Lock className="size-3.5" aria-hidden /> Card details are entered on the payment provider’s
+        secure page, never here.
       </p>
     </form>
   );

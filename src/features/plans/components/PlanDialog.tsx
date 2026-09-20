@@ -1,6 +1,8 @@
 import { Dialog } from '@/components/ui';
 import type { InternetPlan } from '@/types/api';
 import { PlanForm } from './PlanForm';
+import { Plus } from 'lucide-react';
+import '../plans.css';
 
 export function PlanDialog({
   open,
@@ -17,13 +19,20 @@ export function PlanDialog({
     <Dialog
       open={open}
       onClose={onClose}
-      variant="drawer"
-      size="md"
-      title={plan ? `Edit ${plan.name}` : 'New plan'}
+      size="xl"
+      className="service-plan-dialog"
+      title={
+        <span className="plan-dialog-title">
+          <span className="plan-dialog-icon">
+            <Plus aria-hidden />
+          </span>
+          {plan ? `Edit ${plan.name}` : 'Create New Hotspot Plan'}
+        </span>
+      }
       description={
         plan
           ? 'Changes apply to future access. Issued vouchers keep their saved duration, price, data and speed terms.'
-          : 'Plans define what a voucher gives the customer.'
+          : 'Configure access, pricing and bandwidth for your internet catalogue.'
       }
     >
       {open && <PlanForm {...(plan ? { plan } : {})} onSaved={onSaved} onCancel={onClose} />}

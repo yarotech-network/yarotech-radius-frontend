@@ -60,7 +60,7 @@ export default function PaymentResultPage() {
         <EmptyState
           icon={<Clock className="size-6" aria-hidden />}
           title="No payment to check"
-          description="Open the link from your Paystack receipt, or start a new purchase from the storefront link you were given."
+          description="Open the link from your payment receipt, or start a new purchase from the storefront link you were given."
         />
       </div>
     );
@@ -82,7 +82,7 @@ export default function PaymentResultPage() {
         ) : result.isError ? (
           isApiError(result.error) && result.error.status === 404 ? (
             <Alert tone="danger" title="We could not find this payment">
-              Check the reference on your Paystack receipt. If you were charged, contact the
+              Check the reference on your payment receipt. If you were charged, contact the
               business with that reference.
             </Alert>
           ) : (
@@ -175,7 +175,7 @@ export default function PaymentResultPage() {
             <p className="mt-2 text-sm text-ink-600">
               {result.data.payment_verified
                 ? 'Your payment is confirmed, but the access code could not yet be issued. Check again or contact the business with this reference. Do not pay again.'
-                : 'This payment has not yet been verified by the business. If Paystack confirmed success, select Check again. Do not start another payment if you were charged.'}
+                : 'This payment has not yet been verified by the business. If your payment provider confirmed success, select Check again. Do not start another payment if you were charged.'}
             </p>
             <Button
               className="mt-4"

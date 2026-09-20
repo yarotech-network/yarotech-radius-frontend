@@ -82,7 +82,7 @@ function Catalogue({
           <h1 className="public-section-title">{tenantName ?? 'Buy Wi-Fi'}</h1>
         )}
         <p className="mt-1 text-sm text-ink-500">
-          Choose a plan, pay securely with Paystack, and get connected.
+          Choose a plan, pay securely online, and get connected.
         </p>
       </header>
       {tenantError ? (
@@ -128,7 +128,7 @@ function Catalogue({
         </ul>
       )}
       <p className="mt-8 text-center text-xs text-ink-400">
-        Payments are processed by Paystack. Your login details are sent to you by{' '}
+        Payments are processed by the business?s selected payment provider. Your login details are sent to you by{' '}
         {tenantName ?? 'the business'} after payment.
       </p>
     </>

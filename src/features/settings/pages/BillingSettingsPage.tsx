@@ -11,6 +11,7 @@ import { formatDateTime } from '@/lib/formatting/dates';
 import type { TenantSetting } from '@/types/api';
 import { useTenantSettings, useUpdateTenantSettings } from '../queries';
 import { SettingsCard } from '../components/SettingsCard';
+import { CustomerGatewaySettings } from '../components/CustomerGatewaySettings';
 import {
   billingSettingsSchema,
   settingsFormToPatch,
@@ -64,7 +65,9 @@ export default function BillingSettingsPage() {
           onClick={() => void settings.refetch()}
           leadingIcon={
             <RefreshCw
-              className={settings.isFetching ? 'size-4 animate-spin motion-reduce:animate-none' : 'size-4'}
+              className={
+                settings.isFetching ? 'size-4 animate-spin motion-reduce:animate-none' : 'size-4'
+              }
               aria-hidden
             />
           }
@@ -77,6 +80,7 @@ export default function BillingSettingsPage() {
           Your unsaved entries are preserved. Showing the last loaded settings.
         </Alert>
       )}
+      <CustomerGatewaySettings />
       {settings.data ? (
         <BillingForm key={settings.data.id} settings={settings.data} />
       ) : settings.isPending ? (
@@ -119,9 +123,9 @@ function BillingForm({ settings }: { settings: TenantSetting }) {
       return;
     }
     try {
-      await update.mutateAsync(patch);
+      const saved = await update.mutateAsync(patch);
       toast.success('Billing preferences saved');
-      form.reset(data as unknown as BillingSettingsInput);
+      form.reset(settingsToForm(saved));
     } catch (error) {
       captureError(error);
     }
@@ -129,15 +133,11 @@ function BillingForm({ settings }: { settings: TenantSetting }) {
 
   return (
     <form onSubmit={(e) => void form.handleSubmit(onSubmit)(e)} noValidate className="space-y-6">
-      {message && (
-        <Alert tone="danger">
-          {message}
-        </Alert>
-      )}
-      <SettingsCard
+      {message && <Alert tone="danger">{message}</Alert>}
+      {/* <SettingsCard
         id="paystack"
         title="Paystack credentials"
-        description="Used to process online storefront payments and wallet funding. Keep your secret key secure."
+        description="Used for agent wallet funding and existing customer checkout until an owner selects a customer gateway above. Updating this does not change a selected customer gateway."
       >
         <div className="space-y-4">
           <FormField
@@ -155,7 +155,7 @@ function BillingForm({ settings }: { settings: TenantSetting }) {
             Last settings update: {formatDateTime(settings.updated_at)}
           </p>
         </div>
-      </SettingsCard>
+      </SettingsCard> */}
 
       <SettingsCard
         id="vouchers"
@@ -188,17 +188,18 @@ function BillingForm({ settings }: { settings: TenantSetting }) {
             <Input
               type="number"
               step="0.01"
-              {...form.register('agent_funding_fee_percent', { valueAsNumber: true })}
+              {...form.register('agent_funding_fee_percent')}
             />
           </FormField>
           <FormField
-            label="Agent funding flat fee (Kobo)"
-            hint="Flat fee in Kobo for wallet deposits."
+            label="Agent funding flat fee (Naira)"
+            hint="Enter Naira; converted to Kobo when saved. For example, ₦10.50 is 1,050 Kobo."
             error={form.formState.errors.agent_funding_flat_fee?.message}
           >
             <Input
               type="number"
-              {...form.register('agent_funding_flat_fee', { valueAsNumber: true })}
+              step="0.01"
+              {...form.register('agent_funding_flat_fee')}
             />
           </FormField>
           <FormField
@@ -209,7 +210,7 @@ function BillingForm({ settings }: { settings: TenantSetting }) {
             <Input
               type="number"
               step="0.01"
-              {...form.register('agent_commission_percent', { valueAsNumber: true })}
+              {...form.register('agent_commission_percent')}
             />
           </FormField>
         </div>

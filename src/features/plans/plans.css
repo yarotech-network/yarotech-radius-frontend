@@ -1,0 +1,343 @@
+/* Scope the reference palette to the catalogue and its editor, not the app shell. */
+.service-plans-workspace,
+.service-plan-dialog {
+  color-scheme: dark;
+  --color-surface: #0b1425;
+  --color-surface-muted: #101c31;
+  --color-border: #283449;
+  --color-border-strong: #5d6c83;
+  --color-ink-900: #f1f5f9;
+  --color-ink-700: #d0daea;
+  --color-ink-600: #a9b8cf;
+  --color-ink-500: #9baac0;
+  --color-ink-400: #94a3b8;
+  --color-brand-950: #f1f5f9;
+  --color-brand-600: #2563eb;
+  --color-brand-50: #132340;
+  --color-brand-100: #172f57;
+  --color-brand-700: #1d4ed8;
+  --color-success-50: #102f29;
+  --color-success-100: #133c32;
+  --color-success-700: #6ee7b7;
+  --color-danger-50: #351b2a;
+  --color-danger-700: #fda4af;
+  color: #e2e8f0;
+}
+.service-plans-workspace {
+  background: #0a101f;
+  border: 1px solid #253149;
+  border-radius: 20px;
+  padding: clamp(16px, 2.5vw, 30px);
+}
+.service-plans-workspace .router-page-hero {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+.service-plans-workspace .router-page-hero h1 {
+  color: #fff;
+}
+.service-plans-workspace .router-page-hero-subtitle {
+  color: #a9b8cf;
+}
+.service-plans-workspace .plan-catalogue-banner {
+  background:
+    radial-gradient(ellipse at top right, #19396770, transparent 65%),
+    linear-gradient(100deg, #0f1d38, #0d1629);
+  border: 1px solid #2a3953;
+  border-radius: 16px;
+  box-shadow: 0 12px 30px #0002;
+}
+.service-plans-workspace table thead {
+  background: #101c32;
+}
+.service-plans-workspace table th {
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.service-plans-workspace table td {
+  padding-top: 20px;
+  padding-bottom: 20px;
+}
+.service-plan-dialog {
+  max-width: 1120px;
+  background: #0b1323;
+  border-color: #2b374b;
+  border-radius: 20px;
+}
+dialog:has(.service-plan-dialog)::backdrop {
+  background: #02050bdd;
+  backdrop-filter: blur(6px);
+}
+.service-plan-dialog > header {
+  padding: 24px 30px;
+  background: #0e182e;
+  border-bottom: 1px solid #283449;
+}
+.service-plan-dialog > header p {
+  margin-left: 55px;
+}
+.service-plan-dialog > header + div {
+  padding: 0;
+}
+.plan-dialog-title {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  font-size: 20px;
+}
+.plan-dialog-icon {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border: 1px solid #2563eb;
+  border-radius: 10px;
+  background: #132950;
+  color: #60a5fa;
+}
+.plan-editor-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 2.1fr) minmax(260px, 1fr);
+  align-items: start;
+  gap: 28px;
+  padding: 28px 30px;
+}
+.plan-editor-fields {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+.plan-editor-fields > fieldset:first-child {
+  border: 0;
+  padding: 0;
+}
+.plan-editor-fields > fieldset:first-child > legend {
+  display: none;
+}
+.plan-name-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 16px;
+}
+.plan-editor input:not([type='checkbox']),
+.plan-editor select {
+  background: #080e19;
+  min-height: 48px;
+  border-color: #647084;
+  border-radius: 10px;
+}
+.plan-editor input[aria-invalid='true'],
+.plan-editor select[aria-invalid='true'] {
+  border-color: #fb7185;
+}
+.plan-editor input:focus,
+.plan-editor select:focus {
+  outline: 2px solid #60a5fa;
+  outline-offset: 2px;
+}
+.plan-editor label:has(> input[type='checkbox']) {
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 12px;
+  border-top: 1px solid #283449;
+}
+.plan-editor input[type='checkbox'] {
+  order: 2;
+  appearance: none;
+  width: 42px;
+  height: 24px;
+  margin: 0;
+  border-radius: 99px;
+  border: 1px solid #53627b;
+  background: radial-gradient(circle at 11px 50%, #cbd5e1 8px, transparent 9px), #253149;
+  cursor: pointer;
+}
+.plan-editor input[type='checkbox']:checked {
+  background: radial-gradient(circle at 29px 50%, white 8px, transparent 9px), #2563eb;
+  border-color: #3b82f6;
+}
+.plan-editor-fields fieldset {
+  background: #0c1628;
+  border-color: #283449;
+}
+.plan-editor-fields fieldset:first-child {
+  background: transparent;
+}
+.plan-preview {
+  position: sticky;
+  top: 0;
+  padding: 20px;
+  border: 1px solid #283449;
+  border-radius: 16px;
+  background: #080e19;
+}
+.plan-preview-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  color: #a3b4cb;
+  border-bottom: 1px solid #283449;
+  padding-bottom: 18px;
+}
+.plan-preview-heading span {
+  background: #122a50;
+  padding: 3px 8px;
+  border-radius: 5px;
+  color: #60a5fa;
+  font-family: monospace;
+}
+.plan-preview-pass {
+  margin-top: 20px;
+  border: 1px solid #244479;
+  border-radius: 16px;
+  padding: 20px;
+  background: linear-gradient(150deg, #101d3b, #0c1424);
+  overflow-wrap: anywhere;
+}
+.plan-preview-brand {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: #60a5fa;
+  font: 11px monospace;
+  letter-spacing: 0.08em;
+}
+.plan-preview h3 {
+  margin: 10px 0 22px;
+  font-size: 20px;
+  color: white;
+  font-weight: 700;
+}
+.plan-preview-price {
+  font-family: monospace;
+  font-size: 30px;
+  font-weight: 700;
+  color: white;
+}
+.plan-preview-pass > p {
+  margin-top: 4px;
+  font-size: 12px;
+  color: #a9b8cf;
+}
+.plan-preview dl {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid #283449;
+  font-size: 12px;
+}
+.plan-preview dl > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 10px;
+}
+.plan-preview dt {
+  color: #a9b8cf;
+}
+.plan-preview dd {
+  text-align: right;
+  font-family: monospace;
+  max-width: 65%;
+}
+.plan-preview-code {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin-top: 18px;
+  padding: 14px;
+  border: 1px dashed #3d4a60;
+  border-radius: 8px;
+  background: #080e19;
+  text-align: center;
+}
+.plan-preview-code span,
+.plan-preview-code small {
+  color: #9baac0;
+  font-size: 11px;
+}
+.plan-preview-code strong {
+  color: #34d399;
+  font-family: monospace;
+  letter-spacing: 0.1em;
+}
+.plan-preview-note {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid #283449;
+  color: #a9b8cf;
+  font-size: 12px;
+  line-height: 1.8;
+}
+.plan-preview-note strong {
+  color: #60a5fa;
+  font-weight: 500;
+}
+.plan-editor-footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 20px 30px;
+  background: #0e182e;
+  border-top: 1px solid #283449;
+}
+.plan-advanced {
+  border-top: 1px solid #283449;
+  padding-top: 14px;
+}
+.plan-advanced summary {
+  cursor: pointer;
+  color: #93c5fd;
+  font-size: 13px;
+}
+.plan-advanced summary:focus-visible {
+  outline: 2px solid #60a5fa;
+  outline-offset: 4px;
+}
+.plan-editor-footer p {
+  flex: 1;
+  font: 12px monospace;
+  color: #a9b8cf;
+}
+@media (max-width: 800px) {
+  .plan-catalogue-banner > div {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .plan-editor-layout {
+    grid-template-columns: 1fr;
+    padding: 20px;
+  }
+  .plan-preview {
+    position: static;
+  }
+  .service-plan-dialog > header {
+    padding: 20px;
+  }
+  .service-plan-dialog > header p {
+    margin-left: 0;
+  }
+  .plan-editor-footer {
+    padding: 16px 20px;
+    flex-wrap: wrap;
+  }
+  .plan-editor-footer p {
+    flex-basis: 100%;
+  }
+}
+@media (max-width: 450px) {
+  .plan-name-row {
+    grid-template-columns: 1fr;
+  }
+}

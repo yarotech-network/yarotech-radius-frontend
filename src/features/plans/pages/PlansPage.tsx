@@ -125,7 +125,7 @@ export default function PlansPage() {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="service-plans-workspace space-y-6">
       {/* Premium Hero Header */}
       <div className="router-page-hero">
         <div className="router-page-hero-inner">
@@ -140,8 +140,13 @@ export default function PlansPage() {
           </div>
           <div className="router-page-hero-actions">
             <Button
+              aria-label="Refresh plans"
               variant="secondary"
-              leadingIcon={<RefreshCw className={query.isFetching ? 'animate-spin motion-reduce:animate-none' : ''} />}
+              leadingIcon={
+                <RefreshCw
+                  className={query.isFetching ? 'animate-spin motion-reduce:animate-none' : ''}
+                />
+              }
               disabled={query.isFetching}
               onClick={() => void query.refetch()}
             >
@@ -175,11 +180,6 @@ export default function PlansPage() {
           </div>
           <div className="router-page-hero-divider" />
           <div className="router-page-hero-links">
-            {can(principal, 'settings.profile') && (
-              <Link to="/storefront" className="router-page-hero-link">
-                <Store className="size-3.5" aria-hidden /> View storefront
-              </Link>
-            )}
             <Link to="/plans/bandwidth" className="router-page-hero-link">
               <Zap className="size-3.5" aria-hidden /> Bandwidth profiles
             </Link>
@@ -190,16 +190,14 @@ export default function PlansPage() {
       <ServicePlansNav />
 
       {/* Intro Hero Banner */}
-      <Card className="border-brand-200 bg-gradient-to-br from-brand-50/70 via-surface to-sky-50/50 dark:from-brand-950/40 dark:via-surface dark:to-slate-900/40">
+      <Card className="plan-catalogue-banner">
         <div className="flex flex-wrap items-start justify-between gap-5">
           <div className="flex min-w-0 flex-1 gap-4">
             <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-brand-600 text-white shadow-md">
               <Layers className="size-5" aria-hidden />
             </span>
             <div className="min-w-0">
-              <h2 className="text-lg font-semibold text-ink-900">
-                Build your internet catalogue
-              </h2>
+              <h2 className="text-lg font-semibold text-ink-900">Build your internet catalogue</h2>
               <p className="mt-1 max-w-2xl text-sm leading-relaxed text-ink-600">
                 Set the price, duration, data allowance and speed for each package. Active plans are
                 available for new sales; deactivate a plan to keep its history.
@@ -382,7 +380,10 @@ export default function PlansPage() {
         <Card className="border-border/60 transition-shadow hover:shadow-md">
           <div className="flex items-center gap-2">
             <h2 className="font-semibold text-ink-900">
-              <Link to="/devices" className="inline-flex items-center gap-1 hover:underline text-brand-600">
+              <Link
+                to="/devices"
+                className="inline-flex items-center gap-1 text-brand-600 hover:underline"
+              >
                 IoT / MAC devices <ArrowRight className="size-3.5" />
               </Link>
             </h2>

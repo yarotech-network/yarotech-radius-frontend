@@ -120,13 +120,13 @@ describe('checkout', () => {
     // the order summary shows the chosen plan
     expect(await screen.findByRole('article', { name: 'Daily 1GB' })).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: /pay with paystack/i }));
+    await user.click(screen.getByRole('button', { name: /continue to payment/i }));
     expect(await screen.findByText('Enter a valid email address')).toBeInTheDocument();
     expect(received).toBeNull();
 
     await user.type(screen.getByLabelText(/email address/i), 'buyer@example.com');
     await user.type(screen.getByLabelText(/^name/i), 'Buyer One');
-    await user.click(screen.getByRole('button', { name: /pay with paystack/i }));
+    await user.click(screen.getByRole('button', { name: /continue to payment/i }));
 
     await waitFor(() => expect(assign).toHaveBeenCalledWith('https://checkout.paystack.com/abc'));
     expect(received!.body).toEqual({ plan_id: 1, email: 'buyer@example.com', name: 'Buyer One' });
@@ -151,9 +151,13 @@ describe('checkout', () => {
     const user = userEvent.setup();
     renderStore('/s/wuse-hotspot/checkout/1');
     await user.type(await screen.findByLabelText(/email address/i), 'buyer@example.com');
-    await user.click(screen.getByRole('button', { name: /pay with paystack/i }));
+    await user.click(screen.getByRole('button', { name: /continue to payment/i }));
     expect(await screen.findByText('Payments are temporarily unavailable')).toBeInTheDocument();
-    expect(screen.getByText('yarotech-dead')).toBeInTheDocument();
+      expect(screen.getByText('yarotech-dead')).toBeInTheDocument();
+      expect(screen.queryByText(/you have not been charged/i)).not.toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'Check this payment' })).toHaveAttribute(
+        'href', '/pay/result?reference=yarotech-dead',
+      );
   });
 
   it('handles a plan that no longer exists', async () => {
@@ -373,7 +377,7 @@ it('shows the device total and remembers the authoritative reserved price', asyn
   await userEvent.selectOptions(await screen.findByLabelText('Devices per voucher'), '3');
   expect(screen.getByText(/1,500/)).toBeInTheDocument();
   await userEvent.type(screen.getByLabelText(/Email address/), 'buyer@example.com');
-  await userEvent.click(screen.getByRole('button', {name:/Pay with Paystack/}));
+  await userEvent.click(screen.getByRole('button', {name:/Continue to payment/}));
   await waitFor(()=>expect(assign).toHaveBeenCalled());
   expect(posted).toMatchObject({plan_id:1, device_limit:3});
   expect(pendingCheckout.load()).toMatchObject({amount:180000, deviceLimit:3});
@@ -392,10 +396,10 @@ it('uses a new request key when the selected device count changes after rejectio
   renderStore('/s/wuse-hotspot/checkout/1');
   await userEvent.selectOptions(await screen.findByLabelText('Devices per voucher'), '2');
   await userEvent.type(screen.getByLabelText(/Email address/), 'buyer@example.com');
-  await userEvent.click(screen.getByRole('button', {name:/Pay with Paystack/}));
+  await userEvent.click(screen.getByRole('button', {name:/Continue to payment/}));
   await screen.findByText('Try another device count.');
   await userEvent.selectOptions(screen.getByLabelText('Devices per voucher'), '3');
-  await userEvent.click(screen.getByRole('button', {name:/Pay with Paystack/}));
+  await userEvent.click(screen.getByRole('button', {name:/Continue to payment/}));
   await waitFor(()=>expect(keys).toHaveLength(2));
   expect(keys[0]).not.toBe(keys[1]);
 });

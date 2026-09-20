@@ -166,7 +166,7 @@ function StorefrontDetails({ tenant }: { tenant: TenantProfile }) {
             <ol className="mt-5 space-y-5">
               {[
                 ['Choose a plan', 'Compare the price, duration, data allowance and speed.'],
-                ['Complete payment', 'Enter contact details and continue to Paystack.'],
+                ['Complete payment', 'Enter contact details and continue to secure checkout.'],
                 [
                   'Receive an access code',
                   'The payment result page displays the code after payment and voucher fulfilment are confirmed.',

@@ -112,6 +112,7 @@ describe('PlansPage', () => {
     renderPage(<PlansPage />, { role: 'owner', path: '/plans' });
     await userEvent.click(await screen.findByRole('button', { name: 'Create a plan' }));
     const dialog = await screen.findByRole('dialog');
+    await userEvent.click(within(dialog).getByText('Additional plan settings'));
     await userEvent.type(within(dialog).getByLabelText(/Plan name/), 'dup');
     await userEvent.type(within(dialog).getByLabelText(/Price/), '500');
     await userEvent.selectOptions(within(dialog).getByLabelText('Voucher code format'), 'numeric');
@@ -121,9 +122,12 @@ describe('PlansPage', () => {
     ).toBeInTheDocument();
     await userEvent.clear(within(dialog).getByLabelText(/Plan name/));
     await userEvent.type(within(dialog).getByLabelText(/Plan name/), 'Night Owl');
-    await userEvent.click(within(dialog).getByRole('checkbox', {name: /Public sales/}));
-    await userEvent.click(within(dialog).getByRole('checkbox', {name: /Agent sales/}));
-    await userEvent.selectOptions(within(dialog).getByRole('combobox', { name: /Duration/i }), '0.5');
+    await userEvent.click(within(dialog).getByRole('checkbox', { name: /Public sales/ }));
+    await userEvent.click(within(dialog).getByRole('checkbox', { name: /Agent sales/ }));
+    await userEvent.selectOptions(
+      within(dialog).getByRole('combobox', { name: /Duration/i }),
+      '0.5',
+    );
     await userEvent.selectOptions(within(dialog).getByLabelText('Voucher code format'), 'numeric');
     await userEvent.click(within(dialog).getByRole('button', { name: 'Create plan' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
@@ -192,7 +196,7 @@ it('archives a plan and exposes its retained read-only history', async () => {
     await within(table).findByRole('button', { name: 'Actions for Daily 1GB' }),
   );
   await userEvent.click(await screen.findByRole('menuitem', { name: 'Archive' }));
-  const dialog = await screen.findByRole('dialog', {name: 'Archive Daily 1GB?'});
+  const dialog = await screen.findByRole('dialog', { name: 'Archive Daily 1GB?' });
   await userEvent.click(within(dialog).getByRole('button', { name: 'Archive plan' }));
   expect(await screen.findByText('Plan archived')).toBeInTheDocument();
   await userEvent.selectOptions(screen.getByLabelText('Status'), 'archived');

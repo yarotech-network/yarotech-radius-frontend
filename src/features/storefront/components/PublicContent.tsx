@@ -95,7 +95,7 @@ export function PublicFAQ() {
           ],
           [
             'How do my customers buy Wi-Fi?',
-            'Customers visit your business storefront, choose an internet plan and continue to Paystack. Payment confirmation and access delivery are shown separately so customers know what happens next.',
+            'Customers visit your business storefront, choose an internet plan and continue to the business?s selected payment provider. Payment confirmation and access delivery are shown separately so customers know what happens next.',
           ],
           [
             'What do I need to set up?',

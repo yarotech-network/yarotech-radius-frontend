@@ -83,7 +83,7 @@ export type BillingSettingsOutput = z.output<typeof billingSettingsSchema>;
 
 export function settingsToForm(s: TenantSetting): BillingSettingsInput {
   return {
-    agent_funding_fee_percent: s.agent_funding_fee_percent ?? '0',
+    agent_funding_fee_percent: String(s.agent_funding_fee_percent ?? '0'),
     agent_funding_flat_fee: koboToNairaInput(s.agent_funding_flat_fee ?? 0),
     agent_commission_percent: String(Number(s.agent_commission_percent)),
     voucher_prefix: s.voucher_prefix,
