@@ -24,6 +24,7 @@ export function RegistrationLayout({ step, children }: { step: number; children:
           </li>
         ))}
       </ol>
+      {step < 3 && <p className="mb-4 text-sm text-ink-600">Start with a 15-day free trial of Starter. Upgrade to a paid plan at any time.</p>}
       {children}
       {step < 3 && (
         <p className="registration-signin">

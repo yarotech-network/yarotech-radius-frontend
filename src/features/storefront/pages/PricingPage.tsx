@@ -18,8 +18,8 @@ export default function PricingPage() {
         <p className="public-eyebrow">Business plans</p>
         <h1 className="public-section-title">Simple pricing for hotspot operators</h1>
         <p className="mt-2 text-sm text-ink-500">
-          Compare subscriptions for managing your hotspot business. Create a workspace, then choose
-          and pay for your subscription in Settings. Internet service is supplied separately.
+          New workspaces start with a 15-day free trial of Starter. Other tiers are paid plans.
+          Upgrade at any time in Settings. Internet service is supplied separately.
         </p>
       </header>
       {pricing.isPending ? (
