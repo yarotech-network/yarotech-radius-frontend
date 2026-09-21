@@ -22,6 +22,7 @@ import { copyToClipboard } from '@/lib/utilities/clipboard';
 import type { TenantProfile } from '@/types/api';
 import { usePublicPlans } from '../queries';
 import { PlanCard, PlanCardSkeleton } from '../components/PlanCard';
+import { LogoSettings } from '../components/LogoSettings';
 
 export default function StorefrontManagementPage() {
   const principal = usePrincipal();
@@ -91,6 +92,7 @@ export default function StorefrontManagementPage() {
       >
         {(tenant) => <StorefrontDetails key={tenant.slug} tenant={tenant} />}
       </QueryBoundary>
+      <LogoSettings />
     </div>
   );
 }

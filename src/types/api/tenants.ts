@@ -110,6 +110,7 @@ export interface TenantSettingWrite {
 }
 
 export interface PublicTenant {
+  logo_url?: string | null;
   id: number;
   slug: string;
   name: string;

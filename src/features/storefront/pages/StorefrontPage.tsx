@@ -8,6 +8,7 @@ import { isApiError } from '@/services/api/errors';
 import { usePublicPlans, usePublicTenant } from '../queries';
 import { PlanCard, PlanCardSkeleton } from '../components/PlanCard';
 import CheckoutPage from './CheckoutPage';
+import { TenantLogo } from '../components/TenantLogo';
 
 /** `/s/:slug/*` — public storefront: plan catalogue → checkout. */
 export default function StorefrontPage() {
@@ -37,6 +38,7 @@ export default function StorefrontPage() {
             <Catalogue
               slug={slug}
               tenantName={tenant.data?.name ?? null}
+              logoUrl={tenant.data?.logo_url ?? null}
               tenantLoading={tenant.isPending}
               tenantError={tenant.isError ? tenant.error : null}
               onRetryTenant={() => void tenant.refetch()}
@@ -56,12 +58,14 @@ export default function StorefrontPage() {
 function Catalogue({
   slug,
   tenantName,
+  logoUrl,
   tenantLoading,
   tenantError,
   onRetryTenant,
 }: {
   slug: string;
   tenantName: string | null;
+  logoUrl: string | null;
   tenantLoading: boolean;
   tenantError: unknown;
   onRetryTenant: () => void;
@@ -73,14 +77,14 @@ function Catalogue({
   return (
     <>
       <header className="public-storefront-heading">
-        <div className="mx-auto mb-3 flex size-12 items-center justify-center rounded-full bg-brand-50 text-brand-700 sm:mx-0">
-          <Wifi className="size-6" aria-hidden />
-        </div>
+        <div className="mb-3 flex items-center justify-center gap-4 text-left sm:justify-start">
+          <TenantLogo url={logoUrl} name={tenantName ?? 'Business'} />
         {tenantLoading ? (
           <div className="mx-auto h-7 w-48 animate-pulse rounded bg-slate-200 sm:mx-0" />
         ) : (
-          <h1 className="public-section-title">{tenantName ?? 'Buy Wi-Fi'}</h1>
+          <h1 className="public-section-title min-w-0 break-words">{tenantName ?? 'Buy Wi-Fi'}</h1>
         )}
+        </div>
         <p className="mt-1 text-sm text-ink-500">
           Choose a plan, pay securely online, and get connected.
         </p>
