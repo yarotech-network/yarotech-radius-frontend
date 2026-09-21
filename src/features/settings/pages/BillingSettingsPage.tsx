@@ -4,14 +4,14 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Link } from 'react-router';
 import { CreditCard, RefreshCw } from 'lucide-react';
-import { Button, Card, FormField, Input, Select, PasswordInput, Skeleton } from '@/components/ui';
+import { Button, Card, FormField, Input, Select, Skeleton } from '@/components/ui';
 import { Alert, ErrorState, useToast } from '@/components/feedback';
 import { useFormSubmit } from '@/lib/forms/useFormSubmit';
-import { formatDateTime } from '@/lib/formatting/dates';
 import type { TenantSetting } from '@/types/api';
 import { useTenantSettings, useUpdateTenantSettings } from '../queries';
 import { SettingsCard } from '../components/SettingsCard';
 import { CustomerGatewaySettings } from '../components/CustomerGatewaySettings';
+import { PortalSettings } from '../components/PortalSettings';
 import {
   billingSettingsSchema,
   settingsFormToPatch,
@@ -81,6 +81,7 @@ export default function BillingSettingsPage() {
         </Alert>
       )}
       <CustomerGatewaySettings />
+      <PortalSettings />
       {settings.data ? (
         <BillingForm key={settings.data.id} settings={settings.data} />
       ) : settings.isPending ? (

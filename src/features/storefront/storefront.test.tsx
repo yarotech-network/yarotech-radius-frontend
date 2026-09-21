@@ -179,6 +179,7 @@ describe('payment result', () => {
           : {
             status: 'success', reference: 'yarotech-abc', fulfilled: true,
             voucher: 'WH84QRKP', access_code: 'WH84QRKP', code_revealed: true,
+            captive_portal_url: 'http://10.40.0.1/login',
             plan: { name: 'Daily 1GB', duration_hours: 24, data_limit: 1024 },
             tenant_name: 'Wuse Hotspot', customer_email_masked: 'a\u2022\u2022\u2022@example.com',
           });
@@ -206,12 +207,14 @@ describe('payment result', () => {
     const user = userEvent.setup();
     renderStore('/pay/result?reference=yarotech-abc');
     expect(await screen.findByText('Waiting for confirmation')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Connect now' })).not.toBeInTheDocument();
     await waitFor(() => expect(verificationCalls).toBe(1));
     await waitFor(() => expect(screen.getByRole('button', { name: 'Check again' })).toBeEnabled());
     await user.click(screen.getByRole('button', { name: 'Check again' }));
     expect(await screen.findByText('Payment successful')).toBeInTheDocument();
     expect(screen.getByRole('status', { name: 'Access code' })).toHaveTextContent('WH84QRKP');
     expect(screen.getByRole('button', { name: 'Copy access code' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Connect now' })).toHaveAttribute('href', 'http://10.40.0.1/login');
     expect(screen.getByText('Daily 1GB · 1 day · 1 GB')).toBeInTheDocument();
     expect(screen.getByText('How to connect')).toBeInTheDocument();
     expect(screen.getByText(/Join the Wuse Hotspot Wi-Fi network/)).toBeInTheDocument();

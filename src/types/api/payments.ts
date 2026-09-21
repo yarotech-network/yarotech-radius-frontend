@@ -63,6 +63,7 @@ export interface PaymentCallbackPlan {
  * shared or logged reference stops being a usable credential after the first login.
  */
 export interface PaymentCallbackResponse {
+  captive_portal_url?: string | null;
   kind?: 'voucher' | 'iot';
   renewal_token?: string | null;
   device_status?: string | null;

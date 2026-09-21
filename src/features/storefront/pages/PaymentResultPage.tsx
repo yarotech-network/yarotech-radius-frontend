@@ -8,6 +8,7 @@ import { errorMessage, isApiError } from '@/services/api/errors';
 import { paymentFulfilled, usePaymentResult, useVerifyPaymentResult } from '../queries';
 import { pendingCheckout } from '../pendingCheckout';
 import { AccessCodePanel } from '../components/AccessCodePanel';
+import { ConnectNow } from '../components/ConnectNow';
 
 /**
  * `/pay/result?reference=` is the voucher return destination supplied by the backend to Paystack.
@@ -132,17 +133,21 @@ export default function PaymentResultPage() {
                 </p>
               </div>
             ) : result.data.code_revealed === true && result.data.access_code ? (
-              <AccessCodePanel
-                code={result.data.access_code}
-                tenantName={result.data.tenant_name}
-                plan={result.data.plan ?? null}
-                emailMasked={result.data.customer_email_masked}
-              />
+              <>
+                <AccessCodePanel
+                  code={result.data.access_code}
+                  tenantName={result.data.tenant_name}
+                  plan={result.data.plan ?? null}
+                  emailMasked={result.data.customer_email_masked}
+                />
+                <ConnectNow url={paymentFulfilled(result.data) ? result.data.captive_portal_url : null} />
+              </>
             ) : paymentFulfilled(result.data) ? (
               <>
                 <p className="mt-3 text-sm text-ink-700">
                   Your voucher has been issued. Its credentials are not shown on this page.
                 </p>
+                <ConnectNow url={result.data.captive_portal_url} />
                 <p className="mt-3 text-sm text-ink-600">
                   Check your purchase email, or contact {result.data.tenant_name ?? 'the business'}{' '}
                   with this reference for help.
