@@ -3,7 +3,7 @@ import { ArrowRight, Clock3, RefreshCw } from 'lucide-react';
 import { Link } from 'react-router';
 import { usePrincipal } from '@/app/auth/useAuth';
 import { can } from '@/services/auth/principal';
-import { subscriptionNotice } from '../subscriptionNotice';
+import { subscriptionNotice, SUBSCRIPTION_NOTICE_WINDOW } from '../subscriptionNotice';
 import { useSubscription } from '../queries';
 
 export function SubscriptionBanner() {
@@ -16,12 +16,19 @@ export function SubscriptionBanner() {
     if (!permitted || !expiresAt) return;
     const update = () => setNow(Date.now());
     const interval = window.setInterval(update, 60_000);
+    // Wake at the exact visibility/expiry boundary rather than waiting a full minute.
+    const expiry = Date.parse(expiresAt);
+    const boundary = [expiry - SUBSCRIPTION_NOTICE_WINDOW, expiry].find((time) => time > now);
+    const boundaryTimer = boundary !== undefined && boundary - now <= 60_000
+      ? window.setTimeout(update, Math.max(0, boundary - Date.now()))
+      : undefined;
     window.addEventListener('focus', update);
     return () => {
       window.clearInterval(interval);
+      window.clearTimeout(boundaryTimer);
       window.removeEventListener('focus', update);
     };
-  }, [permitted, expiresAt]);
+  }, [permitted, expiresAt, now]);
   if (!permitted) return null;
   const notice = subscription.isPending
     ? { text: 'Checking your subscription...', attention: false }
@@ -29,6 +36,7 @@ export function SubscriptionBanner() {
       ? { text: 'Subscription status is unavailable', attention: true }
       : subscriptionNotice(subscription.data ?? null, now);
   const canRenew = can(principal, 'subscription.checkout');
+  if (!notice) return null;
   return (
     <section
       aria-label="Workspace subscription"

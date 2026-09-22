@@ -1,5 +1,7 @@
 import type { TenantSubscription } from '@/types/api';
 
+export const SUBSCRIPTION_NOTICE_WINDOW = 7 * 86400_000;
+
 export function subscriptionNotice(subscription: TenantSubscription | null, now: number) {
   if (!subscription) return { text: 'No active subscription', attention: true };
   if (subscription.status === 'cancelled')
@@ -14,6 +16,7 @@ export function subscriptionNotice(subscription: TenantSubscription | null, now:
   }
   if (!Number.isFinite(expires))
     return { text: 'Subscription expiry is unavailable', attention: true };
+  if (expires - now > SUBSCRIPTION_NOTICE_WINDOW) return null;
   const minutes = Math.max(1, Math.ceil((expires - now) / 60_000));
   const days = Math.floor(minutes / 1440);
   const hours = Math.floor((minutes % 1440) / 60);
@@ -24,6 +27,6 @@ export function subscriptionNotice(subscription: TenantSubscription | null, now:
     text: trial
       ? `Your free trial ends in ${remaining}`
       : `${name} subscription expires in ${remaining}`,
-    attention: trial || expires - now <= 7 * 86400_000,
+    attention: true,
   };
 }
