@@ -91,14 +91,6 @@ export function RouterSetupScript({ router, refresh }: { router: NasDevice; refr
             script, then upload the .rsc file in WinBox Files and run its import command. Keep
             management access available during import.
           </p>
-
-          <Button
-            variant="secondary"
-            loading={busy}
-            onClick={() => void run('retry')}
-          >
-            Regenerate setup script
-          </Button>
           {!script && (
             <Button loading={busy} onClick={() => void run('show')}>
               View setup script

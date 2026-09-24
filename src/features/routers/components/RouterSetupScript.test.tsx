@@ -63,6 +63,29 @@ describe('Router setup script', () => {
     expect(requests).toBe(1);
   });
 
+  it('allows a ready router setup script to be regenerated', async () => {
+    const refresh = vi.fn();
+    const device = { ...router(), registration };
+    let retries = 0;
+
+    server.use(
+      http.post(`*/api/v1/routers/${device.id}/setup-script/retry/`, () => {
+        retries += 1;
+        return HttpResponse.json({
+          ...registration,
+          script_sha256: 'new-digest',
+        });
+      }),
+    );
+
+    renderPage(<RouterSetupScript router={device} refresh={refresh} />, { role: 'owner' });
+
+    await userEvent.click(screen.getByRole('button', { name: 'Regenerate setup script' }));
+
+    expect(retries).toBe(1);
+    expect(refresh).toHaveBeenCalled();
+  });
+
   it('offers retry but no script when infrastructure is disabled', () => {
     const device = {
       ...router(),
