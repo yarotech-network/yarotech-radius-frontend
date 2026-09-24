@@ -1,6 +1,12 @@
 import type { IsoDateTime, Kobo, PageParams } from './common';
 
 export interface DashboardStats {
+  activated_voucher_revenue?: {
+    basis: 'first_activation';
+    totals: VoucherRevenuePeriods;
+    channels: Record<'storefront' | 'whatsapp' | 'generated', VoucherRevenuePeriods>;
+    incomplete_vouchers: number;
+  };
   collected_revenue?: { total: number; today: number; month: number };
   revenue_sources?: { online: number; agent_wallet: number; agent_credit_repayments: number };
   voucher_usage?: Record<string, number>;
@@ -22,6 +28,11 @@ export interface DashboardStats {
   pending_payments: number;
   paid_unfulfilled_payments: number;
 }
+
+export type VoucherRevenuePeriods = Record<
+  'total' | 'today' | 'month',
+  { amount: Kobo; vouchers: number }
+>;
 
 export interface LiveUser {
   session_id: number;

@@ -21,7 +21,18 @@ beforeEach(() => {
   );
 });
 
+const revenuePeriods = (amount: number) => ({
+  total: { amount, vouchers: 1 }, today: { amount, vouchers: 1 }, month: { amount, vouchers: 1 },
+});
 const stats: DashboardStats = {
+  activated_voucher_revenue: {
+    basis: 'first_activation',
+    totals: revenuePeriods(60000),
+    channels: {
+      storefront: revenuePeriods(10000), whatsapp: revenuePeriods(20000), generated: revenuePeriods(30000),
+    },
+    incomplete_vouchers: 0,
+  },
   total_vouchers: 41,
   active_vouchers: 9,
   total_revenue: 1250000,
@@ -102,7 +113,7 @@ describe('DashboardPage', () => {
     renderPage(<DashboardPage />, { role: 'manager' });
     expect(await screen.findByText('Live sessions could not be refreshed')).toBeInTheDocument();
     expect(screen.getByText('Online now').parentElement?.parentElement).toHaveTextContent('—');
-    expect(screen.getByText('₦12,500.00')).toBeInTheDocument();
+    expect(within(screen.getByRole('region', { name: 'Business overview' })).getByText('₦600.00')).toBeInTheDocument();
     server.use(http.get(`${API}/dashboard/live-users/`, () => HttpResponse.json(live([]))));
     await userEvent.click(screen.getByRole('button', { name: 'Retry live sessions' }));
     await waitFor(() =>
@@ -131,7 +142,7 @@ describe('DashboardPage', () => {
         5,
       ),
     });
-    const refresh = await screen.findByRole('button', { name: 'Refresh overview' });
+    const refresh = await screen.findByRole('button', { name: 'Refresh' });
     expect(screen.getByText('No access')).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Manage storefront' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Generate vouchers' })).not.toBeInTheDocument();
@@ -151,9 +162,9 @@ describe('DashboardPage', () => {
       http.get(`${API}/dashboard/live-users/`, () => HttpResponse.json(live([]))),
     );
     renderPage(<DashboardPage />, { role: 'manager' });
-    await userEvent.click(await screen.findByRole('button', { name: 'Refresh overview' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Refresh' }));
     expect(await screen.findByText('Business figures could not be refreshed')).toBeInTheDocument();
-    expect(screen.getByText('₦12,500.00')).toBeInTheDocument();
+    expect(within(screen.getByRole('region', { name: 'Business overview' })).getByText('₦600.00')).toBeInTheDocument();
   });
 
   it('shows the stat cards, the recovery alert for managers and the live count', async () => {
@@ -162,7 +173,7 @@ describe('DashboardPage', () => {
       http.get(`${API}/dashboard/live-users/`, () => HttpResponse.json(live([session(1, 'a')]))),
     );
     renderPage(<DashboardPage />, { role: 'manager', path: '/' });
-    expect(await screen.findByText('₦12,500.00')).toBeInTheDocument();
+    expect(await within(await screen.findByRole('region', { name: 'Business overview' })).findByText('₦600.00')).toBeInTheDocument();
     expect(screen.getByText('9')).toBeInTheDocument();
     expect(screen.getByText('of 41 issued')).toBeInTheDocument();
     expect(await screen.findByText('1 paid order has no voucher yet')).toBeInTheDocument();
@@ -192,7 +203,7 @@ describe('DashboardPage', () => {
     renderPage(<DashboardPage />, { role: 'staff', path: '/' });
     expect(await screen.findByText('Dashboard could not be loaded')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: /try again/i }));
-    expect(await screen.findByText('₦12,500.00')).toBeInTheDocument();
+    expect(await within(await screen.findByRole('region', { name: 'Business overview' })).findByText('₦600.00')).toBeInTheDocument();
     expect(screen.queryByText(/paid order/)).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Manage storefront' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Generate vouchers' })).not.toBeInTheDocument();

@@ -136,9 +136,9 @@ export default function DashboardPage() {
               className="overview-metric overview-metric-purple"
             />
             <Stat
-              label="Online revenue"
-              value={s ? formatKobo(s.total_revenue) : '—'}
-              hint="Successful online payments | All time"
+              label="Activated voucher revenue"
+              value={s?.activated_voucher_revenue ? formatKobo(s.activated_voucher_revenue.totals.total.amount) : '—'}
+              hint="First activation across all channels | All time"
               icon={<Banknote />}
               loading={stats.isPending}
               className="overview-metric overview-metric-blue"

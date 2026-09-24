@@ -7,6 +7,7 @@ import { formatNumber } from '@/lib/formatting/units';
 import { usePrincipal } from '@/app/auth/useAuth';
 import { can } from '@/services/auth/principal';
 import type { DashboardStats } from '@/types/api';
+import { VoucherRevenue } from './VoucherRevenue';
 
 export function BusinessCards({
   stats: s,
@@ -18,16 +19,17 @@ export function BusinessCards({
   const principal = usePrincipal();
   return (
     <>
+      <VoucherRevenue revenue={s?.activated_voucher_revenue} loading={loading} />
       <Section
-        title="Revenue and payments"
+        title="Recorded collections and payments"
         description="Recorded customer payments, agent wallet sales and credit repayments. Figures are in NGN."
       >
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {(
             [
-              ["Today's revenue", s?.collected_revenue?.today, 'Since midnight in Lagos'],
-              ['Monthly revenue', s?.collected_revenue?.month, 'Current calendar month in Lagos'],
-              ['Total collected revenue', s?.collected_revenue?.total, 'All recorded collections'],
+              ["Today's collections", s?.collected_revenue?.today, 'Since midnight in Lagos'],
+              ['Monthly collections', s?.collected_revenue?.month, 'Current calendar month in Lagos'],
+              ['Total collections', s?.collected_revenue?.total, 'All recorded collections'],
             ] as const
           ).map(([label, value, hint]) => (
             <Stat
