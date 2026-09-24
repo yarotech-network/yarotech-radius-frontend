@@ -1,7 +1,7 @@
+import { RouterConnectionBadge } from '@/features/routers/components/RouterTelemetry';
 import { useEffect, useMemo } from 'react';
 import { Link } from 'react-router';
 import { Radio, RefreshCw } from 'lucide-react';
-import { PageHeader } from '@/components/layout';
 import {
   DataTable,
   FilterBar,
@@ -10,7 +10,7 @@ import {
   useListParams,
   type Column,
 } from '@/components/data';
-import { Button, Card, Select } from '@/components/ui';
+import { Button, Select } from '@/components/ui';
 import { Alert, EmptyState } from '@/components/feedback';
 import { useDebouncedValue } from '@/lib/utilities/useDebouncedValue';
 import { formatDateTime, formatRelative } from '@/lib/formatting/dates';
@@ -19,6 +19,8 @@ import { RouterStateBadges } from '@/features/routers/components/RouterStateBadg
 import { ONBOARDING_FILTER_OPTIONS } from '@/features/routers/routerSchemas';
 import { usePlatformRouters, useTenantIndex, useTenantName } from '../queries';
 import { TenantSelect } from '../components/TenantSelect';
+
+import '../router-fleet.css';
 
 const FILTERS = ['tenant', 'onboarding_state', 'deployment_status', 'is_active'] as const;
 const STATES = ONBOARDING_FILTER_OPTIONS.map((o) => o.value).filter(Boolean) as readonly string[];
@@ -54,11 +56,16 @@ export default function PlatformRoutersPage() {
       header: 'Router',
       primary: true,
       cell: (r) => (
-        <div className="min-w-0">
-          <div className="font-semibold break-words text-ink-900">{r.name}</div>
-          <div className="mt-1 text-xs break-words text-ink-500">
-            <code className="font-mono">{r.ip_address}</code>
-            {r.location ? ` · ${r.location}` : ''}
+        <div className="fleet-router-identity">
+          <span className="fleet-router-icon">
+            <Radio size={18} aria-hidden />
+          </span>
+          <div className="min-w-0">
+            <div className="font-semibold break-words text-ink-900">{r.name}</div>
+            <div className="mt-1 text-xs break-words text-ink-500">
+              <code className="font-mono">{r.ip_address}</code>
+              {r.location ? ` · ${r.location}` : ''}
+            </div>
           </div>
         </div>
       ),
@@ -76,6 +83,11 @@ export default function PlatformRoutersPage() {
       ),
     },
     { key: 'state', header: 'Setup status', cell: (r) => <RouterStateBadges router={r} /> },
+    {
+      key: 'connection',
+      header: 'Connection',
+      cell: (r) => <RouterConnectionBadge health={query.isError ? undefined : r.health} />,
+    },
     {
       key: 'vpn',
       header: 'VPN',
@@ -103,47 +115,35 @@ export default function PlatformRoutersPage() {
   ];
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Router fleet"
-        description="Every MikroTik router registered on the platform. Onboarding actions happen inside each operator's workspace."
-        actions={
-          <Button
-            variant="secondary"
-            disabled={query.isFetching}
-            onClick={() => void query.refetch()}
-            leadingIcon={
-              <RefreshCw
-                className={query.isFetching ? 'size-4 animate-spin' : 'size-4'}
-                aria-hidden
-              />
-            }
-          >
-            Refresh fleet
-          </Button>
-        }
-      />
-      <Card className="border-brand-100 bg-gradient-to-br from-brand-50 via-white to-sky-50">
-        <div className="flex items-start gap-4">
-          <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-brand-600 text-white">
-            <Radio className="size-5" aria-hidden />
-          </span>
-          <div className="min-w-0">
-            <h2 className="text-lg font-semibold text-brand-950">
-              Router visibility across operators
-            </h2>
-            <p className="mt-1 text-sm leading-relaxed text-ink-600">
-              Find each router's operator, review onboarding and VPN deployment, and open the tenant
-              profile for context. Router management remains in the operator workspace.
-            </p>
-            <p className="mt-3 text-sm text-brand-800">
-              Setup status and the last recorded observation do not confirm that a router is
-              currently online.
-            </p>
-          </div>
+    <div className="router-fleet min-w-0 space-y-6">
+      <header className="fleet-page-header">
+        <div>
+          <p className="fleet-eyebrow">
+            <Radio size={15} aria-hidden /> Platform administration
+          </p>
+          <h1>Router fleet</h1>
+          <p className="fleet-subtitle">
+            Router setup and deployment across your operator workspaces.
+          </p>
         </div>
-      </Card>
-      <section aria-labelledby="fleet-directory-title" className="space-y-4">
+        <Button
+          variant="secondary"
+          disabled={query.isFetching}
+          onClick={() => void query.refetch()}
+          leadingIcon={<RefreshCw className={query.isFetching ? 'animate-spin' : ''} aria-hidden />}
+        >
+          Refresh fleet
+        </Button>
+      </header>
+      <div className="fleet-context">
+        <Radio size={18} aria-hidden />
+        <p>
+          Setup status and the last recorded observation do not confirm that a router is currently
+          online.
+          <span> Router management remains in the operator workspace.</span>
+        </p>
+      </div>
+      <section aria-labelledby="fleet-directory-title" className="fleet-directory-panel space-y-4">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h2 id="fleet-directory-title" className="text-lg font-semibold text-brand-950">
             Fleet directory
@@ -159,52 +159,67 @@ export default function PlatformRoutersPage() {
           </p>
         </div>
         <FilterBar
-          inline
+          className="fleet-filter-bar"
           search={
-            <SearchInput
-              value={list.state.search}
-              onChange={list.setSearch}
-              placeholder="Search name, IP or location"
-              ariaLabel="Search routers"
-            />
+            <label className="fleet-filter-label">
+              Search routers
+              <SearchInput
+                value={list.state.search}
+                onChange={list.setSearch}
+                placeholder="Search name, IP or location"
+                ariaLabel="Search routers"
+              />
+            </label>
           }
           filters={
-            <div className="flex items-center gap-2 [&>div]:w-44 [&>div]:shrink-0">
-              <TenantSelect
-                value={list.state.filters.tenant ?? ''}
-                onChange={(v) => list.setFilter('tenant', v || undefined)}
-              />
-              <Select
-                aria-label="Onboarding state"
-                size="sm"
-                value={list.state.filters.onboarding_state ?? ''}
-                onChange={(e) => list.setFilter('onboarding_state', e.target.value || undefined)}
-                options={ONBOARDING_FILTER_OPTIONS}
-              />
-              <Select
-                aria-label="Deployment"
-                size="sm"
-                value={list.state.filters.deployment_status ?? ''}
-                onChange={(e) => list.setFilter('deployment_status', e.target.value || undefined)}
-                options={[
-                  { value: '', label: 'Any deployment' },
-                  { value: 'not_deployed', label: 'Not deployed' },
-                  { value: 'deploying', label: 'Deploying' },
-                  { value: 'deployed', label: 'Deployed' },
-                  { value: 'failed', label: 'Failed' },
-                ]}
-              />
-              <Select
-                aria-label="Active"
-                size="sm"
-                value={list.state.filters.is_active ?? ''}
-                onChange={(e) => list.setFilter('is_active', e.target.value || undefined)}
-                options={[
-                  { value: '', label: 'Active or not' },
-                  { value: 'true', label: 'Active only' },
-                  { value: 'false', label: 'Inactive only' },
-                ]}
-              />
+            <div className="fleet-filter-grid">
+              <label className="fleet-filter-label">
+                Operator
+                <TenantSelect
+                  value={list.state.filters.tenant ?? ''}
+                  onChange={(v) => list.setFilter('tenant', v || undefined)}
+                />
+              </label>
+              <label className="fleet-filter-label">
+                Setup status
+                <Select
+                  aria-label="Onboarding state"
+                  size="sm"
+                  value={list.state.filters.onboarding_state ?? ''}
+                  onChange={(e) => list.setFilter('onboarding_state', e.target.value || undefined)}
+                  options={ONBOARDING_FILTER_OPTIONS}
+                />
+              </label>
+              <label className="fleet-filter-label">
+                Deployment
+                <Select
+                  aria-label="Deployment"
+                  size="sm"
+                  value={list.state.filters.deployment_status ?? ''}
+                  onChange={(e) => list.setFilter('deployment_status', e.target.value || undefined)}
+                  options={[
+                    { value: '', label: 'Any deployment' },
+                    { value: 'not_deployed', label: 'Not deployed' },
+                    { value: 'deploying', label: 'Deploying' },
+                    { value: 'deployed', label: 'Deployed' },
+                    { value: 'failed', label: 'Failed' },
+                  ]}
+                />
+              </label>
+              <label className="fleet-filter-label">
+                Access
+                <Select
+                  aria-label="Active"
+                  size="sm"
+                  value={list.state.filters.is_active ?? ''}
+                  onChange={(e) => list.setFilter('is_active', e.target.value || undefined)}
+                  options={[
+                    { value: '', label: 'Any status' },
+                    { value: 'true', label: 'Active only' },
+                    { value: 'false', label: 'Inactive only' },
+                  ]}
+                />
+              </label>
             </div>
           }
           activeCount={list.activeFilterCount}
@@ -230,6 +245,7 @@ export default function PlatformRoutersPage() {
           </Alert>
         )}
         <DataTable
+          className="fleet-table"
           caption="Router fleet"
           columns={columns}
           rows={query.data?.results}
@@ -252,8 +268,14 @@ export default function PlatformRoutersPage() {
                   : 'Routers appear here once operators add them in their workspace.'
               }
               action={
-                list.activeFilterCount > 0 ? (
-                  <Button variant="secondary" onClick={list.clearFilters}>
+                list.activeFilterCount > 0 || debouncedSearch ? (
+                  <Button
+                    variant="secondary"
+                    onClick={() => {
+                      list.clearFilters();
+                      list.setSearch('');
+                    }}
+                  >
                     Clear filters
                   </Button>
                 ) : undefined

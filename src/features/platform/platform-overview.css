@@ -1,0 +1,242 @@
+/* Scoped to the platform overview; tenant and public surfaces are unchanged. */
+.platform-overview {
+  color: var(--color-ink-900);
+}
+.platform-overview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  padding-block: 0.5rem 1.5rem;
+  border-bottom: 1px solid var(--color-border);
+}
+.platform-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--color-brand-700);
+  font-size: 0.6875rem;
+  font-weight: 650;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+.platform-overview-header h1 {
+  margin-block: 0.65rem 0.4rem;
+  font-size: clamp(1.65rem, 2.5vw, 2.15rem);
+  font-weight: 650;
+  letter-spacing: -0.035em;
+  line-height: 1.2;
+}
+.platform-overview-header p {
+  color: var(--color-ink-600);
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+.platform-updated {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.7rem;
+  color: var(--color-ink-600);
+  font-size: 0.75rem;
+}
+.platform-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+.platform-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+}
+.platform-kpi {
+  min-width: 0;
+  padding: 1.25rem;
+  border-radius: 1rem;
+  box-shadow: 0 2px 6px #00000004;
+}
+.platform-kpi > div > span {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.6rem;
+  background: var(--color-brand-50);
+  color: var(--color-brand-700);
+}
+.platform-kpi > p:first-of-type {
+  margin-block: 0.6rem 0.4rem;
+  font-size: clamp(1.6rem, 2.5vw, 2rem);
+  letter-spacing: -0.04em;
+  overflow-wrap: anywhere;
+}
+.platform-clear-note {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--color-ink-600);
+  font-size: 0.8125rem;
+}
+.platform-clear-note svg {
+  flex-shrink: 0;
+  color: var(--color-success-700);
+}
+.platform-payment-card {
+  min-width: 0;
+  border-radius: 1rem;
+  padding: 1.25rem;
+  box-shadow: none;
+}
+.platform-payment-primary {
+  border-color: var(--color-brand-300);
+  background: linear-gradient(120deg, var(--color-brand-50), var(--color-surface));
+}
+.platform-workspace-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 2.3fr) minmax(15rem, 1fr);
+  align-items: start;
+  gap: 1.5rem;
+}
+.platform-workspace-grid > section {
+  min-width: 0;
+}
+.platform-table-scroll {
+  position: relative;
+  overflow-x: auto;
+  border: 1px solid var(--color-border);
+  border-radius: 1rem;
+  background: var(--color-surface);
+}
+.platform-tenants-table {
+  width: 100%;
+  min-width: 620px;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 0.8125rem;
+}
+.platform-tenants-table thead {
+  background: var(--color-surface-muted);
+  color: var(--color-ink-600);
+}
+.platform-tenants-table thead th {
+  padding: 0.85rem 1rem;
+  font-weight: 550;
+  font-size: 0.75rem;
+}
+.platform-tenants-table tbody :is(th, td) {
+  padding: 1rem;
+  border-top: 1px solid var(--color-border);
+}
+.platform-tenants-table tbody td {
+  color: var(--color-ink-600);
+  white-space: nowrap;
+}
+.platform-tenants-table tbody tr:hover {
+  background: var(--color-surface-muted);
+}
+.platform-tenant-name {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+}
+.platform-tenant-name a {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.platform-tenant-name a:hover {
+  color: var(--color-brand-700);
+  text-decoration: underline;
+}
+.platform-tenant-avatar {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 0.65rem;
+  background: var(--color-brand-50);
+  color: var(--color-brand-700);
+  font-weight: 650;
+  font-size: 0.7rem;
+}
+.platform-tenant-slug {
+  display: block;
+  margin-top: 0.2rem;
+  color: var(--color-ink-600);
+  font-size: 0.7rem;
+  font-weight: 400;
+  overflow-wrap: anywhere;
+}
+.platform-row-action {
+  display: grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 0.5rem;
+  color: var(--color-brand-700);
+}
+.platform-row-action:hover {
+  background: var(--color-brand-50);
+}
+.platform-quick-actions > div:last-child {
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: 1rem;
+  background: var(--color-surface);
+}
+.platform-quick-link {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem;
+  margin: 0;
+  border-bottom: 1px solid var(--color-border);
+}
+.platform-quick-link:last-child {
+  border-bottom: 0;
+}
+.platform-quick-link:hover {
+  background: var(--color-surface-muted);
+}
+.platform-overview :is(a, button, [tabindex]):focus-visible {
+  outline: 2px solid var(--color-brand-600);
+  outline-offset: 3px;
+}
+@media (max-width: 80rem) {
+  .platform-workspace-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .platform-quick-actions > div:last-child {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 48rem) {
+  .platform-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+  }
+  .platform-kpi {
+    padding: 1rem;
+  }
+  .platform-header-actions {
+    width: 100%;
+  }
+  .platform-header-actions > * {
+    flex: 1;
+  }
+}
+@media (max-width: 28rem) {
+  .platform-header-actions {
+    flex-direction: column;
+  }
+  .platform-header-actions > * {
+    flex: none;
+    min-height: 2.75rem;
+  }
+  .platform-quick-actions > div:last-child {
+    display: block;
+  }
+}

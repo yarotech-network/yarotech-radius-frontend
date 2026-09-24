@@ -1,7 +1,7 @@
 import { useEffect, useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { CreditCard, RefreshCw } from 'lucide-react';
-import { PageHeader, StatusBadge } from '@/components/layout';
+import { StatusBadge } from '@/components/layout';
 import {
   DataTable,
   FilterBar,
@@ -10,7 +10,7 @@ import {
   useListParams,
   type Column,
 } from '@/components/data';
-import { Button, Card, Select, Tabs } from '@/components/ui';
+import { Button, Select, Tabs } from '@/components/ui';
 import { Alert, EmptyState } from '@/components/feedback';
 import { useDebouncedValue } from '@/lib/utilities/useDebouncedValue';
 import { formatKobo } from '@/lib/formatting/money';
@@ -32,6 +32,8 @@ import {
   useTenantName,
 } from '../queries';
 import { TenantSelect } from '../components/TenantSelect';
+
+import '../platform-payments.css';
 
 type Source = 'vouchers' | 'wallet' | 'subscriptions';
 const SOURCES: { value: Source; label: string }[] = [
@@ -148,7 +150,11 @@ export default function PlatformPaymentsPage() {
         <span className="font-semibold text-ink-900 tabular-nums">{formatKobo(p.amount)}</span>
       ),
     },
-    { key: 'status', header: 'Status', cell: (p) => <StatusBadge status={p.status} size="sm" /> },
+    {
+      key: 'status',
+      header: 'Status',
+      cell: (p) => <StatusBadge status={p.status} size="sm" dot />,
+    },
     {
       key: 'voucher',
       header: 'Voucher',
@@ -185,7 +191,11 @@ export default function PlatformPaymentsPage() {
         <span className="font-semibold text-ink-900 tabular-nums">{formatKobo(p.amount)}</span>
       ),
     },
-    { key: 'status', header: 'Status', cell: (p) => <StatusBadge status={p.status} size="sm" /> },
+    {
+      key: 'status',
+      header: 'Status',
+      cell: (p) => <StatusBadge status={p.status} size="sm" dot />,
+    },
     { key: 'created', header: 'Created', hideBelow: 'md', cell: (p) => when(p.created_at) },
     {
       key: 'completed',
@@ -217,7 +227,11 @@ export default function PlatformPaymentsPage() {
         <span className="font-semibold text-ink-900 tabular-nums">{formatKobo(p.amount)}</span>
       ),
     },
-    { key: 'status', header: 'Status', cell: (p) => <StatusBadge status={p.status} size="sm" /> },
+    {
+      key: 'status',
+      header: 'Status',
+      cell: (p) => <StatusBadge status={p.status} size="sm" dot />,
+    },
     { key: 'created', header: 'Created', hideBelow: 'md', cell: (p) => when(p.created_at) },
     {
       key: 'completed',
@@ -242,8 +256,14 @@ export default function PlatformPaymentsPage() {
         list.activeFilterCount > 0 || debouncedSearch ? 'No payments match' : 'No payments yet'
       }
       action={
-        list.activeFilterCount > 0 ? (
-          <Button variant="secondary" onClick={list.clearFilters}>
+        list.activeFilterCount > 0 || debouncedSearch ? (
+          <Button
+            variant="secondary"
+            onClick={() => {
+              list.clearFilters();
+              list.setSearch('');
+            }}
+          >
             Clear filters
           </Button>
         ) : undefined
@@ -263,43 +283,37 @@ export default function PlatformPaymentsPage() {
   );
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Payments"
-        actions={
-          <Button
-            variant="secondary"
-            disabled={active.isFetching}
-            leadingIcon={<RefreshCw className={active.isFetching ? 'animate-spin' : ''} />}
-            onClick={() => void active.refetch()}
-          >
-            Refresh payments
-          </Button>
-        }
-        description="Every Paystack transaction across the platform, by source. Amounts are in naira."
-      />
-      <Card className="border-brand-100 bg-gradient-to-br from-brand-50 via-white to-sky-50">
-        <div className="flex items-start gap-4">
-          <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-brand-600 text-white">
-            <CreditCard className="size-5" aria-hidden />
-          </span>
-          <div className="min-w-0">
-            <h2 className="text-lg font-semibold text-brand-950">Payments across your platform</h2>
-            <p className="mt-1 text-sm leading-relaxed text-ink-600">
-              Review customer voucher purchases, agent wallet funding and tenant subscriptions.
-              Choose a payment source, then narrow the results by tenant and status.
-            </p>
-          </div>
+    <div className="platform-payments min-w-0 space-y-6">
+      <header className="payments-page-header">
+        <div>
+          <p className="payments-eyebrow">
+            <CreditCard size={15} aria-hidden /> Platform administration
+          </p>
+          <h1>Payments</h1>
+          <p className="payments-subtitle">
+            Track customer purchases, wallet funding and subscriptions in one place.
+          </p>
         </div>
-      </Card>
-      <section aria-labelledby="payment-source-title" className="space-y-4">
+        <Button
+          variant="secondary"
+          disabled={active.isFetching}
+          leadingIcon={<RefreshCw className={active.isFetching ? 'animate-spin' : ''} />}
+          onClick={() => void active.refetch()}
+        >
+          Refresh payments
+        </Button>
+      </header>
+      <section
+        aria-labelledby="payment-source-title"
+        className="payments-directory-panel space-y-4"
+      >
         <div className="overflow-x-auto">
           <Tabs
             items={SOURCES}
             value={source}
             onChange={setSource}
             ariaLabel="Payment source"
-            className="mb-4"
+            className="payments-source-tabs"
           />
         </div>
         <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -316,31 +330,48 @@ export default function PlatformPaymentsPage() {
                   : 'Loading payments...'}
           </p>
         </div>
+        <p className="text-sm text-ink-500">
+          {source === 'vouchers'
+            ? 'Customer payments for access codes.'
+            : source === 'wallet'
+              ? 'Agent payments to fund their wallets.'
+              : 'Operator payments for platform subscription plans.'}{' '}
+          Amounts are shown in naira. Pending payments are not confirmed collections.
+        </p>
         <FilterBar
-          inline
+          className="payments-filter-bar"
           search={
             source === 'subscriptions' ? undefined : (
-              <SearchInput
-                value={list.state.search}
-                onChange={list.setSearch}
-                placeholder="Search reference"
-                ariaLabel="Search payments"
-              />
+              <label className="payments-filter-label">
+                Search reference
+                <SearchInput
+                  value={list.state.search}
+                  onChange={list.setSearch}
+                  placeholder="Search reference"
+                  ariaLabel="Search payments"
+                />
+              </label>
             )
           }
           filters={
-            <div className="flex items-center gap-2 [&>div]:w-44 [&>div]:shrink-0">
-              <TenantSelect
-                value={list.state.filters.tenant ?? ''}
-                onChange={(v) => list.setFilter('tenant', v || undefined)}
-              />
-              <Select
-                aria-label="Status"
-                size="sm"
-                value={list.state.filters.status ?? ''}
-                onChange={(e) => list.setFilter('status', e.target.value || undefined)}
-                options={statusOptions}
-              />
+            <div className="payments-filter-grid">
+              <label className="payments-filter-label">
+                Operator
+                <TenantSelect
+                  value={list.state.filters.tenant ?? ''}
+                  onChange={(v) => list.setFilter('tenant', v || undefined)}
+                />
+              </label>
+              <label className="payments-filter-label">
+                Payment status
+                <Select
+                  aria-label="Status"
+                  size="sm"
+                  value={list.state.filters.status ?? ''}
+                  onChange={(e) => list.setFilter('status', e.target.value || undefined)}
+                  options={statusOptions}
+                />
+              </label>
             </div>
           }
           activeCount={list.activeFilterCount}
@@ -354,6 +385,7 @@ export default function PlatformPaymentsPage() {
         )}
         {source === 'vouchers' && (
           <DataTable
+            className="payments-table"
             caption="Voucher sales"
             columns={voucherColumns}
             rows={vouchers.data?.results}
@@ -367,6 +399,7 @@ export default function PlatformPaymentsPage() {
         )}
         {source === 'wallet' && (
           <DataTable
+            className="payments-table"
             caption="Agent wallet top-ups"
             columns={walletColumns}
             rows={wallet.data?.results}
@@ -380,6 +413,7 @@ export default function PlatformPaymentsPage() {
         )}
         {source === 'subscriptions' && (
           <DataTable
+            className="payments-table"
             caption="Subscription payments"
             columns={subscriptionColumns}
             rows={subscriptions.data?.results}

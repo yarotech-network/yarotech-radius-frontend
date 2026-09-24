@@ -1,7 +1,8 @@
+import { RouterTelemetry, RouterConnectionBadge } from '../components/RouterTelemetry';
 import { useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router';
 import { MoreHorizontal, Pencil, Radio, RefreshCw, Trash2 } from 'lucide-react';
-import { PageHeader, StatusBadge } from '@/components/layout';
+import { PageHeader } from '@/components/layout';
 import {
   Button,
   Card,
@@ -233,10 +234,8 @@ function RouterDetail({
                   <Skeleton className="h-4 w-32" />
                 ) : health.isError ? (
                   <span className="text-ink-400">Unknown</span>
-                ) : health.data.telemetry_available && health.data.online !== null ? (
-                  <StatusBadge status={health.data.online ? 'online' : 'offline'} />
                 ) : (
-                  <span className="text-ink-500">Telemetry not available</span>
+                  <RouterConnectionBadge health={health.data} />
                 ),
               },
               {
@@ -250,13 +249,24 @@ function RouterDetail({
                 ),
               },
               ...(canDiagnose && health.data
-                ? [{ label: 'Health observed', value: formatDateTime(health.data.observed_at) }]
+                ? [
+                    {
+                      label: 'Monitor checked',
+                      value: health.data.monitor_checked_at
+                        ? formatDateTime(health.data.monitor_checked_at)
+                        : 'Not yet observed',
+                    },
+                  ]
                 : []),
               { label: 'Registered', value: formatDateTime(router.created_at) },
               { label: 'Updated', value: formatDateTime(router.updated_at) },
             ]}
           />
         </Card>
+      )}
+
+      {canDiagnose && !health.isPending && (
+        <RouterTelemetry health={health.isError ? undefined : health.data} />
       )}
 
       <div className="router-section-heading">

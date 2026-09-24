@@ -246,6 +246,14 @@ describe('PlatformOverviewPage', () => {
     expect(await screen.findByText('3 active')).toBeInTheDocument();
     expect(screen.getByText('₦1,000.00')).toBeInTheDocument();
     expect(screen.getByText('2 pending')).toBeInTheDocument();
+    const table = await screen.findByRole('table', { name: 'Newest tenants' });
+    for (const name of ['Business', 'Status', 'Members', 'Vouchers', 'Joined']) {
+      expect(within(table).getByRole('columnheader', { name })).toBeInTheDocument();
+    }
+    expect(within(table).getByRole('link', { name: 'View Wuse Hotspot' })).toHaveAttribute(
+      'href',
+      '/platform/tenants/2',
+    );
     expect(await screen.findByRole('link', { name: 'Wuse Hotspot' })).toHaveAttribute(
       'href',
       '/platform/tenants/2',

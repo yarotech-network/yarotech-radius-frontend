@@ -1,0 +1,134 @@
+/* Admin catalogue and its plan editor only. */
+.business-plans-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.25rem;
+}
+.business-plans-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--color-ink-500);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.business-plans-header h1 {
+  margin-top: 0.5rem;
+  font-size: 1.85rem;
+  font-weight: 750;
+  letter-spacing: -0.04em;
+  color: var(--color-ink-900);
+}
+.business-plans-subtitle {
+  margin-top: 0.35rem;
+  color: var(--color-ink-500);
+  font-size: 0.875rem;
+}
+.business-plans-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+.business-plans-context {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.25rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.75rem;
+  background: var(--color-surface-muted);
+}
+.business-plans-context > div {
+  flex: 1;
+  min-width: 15rem;
+}
+.business-plans-context h2 {
+  font-size: 0.875rem;
+  font-weight: 650;
+  color: var(--color-ink-900);
+}
+.business-plans-context p {
+  margin-top: 0.35rem;
+  max-width: 54rem;
+  color: var(--color-ink-500);
+  font-size: 0.8rem;
+  line-height: 1.7;
+}
+.business-plans-panel {
+  min-width: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 1rem;
+  background: var(--color-surface);
+  padding: 1.25rem;
+}
+.business-plans-table {
+  position: relative;
+}
+.business-plans-table td {
+  padding-top: 1.25rem;
+  padding-bottom: 1.25rem;
+}
+.business-plan-features {
+  min-width: 8rem;
+  max-width: 20rem;
+  color: var(--color-ink-600);
+  overflow-wrap: anywhere;
+}
+.business-plans .bg-slate-100 {
+  background: var(--color-surface-muted);
+  color: var(--color-ink-700);
+}
+.business-plans-table dd {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.business-plan-form-section {
+  min-width: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 0.75rem;
+  padding: 1rem;
+}
+.business-plan-form-section legend {
+  padding: 0 0.35rem;
+  font-size: 0.85rem;
+  font-weight: 650;
+  color: var(--color-ink-900);
+}
+.business-plan-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.875rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.65rem;
+  background: var(--color-surface-muted);
+  font-size: 0.875rem;
+  color: var(--color-ink-700);
+}
+.business-plan-toggle input {
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+  accent-color: var(--color-brand-600);
+}
+.business-plan-form > button[type='submit'] {
+  width: 100%;
+  min-height: 2.75rem;
+}
+@media (max-width: 48rem) {
+  .business-plans-panel {
+    padding: 0.875rem;
+  }
+  .business-plans-table li > div:first-child {
+    flex-wrap: wrap;
+  }
+  .business-plans-table li > div:first-child > div:first-child {
+    flex-basis: 100%;
+  }
+}

@@ -11,12 +11,13 @@ import {
   Users,
   Wallet,
 } from 'lucide-react';
-import { PageHeader, Section, StatusBadge } from '@/components/layout';
+import { Section, StatusBadge } from '@/components/layout';
 import { Button, ButtonLink, Card, Skeleton, Stat } from '@/components/ui';
 import { Alert, EmptyState, ErrorState } from '@/components/feedback';
 import { formatKobo } from '@/lib/formatting/money';
 import { formatDateTime, formatRelative } from '@/lib/formatting/dates';
 import { PLATFORM_RECENT_TENANTS_PARAMS, usePlatformStats, useTenants } from '../queries';
+import '../platform-overview.css';
 
 /** Cross-tenant totals and recent operators, each with independent query feedback. */
 export default function PlatformOverviewPage() {
@@ -32,47 +33,40 @@ export default function PlatformOverviewPage() {
   }, []);
 
   return (
-    <div className="overview-page min-w-0 space-y-6">
-      <PageHeader
-        title="Platform overview"
-        description="Oversee your operators, review network activity and manage platform revenue."
-        meta={<span className="overview-role">Administrator</span>}
-        actions={
-          <div className="flex flex-wrap gap-2">
-            <Button
-              variant="secondary"
-              disabled={refreshing}
-              leadingIcon={
-                <RefreshCw
-                  className={refreshing ? 'animate-spin motion-reduce:animate-none' : ''}
-                />
-              }
-              onClick={() => {
-                void stats.refetch();
-                void recent.refetch();
-              }}
-            >
-              {refreshing ? 'Refreshing…' : 'Refresh overview'}
-            </Button>
-            <ButtonLink to="/platform/tenants" leadingIcon={<Building2 />}>
-              Manage operators
-            </ButtonLink>
+    <div className="platform-overview min-w-0 space-y-6">
+      <header className="platform-overview-header">
+        <div className="min-w-0">
+          <span className="platform-eyebrow">
+            <ShieldCheck size={14} aria-hidden /> Platform administration
+          </span>
+          <h1>Platform overview</h1>
+          <p>Your operators, payments and network operations in one place.</p>
+          <div className="platform-updated" role="status">
+            <Clock3 size={14} aria-hidden />
+            {s && stats.dataUpdatedAt
+              ? `Figures retrieved ${formatRelative(new Date(stats.dataUpdatedAt))}`
+              : 'Figures appear after loading'}
           </div>
-        }
-      />
-
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-brand-100 bg-brand-50/70 px-4 py-3">
-        <div className="flex items-center gap-2 text-sm font-medium text-brand-800">
-          <ShieldCheck className="size-4 shrink-0" aria-hidden />
-          Platform-wide view
         </div>
-        <p className="flex items-center gap-1.5 text-xs text-ink-600" role="status">
-          <Clock3 className="size-3.5" aria-hidden />
-          {s && stats.dataUpdatedAt
-            ? `Figures retrieved ${formatRelative(new Date(stats.dataUpdatedAt))}`
-            : 'Figures appear after loading'}
-        </p>
-      </div>
+        <div className="platform-header-actions">
+          <Button
+            variant="secondary"
+            disabled={refreshing}
+            leadingIcon={
+              <RefreshCw className={refreshing ? 'animate-spin motion-reduce:animate-none' : ''} />
+            }
+            onClick={() => {
+              void stats.refetch();
+              void recent.refetch();
+            }}
+          >
+            {refreshing ? 'Refreshing…' : 'Refresh overview'}
+          </Button>
+          <ButtonLink to="/platform/tenants" leadingIcon={<Building2 />}>
+            Manage operators
+          </ButtonLink>
+        </div>
+      </header>
 
       {stats.isError && !s ? (
         <ErrorState
@@ -88,7 +82,7 @@ export default function PlatformOverviewPage() {
             </Alert>
           )}
           <Section title="Platform at a glance" description="Current totals across the platform.">
-            <div className="overview-metrics">
+            <div className="platform-kpis">
               <Stat
                 label="Tenants"
                 value={number(s?.tenants)}
@@ -96,7 +90,7 @@ export default function PlatformOverviewPage() {
                 icon={<Building2 />}
                 loading={stats.isPending}
                 tone="default"
-                className="overview-metric overview-metric-blue"
+                className="platform-kpi"
               />
               <Stat
                 label="Routers"
@@ -104,7 +98,7 @@ export default function PlatformOverviewPage() {
                 hint={s ? `${number(s.onboarded_routers)} onboarded` : 'Registered network devices'}
                 icon={<Radio />}
                 loading={stats.isPending}
-                className="overview-metric overview-metric-blue"
+                className="platform-kpi"
               />
               <Stat
                 label="Agents"
@@ -112,7 +106,7 @@ export default function PlatformOverviewPage() {
                 hint="Resellers across all tenants"
                 icon={<Users />}
                 loading={stats.isPending}
-                className="overview-metric overview-metric-blue"
+                className="platform-kpi"
               />
               <Stat
                 label="Vouchers issued"
@@ -120,7 +114,7 @@ export default function PlatformOverviewPage() {
                 hint="Total access vouchers"
                 icon={<Ticket />}
                 loading={stats.isPending}
-                className="overview-metric overview-metric-blue"
+                className="platform-kpi"
               />
             </div>
           </Section>
@@ -143,10 +137,53 @@ export default function PlatformOverviewPage() {
               as completed sales.
             </Alert>
           )}
+          {s && s.pending_payments === 0 && (
+            <p className="platform-clear-note">
+              <ShieldCheck size={16} aria-hidden />
+              No pending voucher payments in the last retrieved figures.
+            </p>
+          )}
         </>
       )}
 
-      <div className="overview-columns">
+      {(!stats.isError || s) && (
+        <div className="platform-finance">
+          <Section
+            title="Payment overview"
+            description="All-time successful payments in NGN. These categories are separate and are not added into one revenue total."
+          >
+            <div className="grid gap-4 xl:grid-cols-3">
+              <PaymentCard
+                title="Subscriptions"
+                value={s ? formatKobo(s.successful_subscription_amount) : null}
+                description="Payments for operator platform plans."
+                to="/platform/payments?source=subscriptions"
+                icon={<Building2 />}
+                loading={stats.isPending}
+                prominent
+              />
+              <PaymentCard
+                title="Voucher sales"
+                value={s ? formatKobo(s.successful_payment_amount) : null}
+                description="Customer purchases of internet access."
+                to="/platform/payments?source=vouchers"
+                icon={<Ticket />}
+                loading={stats.isPending}
+              />
+              <PaymentCard
+                title="Agent wallet top-ups"
+                value={s ? formatKobo(s.successful_wallet_funding_amount) : null}
+                description="Successful funding of reseller wallets."
+                to="/platform/payments?source=wallet"
+                icon={<Wallet />}
+                loading={stats.isPending}
+              />
+            </div>
+          </Section>
+        </div>
+      )}
+
+      <div className="platform-workspace-grid">
         <Section
           title="Newest tenants"
           description="The latest operator businesses to join your platform."
@@ -200,41 +237,79 @@ export default function PlatformOverviewPage() {
               </div>
             </Card>
           ) : (
-            <ul className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-surface shadow-subtle">
-              {recent.data?.results.map((t) => (
-                <li key={t.id} className="flex items-start gap-3 p-4 sm:p-5">
-                  <span className="mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-600">
-                    <Building2 className="size-5" aria-hidden />
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-start justify-between gap-2">
-                      <Link
-                        to={`/platform/tenants/${t.id}`}
-                        className="min-w-0 font-semibold [overflow-wrap:anywhere] break-words text-brand-950 underline-offset-4 hover:text-brand-600 hover:underline focus-visible:outline-brand-600"
-                      >
-                        {t.name}
-                      </Link>
-                      <StatusBadge status={t.is_active ? 'active' : 'inactive'} size="sm" />
-                    </div>
-                    <p className="mt-1 truncate text-xs text-ink-500" title={`/s/${t.slug}`}>
-                      /s/{t.slug}
-                    </p>
-                    <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-ink-500">
-                      <span>
-                        {number(t.member_count)} member{t.member_count === 1 ? '' : 's'}
-                      </span>
-                      <span>{number(t.voucher_count)} vouchers</span>
-                      <time dateTime={t.created_at} title={formatDateTime(t.created_at)}>
-                        Joined {formatRelative(t.created_at)}
-                      </time>
-                    </div>
-                  </div>
-                </li>
-              ))}
-            </ul>
+            <div
+              className="platform-table-scroll"
+              role="region"
+              aria-label="Recent tenant records"
+              tabIndex={0}
+            >
+              <table className="platform-tenants-table">
+                <caption className="sr-only">Newest tenants</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Business</th>
+                    <th scope="col">Status</th>
+                    <th scope="col" className="text-right">
+                      Members
+                    </th>
+                    <th scope="col" className="text-right">
+                      Vouchers
+                    </th>
+                    <th scope="col">Joined</th>
+                    <th scope="col">
+                      <span className="sr-only">Action</span>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {recent.data?.results.map((t) => (
+                    <tr key={t.id}>
+                      <th scope="row">
+                        <div className="platform-tenant-name">
+                          <span className="platform-tenant-avatar" aria-hidden>
+                            {t.name.trim().slice(0, 2).toUpperCase()}
+                          </span>
+                          <span className="min-w-0">
+                            <Link to={`/platform/tenants/${t.id}`}>{t.name}</Link>
+                            <span className="platform-tenant-slug">/s/{t.slug}</span>
+                          </span>
+                        </div>
+                      </th>
+                      <td>
+                        <StatusBadge
+                          status={t.is_active ? 'active' : 'inactive'}
+                          size="sm"
+                          className={t.is_active ? '' : 'bg-surface-muted'}
+                        />
+                      </td>
+                      <td className="text-right tabular-nums">{number(t.member_count)}</td>
+                      <td className="text-right tabular-nums">{number(t.voucher_count)}</td>
+                      <td>
+                        <time dateTime={t.created_at} title={formatDateTime(t.created_at)}>
+                          {formatRelative(t.created_at)}
+                        </time>
+                      </td>
+                      <td>
+                        <Link
+                          className="platform-row-action"
+                          to={`/platform/tenants/${t.id}`}
+                          aria-label={`View ${t.name}`}
+                        >
+                          <ArrowRight size={16} aria-hidden />
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </Section>
-        <Section title="Quick deployment" description="Go directly to your operational tools.">
+        <Section
+          title="Quick actions"
+          description="Go directly to your operational tools."
+          className="platform-quick-actions"
+        >
           <div className="space-y-3">
             <QuickLink
               to="/platform/business-plans"
@@ -269,43 +344,6 @@ export default function PlatformOverviewPage() {
           </div>
         </Section>
       </div>
-      {(!stats.isError || s) && (
-        <div className="overview-finance">
-          {' '}
-          <Section
-            title="Payment overview"
-            description="Cumulative successful payments in naira, kept separate by source."
-          >
-            <div className="grid gap-4 xl:grid-cols-3">
-              <PaymentCard
-                title="Voucher sales"
-                value={s ? formatKobo(s.successful_payment_amount) : null}
-                description="Customer purchases of internet access."
-                to="/platform/payments?source=vouchers"
-                icon={<Ticket />}
-                loading={stats.isPending}
-                prominent
-              />
-              <PaymentCard
-                title="Agent wallet top-ups"
-                value={s ? formatKobo(s.successful_wallet_funding_amount) : null}
-                description="Successful funding of reseller wallets."
-                to="/platform/payments?source=wallet"
-                icon={<Wallet />}
-                loading={stats.isPending}
-              />
-              <PaymentCard
-                title="Subscriptions"
-                value={s ? formatKobo(s.successful_subscription_amount) : null}
-                description="Payments for operator platform plans."
-                to="/platform/payments?source=subscriptions"
-                icon={<Building2 />}
-                loading={stats.isPending}
-              />
-            </div>
-          </Section>
-        </div>
-      )}
     </div>
   );
 }
@@ -328,9 +366,7 @@ function PaymentCard({
   prominent?: boolean;
 }) {
   return (
-    <Card
-      className={`min-w-0 rounded-2xl p-5 shadow-subtle ${prominent ? 'border-brand-200 bg-brand-50/50' : ''}`}
-    >
+    <Card className={`platform-payment-card ${prominent ? 'platform-payment-primary' : ''}`}>
       <div className="mb-4 flex items-center gap-2 text-brand-700">
         <span className="flex size-9 items-center justify-center rounded-xl bg-brand-100/70 [&>svg]:size-4">
           {icon}
@@ -368,8 +404,8 @@ function QuickLink({
   icon: ReactNode;
 }) {
   return (
-    <Link to={to} className="overview-quick-link">
-      <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-ink-600 group-hover:bg-brand-100 group-hover:text-brand-700 [&>svg]:size-5">
+    <Link to={to} className="platform-quick-link group">
+      <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-surface-muted text-ink-600 group-hover:bg-brand-100 group-hover:text-brand-700 [&>svg]:size-5">
         {icon}
       </span>
       <span className="min-w-0 flex-1">

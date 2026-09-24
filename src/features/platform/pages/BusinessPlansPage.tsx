@@ -4,10 +4,10 @@ import { priceInKobo } from '../businessPlanRules';
 import { useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus, RefreshCw } from 'lucide-react';
-import { PageHeader, StatusBadge } from '@/components/layout';
-import { Button, ButtonLink, Card, Dialog, FormField, Input, Textarea } from '@/components/ui';
-import { Alert, useToast } from '@/components/feedback';
+import { Plus, RefreshCw, Layers3, ArrowUpRight } from 'lucide-react';
+import { StatusBadge } from '@/components/layout';
+import { Button, ButtonLink, Dialog, FormField, Input, Textarea } from '@/components/ui';
+import { Alert, EmptyState, useToast } from '@/components/feedback';
 import { DataTable, Pagination } from '@/components/data';
 import { http } from '@/services/api/http';
 import { formatKobo } from '@/lib/formatting/money';
@@ -16,6 +16,8 @@ import { useFormSubmit } from '@/lib/forms/useFormSubmit';
 import { settingsKeys } from '@/features/settings/queries';
 import { storefrontKeys } from '@/features/storefront/queries';
 import type { Paginated, SubscriptionPlan } from '@/types/api';
+
+import '../business-plans.css';
 
 const endpoint = '/platform/business-plans/';
 const queryKey = ['platform', 'business-plans'] as const;
@@ -67,124 +69,170 @@ export default function BusinessPlansPage() {
     document.title = 'Business plans - Yarotech RADIUS';
   }, []);
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Business plans"
-        description="Subscription packages for businesses using your platform."
-        actions={
-          <div className="flex flex-wrap gap-2">
-            <Button
-              variant="secondary"
-              disabled={query.isFetching}
-              onClick={() => void query.refetch()}
-              leadingIcon={<RefreshCw className="size-4" aria-hidden />}
-            >
-              Refresh plans
-            </Button>
-            <Button
-              onClick={() => {
-                setEditing(null);
-                setCreating(true);
-              }}
-              leadingIcon={<Plus className="size-4" aria-hidden />}
-            >
-              Create business plan
-            </Button>
-          </div>
-        }
-      />
-      <Card className="border-brand-100 bg-gradient-to-br from-brand-50 via-white to-sky-50">
-        <h2 className="text-lg font-semibold text-brand-950">
-          One catalogue for visitors and tenants
-        </h2>
-        <p className="mt-2 text-sm text-ink-600">
-          New plans appear on public pricing and in tenant Settings under Subscription. Prices,
-          duration and limits come from the same saved plan. Changes apply to future purchases; paid
-          terms remain protected until renewal.
-        </p>
-        <ButtonLink to="/pricing" variant="secondary" className="mt-4">
+    <div className="business-plans min-w-0 space-y-6">
+      <header className="business-plans-header">
+        <div>
+          <p className="business-plans-eyebrow">
+            <Layers3 size={15} aria-hidden /> Platform administration
+          </p>
+          <h1>Business plans</h1>
+          <p className="business-plans-subtitle">
+            Shape the subscription packages your operators can choose.
+          </p>
+        </div>
+        <div className="business-plans-actions">
+          <Button
+            variant="secondary"
+            disabled={query.isFetching}
+            onClick={() => void query.refetch()}
+            leadingIcon={
+              <RefreshCw className={query.isFetching ? 'animate-spin' : ''} aria-hidden />
+            }
+          >
+            Refresh plans
+          </Button>
+          <Button
+            onClick={() => {
+              setEditing(null);
+              setCreating(true);
+            }}
+            leadingIcon={<Plus aria-hidden />}
+          >
+            Create business plan
+          </Button>
+        </div>
+      </header>
+      <div className="business-plans-context">
+        <div>
+          <h2>One catalogue for visitors and tenants</h2>
+          <p>
+            Active plans appear on public pricing and tenant subscriptions. Changes apply to future
+            purchases; paid terms remain protected until renewal.
+          </p>
+        </div>
+        <ButtonLink to="/pricing" variant="secondary" trailingIcon={<ArrowUpRight />}>
           View public pricing
         </ButtonLink>
-      </Card>
-      {query.isError && query.data && (
-        <Alert tone="warning" title="Plans could not be refreshed">
-          Showing the last loaded plans.
-        </Alert>
-      )}
-      <DataTable
-        caption="Business plans"
-        rows={query.data?.results}
-        rowKey={(plan) => plan.id}
-        loading={query.isPending}
-        refreshing={query.isFetching && !query.isPending}
-        error={query.error}
-        onRetry={() => void query.refetch()}
-        rowActions={(plan) => (
-          <div className="flex gap-2">
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => {
-                setEditing(plan);
-                setCreating(true);
-              }}
-              aria-label={`Edit ${plan.name}`}
-            >
-              Edit
-            </Button>
-            <Button
-              variant="danger"
-              size="sm"
-              onClick={() => {
-                remove.reset();
-                setDeleting(plan);
-              }}
-              aria-label={`Delete ${plan.name}`}
-            >
-              Delete
-            </Button>
-          </div>
+      </div>
+      <section aria-labelledby="plan-catalogue-title" className="business-plans-panel space-y-4">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <h2 id="plan-catalogue-title" className="text-lg font-semibold text-ink-900">
+            Plan catalogue
+          </h2>
+          <p role="status" className="text-sm text-ink-500">
+            {query.data
+              ? `${query.data.count} plans`
+              : query.isError
+                ? 'Plan count unavailable'
+                : 'Loading plans...'}
+          </p>
+        </div>
+        {query.isError && query.data && (
+          <Alert tone="warning" title="Plans could not be refreshed">
+            Showing the last loaded plans.
+          </Alert>
         )}
-        columns={[
-          {
-            key: 'name',
-            header: 'Plan',
-            primary: true,
-            cell: (plan) => <span className="font-semibold break-words">{plan.name}</span>,
-          },
-          { key: 'price', header: 'Price', cell: (plan) => formatKobo(plan.price) },
-          { key: 'duration', header: 'Duration', cell: (plan) => `${plan.duration_days} days` },
-          { key: 'limits', header: 'Allowances', cell: (plan) => <PlanLimits plan={plan} /> },
-          {
-            key: 'features',
-            header: 'Features',
-            cell: (plan) => (
-              <ul className="list-inside list-disc text-sm">
-                {plan.features.map((feature, index) => (
-                  <li key={index}>
-                    {typeof feature === 'string' ? feature : JSON.stringify(feature)}
-                  </li>
-                ))}
-              </ul>
-            ),
-          },
-          {
-            key: 'status',
-            header: 'Visibility',
-            cell: (plan) => <StatusBadge status={plan.is_active ? 'active' : 'inactive'} />,
-          },
-        ]}
-      />
-      {query.data && query.data.count > 0 && (
-        <Pagination
-          count={query.data.count}
-          page={page}
-          totalPages={query.data.total_pages}
-          pageSize={20}
-          onPageChange={setPage}
-          itemLabel="plans"
+        <DataTable
+          className="business-plans-table"
+          empty={
+            <EmptyState
+              icon={<Layers3 aria-hidden />}
+              title="No business plans yet"
+              description="Create a subscription package with pricing and allowances for your operators."
+              action={
+                <Button
+                  onClick={() => {
+                    setEditing(null);
+                    setCreating(true);
+                  }}
+                >
+                  Create business plan
+                </Button>
+              }
+            />
+          }
+          caption="Business plans"
+          rows={query.data?.results}
+          rowKey={(plan) => plan.id}
+          loading={query.isPending}
+          refreshing={query.isFetching && !query.isPending}
+          error={query.error}
+          onRetry={() => void query.refetch()}
+          rowActions={(plan) => (
+            <div className="flex gap-2">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  setEditing(plan);
+                  setCreating(true);
+                }}
+                aria-label={`Edit ${plan.name}`}
+              >
+                Edit
+              </Button>
+              <Button
+                variant="danger"
+                size="sm"
+                onClick={() => {
+                  remove.reset();
+                  setDeleting(plan);
+                }}
+                aria-label={`Delete ${plan.name}`}
+              >
+                Delete
+              </Button>
+            </div>
+          )}
+          columns={[
+            {
+              key: 'name',
+              header: 'Plan',
+              primary: true,
+              cell: (plan) => <span className="font-semibold break-words">{plan.name}</span>,
+            },
+            {
+              key: 'price',
+              header: 'Price',
+              cell: (plan) => (
+                <span className="font-semibold whitespace-nowrap tabular-nums">
+                  {formatKobo(plan.price)}
+                </span>
+              ),
+            },
+            { key: 'duration', header: 'Duration', cell: (plan) => `${plan.duration_days} days` },
+            { key: 'limits', header: 'Allowances', cell: (plan) => <PlanLimits plan={plan} /> },
+            {
+              key: 'features',
+              header: 'Features',
+              cell: (plan) => (
+                <ul className="business-plan-features list-inside list-disc text-sm">
+                  {plan.features.map((feature, index) => (
+                    <li key={index}>
+                      {typeof feature === 'string' ? feature : JSON.stringify(feature)}
+                    </li>
+                  ))}
+                </ul>
+              ),
+            },
+            {
+              key: 'status',
+              header: 'Visibility',
+              cell: (plan) => <StatusBadge status={plan.is_active ? 'active' : 'inactive'} dot />,
+            },
+          ]}
         />
-      )}
+        {query.data && query.data.count > 0 && (
+          <Pagination
+            count={query.data.count}
+            page={page}
+            totalPages={query.data.total_pages}
+            pageSize={20}
+            onPageChange={setPage}
+            itemLabel="plans"
+          />
+        )}
+      </section>
       <Dialog
         open={creating}
         dismissible={!publishing}
@@ -334,41 +382,48 @@ function BusinessPlanForm({
   });
   const errors = form.formState.errors;
   return (
-    <form noValidate onSubmit={(event) => void submit(event)} className="space-y-4">
+    <form
+      noValidate
+      onSubmit={(event) => void submit(event)}
+      className="business-plan-form space-y-5"
+    >
       {feedback.message && <Alert tone="danger">{feedback.message}</Alert>}
       {feedback.retryAfter && (
         <Alert tone="warning">
           Too many requests. Please wait {feedback.retryAfter} seconds before trying again.
         </Alert>
       )}
-      <FormField label="Plan name" required error={errors.name?.message}>
-        <Input
-          autoFocus
-          maxLength={100}
-          {...form.register('name', {
-            validate: (value) => Boolean(value.trim()) || 'Enter a plan name.',
-          })}
-        />
-      </FormField>
-      <FormField
-        label="Price (NGN)"
-        required
-        hint="Enter naira, for example 5000 or 5000.50."
-        error={errors.price?.message}
-      >
-        <Input inputMode="decimal" {...form.register('price')} />
-      </FormField>
-      <FormField label="Duration (days)" required error={errors.duration_days?.message}>
-        <Input
-          inputMode="numeric"
-          {...form.register('duration_days', {
-            validate: (value) =>
-              (/^\d+$/.test(value) && Number(value) >= 1 && Number(value) <= 36500) ||
-              'Enter 1 to 36500 whole days.',
-          })}
-        />
-      </FormField>
-      <fieldset className="space-y-4 rounded-xl border border-border p-4">
+      <fieldset className="business-plan-form-section space-y-4">
+        <legend>Plan details</legend>
+        <FormField label="Plan name" required error={errors.name?.message}>
+          <Input
+            autoFocus
+            maxLength={100}
+            {...form.register('name', {
+              validate: (value) => Boolean(value.trim()) || 'Enter a plan name.',
+            })}
+          />
+        </FormField>
+        <FormField
+          label="Price (NGN)"
+          required
+          hint="Enter naira, for example 5000 or 5000.50."
+          error={errors.price?.message}
+        >
+          <Input inputMode="decimal" {...form.register('price')} />
+        </FormField>
+        <FormField label="Duration (days)" required error={errors.duration_days?.message}>
+          <Input
+            inputMode="numeric"
+            {...form.register('duration_days', {
+              validate: (value) =>
+                (/^\d+$/.test(value) && Number(value) >= 1 && Number(value) <= 36500) ||
+                'Enter 1 to 36500 whole days.',
+            })}
+          />
+        </FormField>
+      </fieldset>
+      <fieldset className="business-plan-form-section space-y-4">
         <legend className="px-1 font-semibold text-brand-950">Plan allowances</legend>
         {(['max_routers', 'daily_voucher_print_limit'] as const).map((field) => (
           <FormField
@@ -389,14 +444,14 @@ function BusinessPlanForm({
             />
           </FormField>
         ))}
-        <label className="flex items-center gap-2 text-sm">
+        <label className="business-plan-toggle">
           <input type="checkbox" {...form.register('whatsapp_enabled')} /> WhatsApp enabled
         </label>
         <p className="text-xs text-ink-500">
           Printing counts distinct vouchers prepared each Lagos day. Same-day reprints are free.
         </p>
       </fieldset>
-      <label className="flex items-center gap-2 text-sm">
+      <label className="business-plan-toggle">
         <input type="checkbox" {...form.register('is_active')} /> Active: show on public pricing and
         tenant subscriptions
       </label>

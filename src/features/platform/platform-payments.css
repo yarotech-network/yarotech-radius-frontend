@@ -1,0 +1,127 @@
+/* Scoped to the admin payment ledger. */
+.payments-page-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.25rem;
+}
+.payments-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--color-ink-500);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.payments-page-header h1 {
+  margin-top: 0.5rem;
+  font-size: 1.85rem;
+  font-weight: 750;
+  letter-spacing: -0.04em;
+  color: var(--color-ink-900);
+}
+.payments-subtitle {
+  margin-top: 0.35rem;
+  color: var(--color-ink-500);
+  font-size: 0.875rem;
+}
+.payments-directory-panel {
+  min-width: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 1rem;
+  background: var(--color-surface);
+  padding: 1.25rem;
+}
+.platform-payments .payments-source-tabs {
+  border: 1px solid var(--color-border);
+  border-radius: 0.75rem;
+  padding: 0.3rem;
+  background: var(--color-surface-muted);
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+.payments-source-tabs [role='tab'] {
+  flex: 1;
+  height: auto;
+  min-height: 2.75rem;
+  margin: 0;
+  border: 1px solid transparent;
+  border-radius: 0.5rem;
+  white-space: normal;
+  justify-content: center;
+}
+.payments-source-tabs [aria-selected='true'] {
+  background: var(--color-surface);
+  border-color: var(--color-border);
+  box-shadow: 0 1px 3px #0000000a;
+  color: var(--color-brand-700);
+}
+.payments-filter-bar {
+  padding: 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.75rem;
+  background: var(--color-surface-muted);
+}
+.payments-filter-bar > div:first-child {
+  align-items: flex-end;
+  gap: 1rem;
+}
+.payments-filter-grid {
+  display: grid;
+  width: 100%;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+.payments-filter-label {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.45rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-ink-600);
+}
+.payments-table {
+  position: relative;
+}
+.payments-table td {
+  padding-top: 1rem;
+  padding-bottom: 1rem;
+}
+.platform-payments .bg-slate-100 {
+  background: var(--color-surface-muted);
+  color: var(--color-ink-700);
+}
+.platform-payments a:focus-visible,
+.payments-source-tabs [role='tab']:focus-visible {
+  outline: 2px solid var(--color-brand-600);
+  outline-offset: 2px;
+}
+.platform-payments .payments-table dd {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 48rem) {
+  .payments-directory-panel {
+    padding: 0.875rem;
+  }
+  .payments-filter-bar {
+    padding: 0.75rem;
+  }
+  .payments-filter-bar > div:first-child {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .payments-filter-bar > div:first-child > div:first-child {
+    max-width: none;
+  }
+}
+@media (max-width: 28rem) {
+  .payments-source-tabs [role='tab'] {
+    font-size: 0.75rem;
+    padding: 0.5rem;
+  }
+}

@@ -82,7 +82,10 @@ describe('RoutersPage', () => {
   it('links to the actual router and retains observations when refresh fails', async () => {
     const user = userEvent.setup();
     const device = router();
-    server.use(http.get(`${API}/routers/`, () => HttpResponse.json(paginated([device]))));
+    server.use(
+      http.get(`${API}/subscriptions/`, () => HttpResponse.json(paginated([]))),
+      http.get(`${API}/routers/`, () => HttpResponse.json(paginated([device]))),
+    );
     renderPage(<RoutersPage />, { path: '/routers', role: 'manager' });
     const table = await screen.findByRole('table', { name: 'Routers' });
     expect(await within(table).findByRole('link', { name: device.name })).toHaveAttribute(
@@ -121,8 +124,8 @@ describe('RouterDetailPage', () => {
       path: '/routers/:id',
       route: `/routers/${device.id}`,
     });
-    await screen.findByText('Telemetry not available');
-    expect(screen.getByText('Health observed')).toBeInTheDocument();
+    await screen.findByText(/Telemetry unavailable/);
+    expect(await screen.findByText('Monitor checked')).toBeInTheDocument();
     await waitFor(() =>
       expect(screen.getByRole('button', { name: 'Refresh router' })).toBeEnabled(),
     );
@@ -155,7 +158,7 @@ describe('RouterDetailPage', () => {
     );
     renderPage(<RouterDetailPage />, { path: '/routers/:id', route: `/routers/${current.id}` });
     await screen.findByRole('heading', { name: /mikrotik-wuse-01/ });
-    expect(await screen.findByText('Telemetry not available')).toBeInTheDocument();
+    expect(await screen.findByText(/Telemetry unavailable/)).toBeInTheDocument();
     // waiting_for_vpn → [vpn_failed, testing_radius]
     expect(screen.getByRole('button', { name: /Mark as Testing RADIUS/ })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Record VPN failed/ })).toBeInTheDocument();

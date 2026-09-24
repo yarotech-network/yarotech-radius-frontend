@@ -46,7 +46,11 @@ export function routersListQuery(params: RouterListParams) {
 }
 
 export function useRouters(params: RouterListParams) {
-  return useQuery({ ...routersListQuery(params), placeholderData: keepPreviousData });
+  return useQuery({
+    ...routersListQuery(params),
+    placeholderData: keepPreviousData,
+    refetchInterval: 30_000,
+  });
 }
 
 export function routerOptionsQuery() {
@@ -69,6 +73,7 @@ export function useRouter(id: string) {
   return useQuery({
     queryKey: routerKeys.detail(id),
     queryFn: () => routersApi.get(id),
+    refetchInterval: 30_000,
     enabled: Boolean(id),
   });
 }
@@ -85,6 +90,7 @@ export function useRouterHealth(id: string, enabled = true) {
   return useQuery({
     queryKey: routerKeys.health(id),
     queryFn: () => routersApi.health(id),
+    refetchInterval: 30_000,
     enabled: Boolean(id) && enabled,
   });
 }

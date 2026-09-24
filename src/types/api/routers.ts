@@ -29,7 +29,32 @@ export const ROUTER_TRANSITIONS: Readonly<Record<OnboardingState, readonly Onboa
 };
 
 /** Secrets (`nas_secret`, `routeros_password_encrypted`) are write-only. */
+export interface RouterMonitoring {
+  online: boolean | null;
+  connection_status?: 'online' | 'offline' | 'unknown';
+  monitor_checked_at?: IsoDateTime | null;
+  monitoring_fresh?: boolean;
+  telemetry_available: boolean;
+  telemetry_error?: string;
+  telemetry?: {
+    cpu_percent: number;
+    free_memory_bytes: number;
+    total_memory_bytes: number;
+    uptime: string;
+    interfaces: {
+      name: string;
+      type: string;
+      running: boolean;
+      disabled: boolean;
+      rx_bytes: number;
+      tx_bytes: number;
+    }[];
+  } | null;
+  vpn?: { last_handshake_at: string | null; rx_bytes: number; tx_bytes: number } | null;
+}
+
 export interface NasDevice {
+  health?: RouterMonitoring;
   registration?: {
     nas_identifier: string;
     hotspot_interface: string;
@@ -127,7 +152,7 @@ export interface RouterOnboardingCheck {
   checked_at: IsoDateTime;
 }
 
-export interface RouterHealth {
+export interface RouterHealth extends RouterMonitoring {
   router: string;
   is_active: boolean;
   onboarding_state: OnboardingState;
@@ -135,9 +160,7 @@ export interface RouterHealth {
   last_seen_at: IsoDateTime | null;
   observed_at: IsoDateTime;
   checks: { check_type: CheckType; passed: boolean; checked_at: IsoDateTime }[];
-  /** Always null in the current backend. */
   online: boolean | null;
-  /** Always false in the current backend. */
   telemetry_available: boolean;
 }
 

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { ArrowUpRight, Building2, Plus, RefreshCw } from 'lucide-react';
-import { PageHeader, StatusBadge } from '@/components/layout';
+import { StatusBadge } from '@/components/layout';
 import {
   DataTable,
   FilterBar,
@@ -10,13 +10,15 @@ import {
   useListParams,
   type Column,
 } from '@/components/data';
-import { Badge, Button, ButtonLink, Card, Select } from '@/components/ui';
+import { Badge, Button, ButtonLink, Select } from '@/components/ui';
 import { Alert, EmptyState } from '@/components/feedback';
 import { useDebouncedValue } from '@/lib/utilities/useDebouncedValue';
 import { formatDate } from '@/lib/formatting/dates';
 import type { Tenant, TenantListParams } from '@/types/api';
 import { useTenants } from '../queries';
 import { TenantDialog } from '../components/TenantDialog';
+
+import '../tenant-directory.css';
 
 const FILTERS = ['is_active', 'kind'] as const;
 
@@ -48,28 +50,56 @@ export default function TenantsPage() {
       header: 'Tenant',
       primary: true,
       cell: (t) => (
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <Link
-              to={`/platform/tenants/${t.id}`}
-              onClick={(e) => e.stopPropagation()}
-              className="min-w-0 font-semibold break-words text-brand-700 hover:underline"
-            >
-              {t.name}
-            </Link>
-            <Badge tone={t.is_platform_admin ? 'brand' : 'neutral'} size="sm">
-              {t.is_platform_admin ? 'Platform' : 'Operator'}
-            </Badge>
+        <div className="tenant-business">
+          <span className="tenant-avatar" aria-hidden>
+            {t.name
+              .trim()
+              .split(/\s+/)
+              .slice(0, 2)
+              .map((word) => word[0])
+              .join('')
+              .toUpperCase()}
+          </span>
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <Link
+                to={`/platform/tenants/${t.id}`}
+                onClick={(e) => e.stopPropagation()}
+                className="min-w-0 font-semibold break-words text-brand-700 hover:underline"
+              >
+                {t.name}
+              </Link>
+              <Badge className="bg-surface-muted text-ink-600" size="sm">
+                {t.is_platform_admin ? 'Platform' : 'Operator'}
+              </Badge>
+            </div>
+            <code className="mt-1 block font-mono text-xs break-all text-ink-500">/s/{t.slug}</code>
           </div>
-          <code className="mt-1 block font-mono text-xs break-all text-ink-500">/s/{t.slug}</code>
-          {t.email && <p className="mt-1 text-xs break-all text-ink-500">{t.email}</p>}
+        </div>
+      ),
+    },
+    {
+      key: 'contact',
+      header: 'Contact',
+      hideBelow: 'xl',
+      cell: (t) => (
+        <div className="tenant-contact">
+          <span>{t.email || 'No email provided'}</span>
+          {t.phone && <span className="text-xs text-ink-500">{t.phone}</span>}
         </div>
       ),
     },
     {
       key: 'status',
       header: 'Status',
-      cell: (t) => <StatusBadge status={t.is_active ? 'active' : 'inactive'} size="sm" dot />,
+      cell: (t) => (
+        <StatusBadge
+          status={t.is_active ? 'active' : 'inactive'}
+          size="sm"
+          dot
+          className={t.is_active ? '' : 'bg-surface-muted'}
+        />
+      ),
     },
     {
       key: 'members',
@@ -94,48 +124,33 @@ export default function TenantsPage() {
   ];
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Tenants"
-        description="Operators running hotspots on the platform. Open a tenant to manage its members, status and links."
-        actions={
-          <div className="flex flex-wrap gap-2">
-            <Button
-              variant="secondary"
-              disabled={query.isFetching}
-              leadingIcon={<RefreshCw className={query.isFetching ? 'animate-spin' : ''} />}
-              onClick={() => void query.refetch()}
-            >
-              Refresh tenants
-            </Button>
-            <Button
-              leadingIcon={<Plus className="h-4 w-4" aria-hidden />}
-              onClick={() => setCreating(true)}
-            >
-              New tenant
-            </Button>
-          </div>
-        }
-      />
-      <Card className="border-brand-100 bg-gradient-to-br from-brand-50 via-white to-sky-50">
-        <div className="flex items-start gap-4">
-          <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-brand-600 text-white">
-            <Building2 className="size-5" aria-hidden />
-          </span>
-          <div className="min-w-0">
-            <h2 className="text-lg font-semibold text-brand-950">Manage operator workspaces</h2>
-            <p className="mt-1 text-sm leading-relaxed text-ink-600">
-              Find a business, review its members and vouchers, then open its workspace details to
-              manage access and settings.
-            </p>
-            <p className="mt-3 text-xs font-medium text-brand-700">
-              Operators are shown by default. Use the tenant type filter to include the platform
-              workspace.
-            </p>
-          </div>
+    <div className="tenant-directory min-w-0 space-y-6">
+      <header className="tenant-page-header">
+        <div>
+          <p className="tenant-eyebrow">
+            <Building2 size={15} aria-hidden /> Platform administration
+          </p>
+          <h1>Tenants</h1>
+          <p className="tenant-subtitle">Your operator workspaces, organised in one place.</p>
         </div>
-      </Card>
-      <section aria-labelledby="tenant-directory-title" className="space-y-4">
+        <div className="tenant-header-actions">
+          <Button
+            variant="secondary"
+            disabled={query.isFetching}
+            leadingIcon={<RefreshCw className={query.isFetching ? 'animate-spin' : ''} />}
+            onClick={() => void query.refetch()}
+          >
+            Refresh tenants
+          </Button>
+          <Button leadingIcon={<Plus aria-hidden />} onClick={() => setCreating(true)}>
+            New tenant
+          </Button>
+        </div>
+      </header>
+      <section
+        aria-labelledby="tenant-directory-title"
+        className="tenant-directory-panel space-y-4"
+      >
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h2 id="tenant-directory-title" className="text-lg font-semibold text-brand-950">
             Tenant directory
@@ -150,39 +165,52 @@ export default function TenantsPage() {
                   : 'Loading tenants...'}
           </p>
         </div>
+        <p className="text-sm text-ink-500">
+          Open a business to manage its members, access and workspace settings.
+        </p>
         <FilterBar
+          className="tenant-filter-bar"
           search={
-            <SearchInput
-              value={list.state.search}
-              onChange={list.setSearch}
-              placeholder="Search name or slug"
-              ariaLabel="Search tenants"
-            />
+            <label className="tenant-filter-label">
+              Search businesses
+              <SearchInput
+                value={list.state.search}
+                onChange={list.setSearch}
+                placeholder="Search name or slug"
+                ariaLabel="Search tenants"
+              />
+            </label>
           }
           filters={
             <div className="grid w-full min-w-0 grid-cols-2 gap-2 sm:w-80">
-              <Select
-                aria-label="Status"
-                size="sm"
-                value={list.state.filters.is_active ?? ''}
-                onChange={(e) => list.setFilter('is_active', e.target.value || undefined)}
-                options={[
-                  { value: '', label: 'Any status' },
-                  { value: 'true', label: 'Active' },
-                  { value: 'false', label: 'Inactive' },
-                ]}
-              />
-              <Select
-                aria-label="Kind"
-                size="sm"
-                value={list.state.filters.kind ?? ''}
-                onChange={(e) => list.setFilter('kind', e.target.value || undefined)}
-                options={[
-                  { value: '', label: 'Operators' },
-                  { value: 'platform', label: 'Platform tenant' },
-                  { value: 'all', label: 'All tenants' },
-                ]}
-              />
+              <label className="tenant-filter-label">
+                Status
+                <Select
+                  aria-label="Status"
+                  size="sm"
+                  value={list.state.filters.is_active ?? ''}
+                  onChange={(e) => list.setFilter('is_active', e.target.value || undefined)}
+                  options={[
+                    { value: '', label: 'Any status' },
+                    { value: 'true', label: 'Active' },
+                    { value: 'false', label: 'Inactive' },
+                  ]}
+                />
+              </label>
+              <label className="tenant-filter-label">
+                Tenant type
+                <Select
+                  aria-label="Kind"
+                  size="sm"
+                  value={list.state.filters.kind ?? ''}
+                  onChange={(e) => list.setFilter('kind', e.target.value || undefined)}
+                  options={[
+                    { value: '', label: 'Operators' },
+                    { value: 'platform', label: 'Platform tenant' },
+                    { value: 'all', label: 'All tenants' },
+                  ]}
+                />
+              </label>
             </div>
           }
           activeCount={list.activeFilterCount}
@@ -194,6 +222,7 @@ export default function TenantsPage() {
           </Alert>
         )}
         <DataTable
+          className="tenant-directory-table"
           caption="Tenants"
           columns={columns}
           rows={query.data?.results}

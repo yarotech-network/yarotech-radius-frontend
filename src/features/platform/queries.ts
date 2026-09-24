@@ -214,6 +214,7 @@ export function usePlatformRouters(params: RouterListParams) {
   return useQuery({
     queryKey: platformKeys.routers(params),
     queryFn: () => platformApi.routers(params),
+    refetchInterval: 30_000,
     placeholderData: keepPreviousData,
   });
 }

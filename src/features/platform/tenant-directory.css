@@ -1,0 +1,117 @@
+/* Scoped to the platform tenant directory; public and operator pages are unchanged. */
+.tenant-page-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.25rem;
+}
+.tenant-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--color-ink-500);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.tenant-page-header h1 {
+  margin-top: 0.5rem;
+  font-size: 1.85rem;
+  font-weight: 750;
+  letter-spacing: -0.04em;
+  color: var(--color-ink-900);
+}
+.tenant-subtitle {
+  margin-top: 0.35rem;
+  color: var(--color-ink-500);
+  font-size: 0.875rem;
+}
+.tenant-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+.tenant-directory-panel {
+  min-width: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 1rem;
+  background: var(--color-surface);
+  padding: 1.25rem;
+}
+.tenant-filter-bar {
+  padding: 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.75rem;
+  background: var(--color-surface-muted);
+}
+.tenant-filter-label {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.45rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-ink-600);
+}
+.tenant-business {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.tenant-avatar {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 2.5rem;
+  height: 2.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.75rem;
+  background: var(--color-surface-muted);
+  color: var(--color-brand-700);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+.tenant-contact {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  overflow-wrap: anywhere;
+  font-size: 0.8rem;
+  max-width: 16rem;
+}
+.tenant-directory-table {
+  position: relative;
+}
+.tenant-directory-table td {
+  padding-top: 1rem;
+  padding-bottom: 1rem;
+}
+.tenant-directory-table th {
+  font-size: 0.65rem;
+}
+.tenant-directory a:focus-visible {
+  outline: 2px solid var(--color-brand-600);
+  outline-offset: 3px;
+}
+@media (max-width: 48rem) {
+  .tenant-directory-panel {
+    padding: 0.875rem;
+  }
+  .tenant-filter-bar {
+    padding: 0.75rem;
+  }
+}
+@media (max-width: 28rem) {
+  .tenant-header-actions {
+    width: 100%;
+  }
+  .tenant-header-actions > * {
+    flex: 1;
+    min-height: 2.75rem;
+  }
+  .tenant-avatar {
+    display: none;
+  }
+}

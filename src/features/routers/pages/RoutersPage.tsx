@@ -1,6 +1,16 @@
+import { RouterConnectionBadge } from '../components/RouterTelemetry';
 import { useMemo } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { ArrowRight, ArrowUpRight, BookOpen, Cpu, Plus, Radio, RefreshCw, Wifi } from 'lucide-react';
+import {
+  ArrowRight,
+  ArrowUpRight,
+  BookOpen,
+  Cpu,
+  Plus,
+  Radio,
+  RefreshCw,
+  Wifi,
+} from 'lucide-react';
 import {
   DataTable,
   FilterBar,
@@ -69,6 +79,11 @@ export default function RoutersPage() {
     },
     { key: 'state', header: 'Setup status', cell: (r) => <RouterStateBadges router={r} /> },
     {
+      key: 'connection',
+      header: 'Connection',
+      cell: (r) => <RouterConnectionBadge health={query.isError ? undefined : r.health} />,
+    },
+    {
       key: 'vpn',
       header: 'VPN',
       hideBelow: 'lg',
@@ -95,7 +110,6 @@ export default function RoutersPage() {
 
   return (
     <div className="router-page space-y-6">
-
       {/* Premium hero header */}
       <div className="router-page-hero">
         <div className="router-page-hero-inner">
@@ -105,14 +119,20 @@ export default function RoutersPage() {
             </span>
             <h1 className="router-page-hero-title">Router Fleet</h1>
             <p className="router-page-hero-desc">
-              MikroTik hotspots registered as RADIUS clients — onboarding, VPN and provisioning in one place.
+              MikroTik hotspots registered as RADIUS clients — onboarding, VPN and provisioning in
+              one place.
             </p>
           </div>
           <div className="router-page-hero-actions">
             <Button
               variant="secondary"
               disabled={query.isFetching}
-              leadingIcon={<RefreshCw className={query.isFetching ? 'animate-spin motion-reduce:animate-none' : ''} />}
+              leadingIcon={
+                <RefreshCw
+                  className={query.isFetching ? 'animate-spin motion-reduce:animate-none' : ''}
+                />
+              }
+              aria-label="Refresh routers"
               onClick={() => void query.refetch()}
             >
               {query.isFetching ? 'Refreshing...' : 'Refresh'}
