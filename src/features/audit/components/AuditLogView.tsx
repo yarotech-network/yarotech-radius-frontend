@@ -1,6 +1,15 @@
 import { useState, type ReactNode } from 'react';
 import { Link } from 'react-router';
-import { ChevronDown, ChevronRight, ScrollText, Copy, Check, ExternalLink, User, Shield } from 'lucide-react';
+import {
+  ChevronDown,
+  ChevronRight,
+  ScrollText,
+  Copy,
+  Check,
+  ExternalLink,
+  User,
+  Shield,
+} from 'lucide-react';
 import type { UseQueryResult } from '@tanstack/react-query';
 import { Badge, Button, Input, Select } from '@/components/ui';
 import { EmptyState, useToast } from '@/components/feedback';
@@ -47,7 +56,7 @@ export function AuditLogView({
         <time
           dateTime={e.created_at}
           title={formatDateTime(e.created_at)}
-          className="whitespace-nowrap text-xs text-slate-500 dark:text-slate-400 font-medium"
+          className="text-xs font-medium whitespace-nowrap text-slate-500 dark:text-slate-400"
         >
           {formatRelative(e.created_at)}
         </time>
@@ -62,7 +71,9 @@ export function AuditLogView({
           <Badge tone={actionTone(e.action)} size="sm" className="font-semibold">
             {actionLabel(e.action)}
           </Badge>
-          <div className="mt-1 truncate font-mono text-[11px] text-slate-400 dark:text-slate-500">{e.action}</div>
+          <div className="mt-1 truncate font-mono text-[11px] text-slate-400 dark:text-slate-500">
+            {e.action}
+          </div>
         </div>
       ),
     },
@@ -83,11 +94,11 @@ export function AuditLogView({
             <Shield className="size-3" /> System
           </span>
         ) : e.actor === currentUserId ? (
-          <span className="inline-flex items-center gap-1 rounded-full bg-brand-50 dark:bg-brand-950/60 px-2 py-0.5 text-xs font-semibold text-brand-700 dark:text-brand-300 border border-brand-200 dark:border-brand-800/60">
+          <span className="inline-flex items-center gap-1 rounded-full border border-brand-200 bg-brand-50 px-2 py-0.5 text-xs font-semibold text-brand-700 dark:border-brand-800/60 dark:bg-brand-950/60 dark:text-brand-300">
             <User className="size-3" /> You
           </span>
         ) : (
-          <span className="inline-flex items-center gap-1 text-xs text-slate-700 dark:text-slate-300 font-medium">
+          <span className="inline-flex items-center gap-1 text-xs font-medium text-slate-700 dark:text-slate-300">
             <User className="size-3 text-slate-400" /> User #{e.actor}
           </span>
         ),
@@ -125,9 +136,10 @@ export function AuditLogView({
   ];
 
   return (
-    <div className="space-y-4">
-      <div className="rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-sm">
+    <div className="audit-log-view space-y-4">
+      <div className="rounded-xl border border-slate-200/80 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
         <FilterBar
+          className="audit-filter-bar"
           search={
             <SearchInput
               value={list.state.search}
@@ -137,7 +149,7 @@ export function AuditLogView({
             />
           }
           filters={
-            <>
+            <div className="audit-filter-controls contents">
               {leadingFilters}
               <Select
                 aria-label="Action"
@@ -184,14 +196,14 @@ export function AuditLogView({
                   Mine
                 </Button>
               )}
-            </>
+            </div>
           }
           activeCount={list.activeFilterCount}
           onClear={list.clearFilters}
         />
       </div>
 
-      <div className="rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
+      <div className="overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
         <DataTable
           caption="Audit events"
           columns={columns}
@@ -250,13 +262,13 @@ function ResourceCell({ resource, to }: { resource: string; to: string | null })
     <Link
       to={to}
       onClick={(e) => e.stopPropagation()}
-      className="inline-flex items-center gap-1 font-mono text-xs font-semibold text-brand-600 dark:text-brand-400 hover:underline"
+      className="inline-flex items-center gap-1 font-mono text-xs font-semibold text-brand-600 hover:underline dark:text-brand-400"
     >
       <span>{label}</span>
       <ExternalLink className="size-3" />
     </Link>
   ) : (
-    <code className="font-mono text-xs text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">
+    <code className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs text-slate-700 dark:bg-slate-800 dark:text-slate-300">
       {label}
     </code>
   );
@@ -284,48 +296,66 @@ function DetailsPanel({ event }: { event: AuditEvent }) {
   return (
     <div
       id={`audit-${event.id}`}
-      className="border-t border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-850 p-4 text-xs space-y-3"
+      className="dark:bg-slate-850 space-y-3 border-t border-slate-200 bg-slate-50/80 p-4 text-xs dark:border-slate-800"
     >
       <div className="grid gap-3 sm:grid-cols-2">
-        <div className="flex items-center justify-between rounded-lg bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-2.5">
+        <div className="flex items-center justify-between rounded-lg border border-slate-200/80 bg-white p-2.5 dark:border-slate-800 dark:bg-slate-900">
           <div>
-            <span className="text-slate-400 dark:text-slate-500 font-medium block text-[11px]">Target Resource</span>
-            <code className="font-mono text-xs text-slate-800 dark:text-slate-200 font-semibold">{event.resource}</code>
+            <span className="block text-[11px] font-medium text-slate-400 dark:text-slate-500">
+              Target Resource
+            </span>
+            <code className="font-mono text-xs font-semibold text-slate-800 dark:text-slate-200">
+              {event.resource}
+            </code>
           </div>
           <button
             type="button"
             onClick={() => copyText(event.resource, 'res')}
-            className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1 rounded transition-colors"
+            className="rounded p-1 text-slate-400 transition-colors hover:text-slate-600 dark:hover:text-slate-200"
             title="Copy Resource"
           >
-            {copiedRes ? <Check className="size-3.5 text-emerald-500" /> : <Copy className="size-3.5" />}
+            {copiedRes ? (
+              <Check className="size-3.5 text-emerald-500" />
+            ) : (
+              <Copy className="size-3.5" />
+            )}
           </button>
         </div>
 
-        <div className="flex items-center justify-between rounded-lg bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-2.5">
+        <div className="flex items-center justify-between rounded-lg border border-slate-200/80 bg-white p-2.5 dark:border-slate-800 dark:bg-slate-900">
           <div>
-            <span className="text-slate-400 dark:text-slate-500 font-medium block text-[11px]">Event UUID</span>
+            <span className="block text-[11px] font-medium text-slate-400 dark:text-slate-500">
+              Event UUID
+            </span>
             <code className="font-mono text-xs text-slate-800 dark:text-slate-200">{event.id}</code>
           </div>
           <button
             type="button"
             onClick={() => copyText(event.id, 'id')}
-            className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1 rounded transition-colors"
+            className="rounded p-1 text-slate-400 transition-colors hover:text-slate-600 dark:hover:text-slate-200"
             title="Copy Event ID"
           >
-            {copiedId ? <Check className="size-3.5 text-emerald-500" /> : <Copy className="size-3.5" />}
+            {copiedId ? (
+              <Check className="size-3.5 text-emerald-500" />
+            ) : (
+              <Copy className="size-3.5" />
+            )}
           </button>
         </div>
       </div>
 
       {entries.length > 0 && (
-        <div className="rounded-lg bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-3 space-y-2">
-          <span className="text-slate-500 dark:text-slate-400 font-medium block text-xs">Event Parameters & Payload</span>
-          <dl className="grid grid-cols-1 sm:grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 pt-1 border-t border-slate-100 dark:border-slate-800">
+        <div className="space-y-2 rounded-lg border border-slate-200/80 bg-white p-3 dark:border-slate-800 dark:bg-slate-900">
+          <span className="block text-xs font-medium text-slate-500 dark:text-slate-400">
+            Event Parameters & Payload
+          </span>
+          <dl className="grid grid-cols-1 gap-x-4 gap-y-1.5 border-t border-slate-100 pt-1 sm:grid-cols-[auto_1fr] dark:border-slate-800">
             {entries.map(([k, v]) => (
               <div key={k} className="contents">
-                <dt className="font-mono text-xs text-slate-500 dark:text-slate-400 font-medium">{k}:</dt>
-                <dd className="font-mono text-xs text-slate-800 dark:text-slate-200 break-all bg-slate-50 dark:bg-slate-800/60 px-2 py-0.5 rounded">
+                <dt className="font-mono text-xs font-medium text-slate-500 dark:text-slate-400">
+                  {k}
+                </dt>
+                <dd className="rounded bg-slate-50 px-2 py-0.5 font-mono text-xs break-all text-slate-800 dark:bg-slate-800/60 dark:text-slate-200">
                   {typeof v === 'string' ? v : JSON.stringify(v)}
                 </dd>
               </div>
@@ -336,4 +366,3 @@ function DetailsPanel({ event }: { event: AuditEvent }) {
     </div>
   );
 }
-

@@ -1,8 +1,7 @@
 import { useEffect, useMemo } from 'react';
 import { Link } from 'react-router';
-import { ShieldCheck, History, Building2 } from 'lucide-react';
-import { PageHeader } from '@/components/layout';
-import { Card } from '@/components/ui';
+import { ShieldCheck, History, Building2, RefreshCw } from 'lucide-react';
+import { Button } from '@/components/ui';
 import { useListParams, type Column } from '@/components/data';
 import { usePrincipal } from '@/app/auth/useAuth';
 import { useDebouncedValue } from '@/lib/utilities/useDebouncedValue';
@@ -11,6 +10,8 @@ import { AuditLogView } from '@/features/audit/components/AuditLogView';
 import { platformResourceLink } from '@/features/audit/auditVocabulary';
 import { usePlatformAudit, useTenantName } from '../queries';
 import { TenantSelect } from '../components/TenantSelect';
+
+import '../platform-audit.css';
 
 const FILTERS = ['tenant', 'action', 'actor'] as const;
 
@@ -46,14 +47,14 @@ export default function PlatformAuditPage() {
       hideBelow: 'sm',
       cell: (e) =>
         e.tenant === null ? (
-          <span className="text-slate-400 dark:text-slate-500 font-medium">Platform Global</span>
+          <span className="font-medium text-slate-400 dark:text-slate-500">Platform Global</span>
         ) : (
           <Link
             to={`/platform/tenants/${e.tenant}`}
             onClick={(ev) => ev.stopPropagation()}
-            className="text-brand-600 dark:text-brand-400 font-medium hover:underline inline-flex items-center gap-1.5"
+            className="inline-flex items-center gap-1.5 font-medium text-brand-600 hover:underline dark:text-brand-400"
           >
-            <Building2 className="size-3.5" />
+            <Building2 className="size-3.5" aria-hidden />
             {tenantName(e.tenant)}
           </Link>
         ),
@@ -61,48 +62,69 @@ export default function PlatformAuditPage() {
   ];
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Platform Audit Log"
-        description="Global system administration events, staff activities, and cross-tenant action logs."
-      />
-
-      <Card className="router-page-hero border-slate-200/80 dark:border-slate-800 bg-gradient-to-br from-slate-900 via-slate-850 to-indigo-950 p-6 text-white shadow-xl relative overflow-hidden">
-        <div className="flex flex-col sm:flex-row items-start justify-between gap-4 relative z-10">
-          <div className="flex items-start gap-4">
-            <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-indigo-500/20 text-indigo-300 border border-indigo-400/30 backdrop-blur-md shadow-inner">
-              <History className="size-6" aria-hidden />
-            </span>
-            <div>
-              <div className="inline-flex items-center gap-2 rounded-full bg-indigo-500/10 px-3 py-0.5 text-xs font-semibold text-indigo-300 border border-indigo-500/20 mb-1">
-                <ShieldCheck className="size-3.5" /> Platform Governance
-              </div>
-              <h2 className="text-xl font-bold text-white">Cross-Tenant Audit Console</h2>
-              <p className="mt-1 text-sm leading-relaxed text-slate-300 max-w-2xl">
-                Comprehensive log of all tenant activity, platform staff invitations, permission changes, and system settings updates.
-              </p>
-            </div>
-          </div>
+    <div className="platform-audit min-w-0 space-y-6">
+      <header className="platform-audit-header">
+        <div>
+          <p className="platform-audit-eyebrow">
+            <History size={15} aria-hidden /> Platform administration
+          </p>
+          <h1>Audit log</h1>
+          <p className="platform-audit-subtitle">
+            Trace recorded changes across tenants, staff and platform settings.
+          </p>
         </div>
-      </Card>
-
-      <AuditLogView
-        query={query}
-        list={list}
-        debouncedSearch={debouncedSearch}
-        currentUserId={principal?.user.id}
-        linkFor={platformResourceLink}
-        leadingFilters={
-          <TenantSelect
-            value={list.state.filters.tenant ?? ''}
-            onChange={(v) => list.setFilter('tenant', v || undefined)}
-            includePlatform
-          />
-        }
-        extraColumns={tenantColumn}
-        emptyDescription="Actions taken anywhere on the platform will appear here."
-      />
+        <Button
+          variant="secondary"
+          disabled={query.isFetching}
+          onClick={() => void query.refetch()}
+          leadingIcon={<RefreshCw className={query.isFetching ? 'animate-spin' : ''} aria-hidden />}
+        >
+          Refresh events
+        </Button>
+      </header>
+      <section className="platform-audit-context" aria-label="Using the audit log">
+        <span className="platform-audit-icon">
+          <ShieldCheck size={22} aria-hidden />
+        </span>
+        <div>
+          <h2>A clear trail of recorded activity</h2>
+          <p>
+            Narrow the list by tenant, action or staff user. Open an event to inspect its recorded
+            details and resource. Platform Global identifies events without a tenant.
+          </p>
+        </div>
+      </section>
+      <section className="platform-audit-panel" aria-labelledby="audit-history-heading">
+        <div className="platform-audit-panel-header">
+          <div>
+            <h2 id="audit-history-heading">Event history</h2>
+            <p>Search resources or select Mine to review your own activity.</p>
+          </div>
+          <span role="status" className="platform-audit-count">
+            {query.isPending
+              ? 'Loading events?'
+              : query.isError
+                ? 'Events unavailable'
+                : `Matching events: ${query.data?.count ?? 0}`}
+          </span>
+        </div>
+        <AuditLogView
+          query={query}
+          list={list}
+          debouncedSearch={debouncedSearch}
+          currentUserId={principal?.user.id}
+          linkFor={platformResourceLink}
+          leadingFilters={
+            <TenantSelect
+              value={list.state.filters.tenant ?? ''}
+              onChange={(v) => list.setFilter('tenant', v || undefined)}
+              includePlatform
+            />
+          }
+          extraColumns={tenantColumn}
+          emptyDescription="Actions taken anywhere on the platform will appear here."
+        />
+      </section>
     </div>
   );
 }
-

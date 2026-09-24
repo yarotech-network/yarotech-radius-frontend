@@ -1,0 +1,143 @@
+/* Platform-only presentation for the shared audit viewer. */
+.platform-audit [id^='audit-'] {
+  background: var(--color-surface-muted);
+  border-color: var(--color-border);
+}
+.platform-audit [id^='audit-'] .bg-white {
+  background: var(--color-surface);
+  border-color: var(--color-border);
+}
+.platform-audit [id^='audit-'] code,
+.platform-audit [id^='audit-'] dd {
+  color: var(--color-ink-900);
+}
+.platform-audit [id^='audit-'] dd {
+  background: var(--color-surface-muted);
+}
+.platform-audit-header,
+.platform-audit-panel-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.platform-audit-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--color-ink-500);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.platform-audit-header h1 {
+  margin-top: 0.5rem;
+  font-size: 1.85rem;
+  font-weight: 750;
+  letter-spacing: -0.04em;
+  color: var(--color-ink-900);
+}
+.platform-audit-subtitle {
+  margin-top: 0.35rem;
+  font-size: 0.875rem;
+  color: var(--color-ink-500);
+}
+.platform-audit-context {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+  padding: 1.25rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.85rem;
+  background: var(--color-surface-muted);
+}
+.platform-audit-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 2.75rem;
+  height: 2.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.75rem;
+  background: var(--color-surface);
+  color: var(--color-brand-700);
+}
+.platform-audit-context h2,
+.platform-audit-panel-header h2 {
+  font-size: 0.9rem;
+  font-weight: 650;
+  color: var(--color-ink-900);
+}
+.platform-audit-context p,
+.platform-audit-panel-header p {
+  margin-top: 0.35rem;
+  max-width: 52rem;
+  font-size: 0.8rem;
+  line-height: 1.7;
+  color: var(--color-ink-500);
+}
+.platform-audit-panel {
+  min-width: 0;
+  padding: 1.25rem;
+  border: 1px solid var(--color-border);
+  border-radius: 1rem;
+  background: var(--color-surface);
+}
+.platform-audit-panel-header {
+  margin-bottom: 1.25rem;
+}
+.platform-audit-count {
+  font-size: 0.75rem;
+  color: var(--color-ink-500);
+}
+.platform-audit .audit-filter-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem;
+  min-width: 0;
+}
+.platform-audit .audit-filter-controls > div {
+  width: 12rem;
+  max-width: 100%;
+}
+.platform-audit .audit-filter-bar > div {
+  flex-wrap: wrap;
+}
+.platform-audit .audit-log-view > div:first-child {
+  background: var(--color-surface-muted);
+  border-color: var(--color-border);
+  box-shadow: none;
+}
+.platform-audit .audit-log-view > div:nth-child(2) {
+  background: var(--color-surface);
+  border-color: var(--color-border);
+  box-shadow: none;
+}
+.platform-audit td {
+  padding-top: 1rem;
+  padding-bottom: 1rem;
+}
+.platform-audit code,
+.platform-audit dd {
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+.platform-audit [id^='audit-'] .grid > div > div {
+  min-width: 0;
+}
+.platform-audit .bg-slate-100 {
+  background: var(--color-surface-muted);
+  color: var(--color-ink-700);
+}
+@media (max-width: 48rem) {
+  .platform-audit-panel {
+    padding: 0.875rem;
+  }
+  .platform-audit .audit-filter-controls > div {
+    width: 100%;
+  }
+}

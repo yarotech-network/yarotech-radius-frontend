@@ -1,10 +1,20 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
-import { Ban, Mail, Pencil, ShieldOff, Trash2, UserPlus } from 'lucide-react';
-import { PageHeader, StatusBadge } from '@/components/layout';
+import {
+  Ban,
+  Mail,
+  Pencil,
+  ShieldOff,
+  Trash2,
+  UserPlus,
+  ShieldCheck,
+  RefreshCw,
+  Users,
+} from 'lucide-react';
+import { StatusBadge } from '@/components/layout';
 import { DataTable, FilterBar, Pagination, useListParams, type Column } from '@/components/data';
 import { Button, ConfirmDialog, Select, Tabs } from '@/components/ui';
-import { Alert, EmptyState, useToast } from '@/components/feedback';
+import { EmptyState, useToast } from '@/components/feedback';
 import { formatDate, formatDateTime, formatRelative } from '@/lib/formatting/dates';
 import type {
   StaffAssignment,
@@ -25,6 +35,7 @@ import { InviteDialog } from '../components/InviteDialog';
 import { EditGrantsDialog, NewAssignmentDialog } from '../components/AssignmentDialogs';
 import { ServiceChips } from '../components/ServiceChips';
 import { TenantSelect } from '../components/TenantSelect';
+import '../staff-access.css';
 
 type View = 'assignments' | 'invitations';
 const VIEWS: { value: View; label: string }[] = [
@@ -98,9 +109,14 @@ export default function StaffPage() {
       header: 'Staff account',
       primary: true,
       cell: (a) => (
-        <div className="min-w-0">
-          <div className="font-medium text-ink-900">User #{a.user}</div>
-          <div className="text-xs text-ink-500">since {formatDate(a.created_at)}</div>
+        <div className="staff-identity">
+          <span className="staff-avatar" aria-hidden>
+            <Users size={18} />
+          </span>
+          <div className="min-w-0">
+            <div className="font-medium text-ink-900">User #{a.user}</div>
+            <div className="text-xs text-ink-500">Assigned {formatDate(a.created_at)}</div>
+          </div>
         </div>
       ),
     },
@@ -119,7 +135,7 @@ export default function StaffPage() {
       primary: true,
       cell: (i) => (
         <div className="min-w-0">
-          <div className="truncate font-medium text-ink-900">{i.email}</div>
+          <div className="staff-email font-medium text-ink-900">{i.email}</div>
           <div className="text-xs text-ink-500">sent {formatRelative(i.created_at)}</div>
         </div>
       ),
@@ -157,180 +173,249 @@ export default function StaffPage() {
   ];
 
   return (
-    <>
-      <PageHeader
-        title="Staff access"
-        description="Platform support staff see only the tenants and services granted here. Invitations create the account; assignments grant access."
-        actions={
-          <>
-            <Button
-              variant="secondary"
-              leadingIcon={<UserPlus className="h-4 w-4" aria-hidden />}
-              onClick={() => setAssigning(true)}
-            >
-              New assignment
-            </Button>
-            <Button
-              leadingIcon={<Mail className="h-4 w-4" aria-hidden />}
-              onClick={() => setInviting(true)}
-            >
-              Invite staff
-            </Button>
-          </>
-        }
-      />
-      <Alert tone="info" className="mb-4">
-        Invitation links are shown once and are not e-mailed by the system — copy and send them
-        yourself.
-      </Alert>
-      <Tabs
-        items={VIEWS}
-        value={view}
-        onChange={setView}
-        ariaLabel="Staff views"
-        className="mb-4"
-      />
-      <FilterBar
-        filters={
-          <>
-            <TenantSelect
-              value={list.state.filters.tenant ?? ''}
-              onChange={(v) => list.setFilter('tenant', v || undefined)}
-            />
-            {view === 'assignments' ? (
-              <Select
-                aria-label="Active"
-                size="sm"
-                value={list.state.filters.is_active ?? ''}
-                onChange={(e) => list.setFilter('is_active', e.target.value || undefined)}
-                options={[
-                  { value: '', label: 'Active or paused' },
-                  { value: 'true', label: 'Active only' },
-                  { value: 'false', label: 'Paused only' },
-                ]}
+    <div className="staff-access min-w-0 space-y-6">
+      <header className="staff-access-header">
+        <div>
+          <p className="staff-access-eyebrow">
+            <ShieldCheck size={15} aria-hidden /> Platform administration
+          </p>
+          <h1>Staff access</h1>
+          <p className="staff-access-subtitle">
+            Give your support team the right access to each tenant.
+          </p>
+        </div>
+        <div className="staff-access-actions">
+          <Button
+            variant="secondary"
+            leadingIcon={<UserPlus className="h-4 w-4" aria-hidden />}
+            onClick={() => setAssigning(true)}
+          >
+            New assignment
+          </Button>
+          <Button
+            leadingIcon={<Mail className="h-4 w-4" aria-hidden />}
+            onClick={() => setInviting(true)}
+          >
+            Invite staff
+          </Button>
+        </div>
+      </header>
+      <section className="staff-access-guide" aria-label="How staff access works">
+        <div>
+          <span className="staff-guide-icon">
+            <Mail size={19} aria-hidden />
+          </span>
+          <div>
+            <h2>Invite a new colleague</h2>
+            <p>
+              Invitation links are shown once. Copy and share the link yourself; the system does not
+              email it.
+            </p>
+          </div>
+        </div>
+        <div>
+          <span className="staff-guide-icon">
+            <UserPlus size={19} aria-hidden />
+          </span>
+          <div>
+            <h2>Assign an existing account</h2>
+            <p>Choose a tenant and the services that a dedicated staff account can access.</p>
+          </div>
+        </div>
+        <div>
+          <span className="staff-guide-icon">
+            <ShieldCheck size={19} aria-hidden />
+          </span>
+          <div>
+            <h2>Stay in control</h2>
+            <p>
+              Edit service grants, pause an assignment or revoke access when support work is
+              complete.
+            </p>
+          </div>
+        </div>
+      </section>
+      <section className="staff-access-panel" aria-labelledby="staff-directory-heading">
+        <div className="staff-directory-header">
+          <div>
+            <h2 id="staff-directory-heading">
+              {view === 'assignments' ? 'Tenant access directory' : 'Staff invitations'}
+            </h2>
+            <p>
+              {view === 'assignments'
+                ? 'Each assignment connects one staff account to one tenant.'
+                : 'Track invitation status and revoke links that are no longer needed.'}
+            </p>
+          </div>
+          <Button
+            variant="secondary"
+            size="sm"
+            disabled={active.isFetching}
+            onClick={() => void active.refetch()}
+            leadingIcon={
+              <RefreshCw className={active.isFetching ? 'animate-spin' : ''} aria-hidden />
+            }
+          >
+            Refresh {view}
+          </Button>
+        </div>
+        <Tabs
+          items={VIEWS}
+          value={view}
+          onChange={setView}
+          ariaLabel="Staff views"
+          className="mb-4"
+        />
+        <FilterBar
+          className="mb-5"
+          filters={
+            <div className="staff-access-filters">
+              <TenantSelect
+                value={list.state.filters.tenant ?? ''}
+                onChange={(v) => list.setFilter('tenant', v || undefined)}
               />
-            ) : (
-              <Select
-                aria-label="Status"
-                size="sm"
-                value={list.state.filters.status ?? ''}
-                onChange={(e) => list.setFilter('status', e.target.value || undefined)}
-                options={[
-                  { value: '', label: 'All statuses' },
-                  { value: 'pending', label: 'Pending' },
-                  { value: 'accepted', label: 'Accepted' },
-                  { value: 'revoked', label: 'Revoked' },
-                ]}
-              />
+              {view === 'assignments' ? (
+                <Select
+                  aria-label="Active"
+                  size="sm"
+                  value={list.state.filters.is_active ?? ''}
+                  onChange={(e) => list.setFilter('is_active', e.target.value || undefined)}
+                  options={[
+                    { value: '', label: 'Active or paused' },
+                    { value: 'true', label: 'Active only' },
+                    { value: 'false', label: 'Paused only' },
+                  ]}
+                />
+              ) : (
+                <Select
+                  aria-label="Status"
+                  size="sm"
+                  value={list.state.filters.status ?? ''}
+                  onChange={(e) => list.setFilter('status', e.target.value || undefined)}
+                  options={[
+                    { value: '', label: 'All statuses' },
+                    { value: 'pending', label: 'Pending' },
+                    { value: 'accepted', label: 'Accepted' },
+                    { value: 'revoked', label: 'Revoked' },
+                  ]}
+                />
+              )}
+            </div>
+          }
+          activeCount={list.activeFilterCount}
+          onClear={list.clearFilters}
+        />
+        <p className="staff-result-count" role="status">
+          {active.isPending
+            ? 'Loading records…'
+            : active.isError
+              ? 'Records could not be refreshed. Retry below.'
+              : `Matching ${view}: ${active.data?.count ?? 0}`}
+        </p>
+        {view === 'assignments' ? (
+          <DataTable
+            caption="Staff assignments"
+            columns={assignmentColumns}
+            rows={assignments.data?.results}
+            rowKey={(a) => a.id}
+            loading={assignments.isPending}
+            refreshing={assignments.isFetching && !assignments.isPending}
+            error={assignments.error}
+            onRetry={() => void assignments.refetch()}
+            rowActions={(a) => (
+              <span className="inline-flex gap-1">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  aria-label={`Edit grants for user ${a.user}`}
+                  title="Edit grants"
+                  onClick={() => setEditing(a)}
+                  leadingIcon={<Pencil className="h-4 w-4" aria-hidden />}
+                />
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  aria-label={`Revoke assignment for user ${a.user}`}
+                  title="Revoke assignment"
+                  onClick={() => setRevokingAssignment(a)}
+                  leadingIcon={<Trash2 className="h-4 w-4" aria-hidden />}
+                />
+              </span>
             )}
-          </>
-        }
-        activeCount={list.activeFilterCount}
-        onClear={list.clearFilters}
-      />
-      {view === 'assignments' ? (
-        <DataTable
-          caption="Staff assignments"
-          columns={assignmentColumns}
-          rows={assignments.data?.results}
-          rowKey={(a) => a.id}
-          loading={assignments.isPending}
-          refreshing={assignments.isFetching && !assignments.isPending}
-          error={assignments.error}
-          onRetry={() => void assignments.refetch()}
-          rowActions={(a) => (
-            <span className="inline-flex gap-1">
-              <Button
-                size="sm"
-                variant="ghost"
-                aria-label={`Edit grants for user ${a.user}`}
-                title="Edit grants"
-                onClick={() => setEditing(a)}
-                leadingIcon={<Pencil className="h-4 w-4" aria-hidden />}
+            empty={
+              <EmptyState
+                icon={<ShieldOff className="h-6 w-6" aria-hidden />}
+                title={
+                  list.activeFilterCount > 0 ? 'No assignments match' : 'No staff assignments yet'
+                }
+                description={
+                  list.activeFilterCount > 0
+                    ? undefined
+                    : 'Invite a staff member, or grant an existing staff account access to a tenant.'
+                }
+                action={
+                  list.activeFilterCount > 0 ? (
+                    <Button variant="secondary" onClick={list.clearFilters}>
+                      Clear filters
+                    </Button>
+                  ) : (
+                    <Button onClick={() => setInviting(true)}>Invite staff</Button>
+                  )
+                }
               />
-              <Button
-                size="sm"
-                variant="ghost"
-                aria-label={`Revoke assignment for user ${a.user}`}
-                title="Revoke assignment"
-                onClick={() => setRevokingAssignment(a)}
-                leadingIcon={<Trash2 className="h-4 w-4" aria-hidden />}
+            }
+          />
+        ) : (
+          <DataTable
+            caption="Staff invitations"
+            columns={invitationColumns}
+            rows={invitations.data?.results}
+            rowKey={(i) => i.id}
+            loading={invitations.isPending}
+            refreshing={invitations.isFetching && !invitations.isPending}
+            error={invitations.error}
+            onRetry={() => void invitations.refetch()}
+            rowActions={(i) =>
+              i.status === 'pending' ? (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  aria-label={`Revoke invitation for ${i.email}`}
+                  title="Revoke invitation"
+                  onClick={() => setRevokingInvite(i)}
+                  leadingIcon={<Ban className="h-4 w-4" aria-hidden />}
+                />
+              ) : null
+            }
+            empty={
+              <EmptyState
+                icon={<Mail className="h-6 w-6" aria-hidden />}
+                title={list.activeFilterCount > 0 ? 'No invitations match' : 'No invitations yet'}
+                action={
+                  list.activeFilterCount > 0 ? (
+                    <Button variant="secondary" onClick={list.clearFilters}>
+                      Clear filters
+                    </Button>
+                  ) : (
+                    <Button onClick={() => setInviting(true)}>Invite staff</Button>
+                  )
+                }
               />
-            </span>
-          )}
-          empty={
-            <EmptyState
-              icon={<ShieldOff className="h-6 w-6" aria-hidden />}
-              title={
-                list.activeFilterCount > 0 ? 'No assignments match' : 'No staff assignments yet'
-              }
-              description={
-                list.activeFilterCount > 0
-                  ? undefined
-                  : 'Invite a staff member, or grant an existing staff account access to a tenant.'
-              }
-              action={
-                list.activeFilterCount > 0 ? (
-                  <Button variant="secondary" onClick={list.clearFilters}>
-                    Clear filters
-                  </Button>
-                ) : (
-                  <Button onClick={() => setInviting(true)}>Invite staff</Button>
-                )
-              }
-            />
-          }
-        />
-      ) : (
-        <DataTable
-          caption="Staff invitations"
-          columns={invitationColumns}
-          rows={invitations.data?.results}
-          rowKey={(i) => i.id}
-          loading={invitations.isPending}
-          refreshing={invitations.isFetching && !invitations.isPending}
-          error={invitations.error}
-          onRetry={() => void invitations.refetch()}
-          rowActions={(i) =>
-            i.status === 'pending' ? (
-              <Button
-                size="sm"
-                variant="ghost"
-                aria-label={`Revoke invitation for ${i.email}`}
-                title="Revoke invitation"
-                onClick={() => setRevokingInvite(i)}
-                leadingIcon={<Ban className="h-4 w-4" aria-hidden />}
-              />
-            ) : null
-          }
-          empty={
-            <EmptyState
-              icon={<Mail className="h-6 w-6" aria-hidden />}
-              title={list.activeFilterCount > 0 ? 'No invitations match' : 'No invitations yet'}
-              action={
-                list.activeFilterCount > 0 ? (
-                  <Button variant="secondary" onClick={list.clearFilters}>
-                    Clear filters
-                  </Button>
-                ) : (
-                  <Button onClick={() => setInviting(true)}>Invite staff</Button>
-                )
-              }
-            />
-          }
-        />
-      )}
-      {active.data && active.data.count > 0 && (
-        <Pagination
-          count={active.data.count}
-          page={list.state.page}
-          totalPages={active.data.total_pages}
-          pageSize={list.state.page_size}
-          onPageChange={list.setPage}
-          onPageSizeChange={list.setPageSize}
-          itemLabel={view}
-        />
-      )}
+            }
+          />
+        )}
+        {active.data && active.data.count > 0 && (
+          <Pagination
+            count={active.data.count}
+            page={list.state.page}
+            totalPages={active.data.total_pages}
+            pageSize={list.state.page_size}
+            onPageChange={list.setPage}
+            onPageSizeChange={list.setPageSize}
+            itemLabel={view}
+          />
+        )}
+      </section>
 
       <InviteDialog open={inviting} onClose={() => setInviting(false)} defaultTenant={tenantId} />
       <NewAssignmentDialog
@@ -365,6 +450,6 @@ export default function StaffPage() {
           toast.success('Invitation revoked');
         }}
       />
-    </>
+    </div>
   );
 }
