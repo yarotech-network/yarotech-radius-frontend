@@ -18,7 +18,7 @@ import type { NavGroup } from '@/app/navigation/navConfig';
 import { flattenNavItems, mobilePrimaryItems, visibleGroups } from '@/app/navigation/navConfig';
 import { prefetchRoute } from '@/app/navigation/prefetch';
 import { useAuth } from '@/app/auth/useAuth';
-import { useTheme } from '@/app/theme/ThemeProvider';
+import { ThemeProvider, useTheme } from '@/app/theme/ThemeProvider';
 import { ErrorBoundary } from '@/components/feedback/ErrorBoundary';
 import { Button } from '@/components/ui/Button';
 import { cn } from '@/lib/utilities/cn';
@@ -56,7 +56,15 @@ function readCollapsed(): boolean {
  *  - md–lg: rail + top bar
  *  - < md: top bar + bottom nav (4 primary items + "More" opening a drawer with everything)
  */
-export function AppShell({
+export function AppShell(props: AppShellProps) {
+  return (
+    <ThemeProvider defaultTheme="light" storageKey="yarotech-ui-theme">
+      <DashboardShell {...props} />
+    </ThemeProvider>
+  );
+}
+
+function DashboardShell({
   groups,
   homePath,
   profilePath,
