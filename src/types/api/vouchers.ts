@@ -1,5 +1,5 @@
 export type VoucherCodeFormat = 'legacy' | 'numeric' | 'alphabetic' | 'alphanumeric';
-import type { IsoDateTime, Kobo, PageParams } from './common';
+import type { IsoDateTime, Kobo, PageParams, PaymentDisplayStatus, ReconciliationState } from './common';
 
 export interface InternetPlan {
   max_devices?: number;
@@ -102,7 +102,7 @@ export interface VoucherManualWrite {
   device_limit?: number;
 }
 
-export type PaymentStatus = 'pending' | 'success' | 'failed' | 'abandoned';
+export type PaymentStatus = 'pending' | 'success' | 'failed' | 'abandoned' | 'reversed';
 
 export interface PaymentTransaction {
   id: number;
@@ -119,6 +119,17 @@ export interface PaymentTransaction {
   paystack_reference: string;
   created_at: IsoDateTime;
   paid_at: IsoDateTime | null;
+  // Phase 3B
+  display_status_code?: PaymentDisplayStatus | null;
+  display_status_label?: string | null;
+  provider_status?: string | null;
+  reconciliation_state?: ReconciliationState | null;
+  next_reconciliation_at?: IsoDateTime | null;
+  verification_attempts?: number | null;
+  last_verified_at?: IsoDateTime | null;
+  reconciliation_error?: string | null;
+  fulfilment_attempts?: number | null;
+  last_fulfilment_attempt_at?: IsoDateTime | null;
 }
 
 export interface PaymentListParams extends PageParams {

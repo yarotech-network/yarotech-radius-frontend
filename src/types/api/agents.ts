@@ -1,4 +1,4 @@
-import type { IsoDateTime, Kobo, PageParams } from './common';
+import type { IsoDateTime, Kobo, PageParams, PaymentDisplayStatus, ReconciliationState } from './common';
 import type { VoucherStatus } from './vouchers';
 import type { PublicPlan } from './tenants';
 
@@ -68,7 +68,7 @@ export interface AgentWallet {
   updated_at: IsoDateTime;
 }
 
-export type FundingStatus = 'pending' | 'success' | 'failed';
+export type FundingStatus = 'pending' | 'success' | 'failed' | 'reversed';
 
 export interface AgentFundingPayment {
   fee?: Kobo;
@@ -79,6 +79,17 @@ export interface AgentFundingPayment {
   status: FundingStatus;
   created_at: IsoDateTime;
   completed_at: IsoDateTime | null;
+  // Phase 3B
+  display_status_code?: PaymentDisplayStatus | null;
+  display_status_label?: string | null;
+  provider_status?: string | null;
+  reconciliation_state?: ReconciliationState | null;
+  next_reconciliation_at?: IsoDateTime | null;
+  verification_attempts?: number | null;
+  last_verified_at?: IsoDateTime | null;
+  reconciliation_error?: string | null;
+  fulfilment_attempts?: number | null;
+  last_fulfilment_attempt_at?: IsoDateTime | null;
 }
 
 export interface FundingListParams extends PageParams {

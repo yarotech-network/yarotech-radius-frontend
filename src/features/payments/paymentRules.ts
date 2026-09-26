@@ -13,6 +13,7 @@ export const PAYMENT_STATUS_FILTERS: { value: PaymentStatus | ''; label: string 
   { value: 'pending', label: 'Pending' },
   { value: 'failed', label: 'Failed' },
   { value: 'abandoned', label: 'Abandoned' },
+  { value: 'reversed', label: 'Reversed' },
 ];
 
 export const FULFILLMENT_LABELS: Record<FulfillmentStatus, string> = {

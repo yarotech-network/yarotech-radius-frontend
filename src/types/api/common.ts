@@ -52,3 +52,13 @@ export interface CheckoutInitResponse {
   authorization_url: string;
   reference: string;
 }
+
+export type PaymentDisplayStatus =
+  | 'pending'
+  | 'needs_review'
+  | 'paid'
+  | 'paid_unfulfilled'
+  | 'failed'
+  | 'reversed';
+
+export type ReconciliationState = 'waiting' | 'retrying' | 'needs_review' | 'resolved';

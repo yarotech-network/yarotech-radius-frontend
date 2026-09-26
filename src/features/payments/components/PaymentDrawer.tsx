@@ -2,12 +2,13 @@ import { Link, useNavigate } from 'react-router';
 import { LifeBuoy } from 'lucide-react';
 import { Button, CopyButton, DescriptionList, Dialog, Skeleton } from '@/components/ui';
 import { Alert, QueryBoundary } from '@/components/feedback';
-import { StatusBadge } from '@/components/layout';
 import { usePrincipal } from '@/app/auth/useAuth';
-import { formatDateTime } from '@/lib/formatting/dates';
+import { formatDateTime, formatRelative } from '@/lib/formatting/dates';
 import { formatKobo } from '@/lib/formatting/money';
 import { can } from '@/services/auth/principal';
 import { usePayment } from '../queries';
+import { PaymentStatusBadge } from './PaymentStatusBadge';
+import { RECONCILIATION_STATE_LABELS, resolveDisplayStatus } from '../paymentStatus';
 
 export function PaymentDrawer({
   paymentId,
@@ -49,10 +50,26 @@ export function PaymentDrawer({
                     {formatKobo(p.amount)}
                   </p>
                 </div>
-                <StatusBadge status={p.status} size="md" dot />
+                <PaymentStatusBadge displayStatusCode={p.display_status_code} displayStatusLabel={p.display_status_label} status={p.status} size="md" dot />
               </div>
 
-              {p.status === 'success' && !p.voucher && (
+              {resolveDisplayStatus(p) === 'paid_unfulfilled' && (
+                <>
+                  <Alert tone="warning" title="Your payment has been confirmed. Do not make another payment for this purchase." />
+                  <p className="mt-2 text-xs text-ink-600">Payment is confirmed and is not the problem; fulfilment is still being recovered automatically.</p>
+                </>
+              )}
+              {resolveDisplayStatus(p) === 'needs_review' && (
+                <Alert tone="warning" title="Confirmation is taking longer than expected. We are still checking automatically.">
+                  Do not make another payment while this transaction is being reviewed.
+                </Alert>
+              )}
+              {resolveDisplayStatus(p) === 'reversed' && (
+                <Alert tone="warning" title="Payment reversed — contact support">
+                  The provider reports that this payment was reversed. Contact support with this reference; do not locally revoke value from here.
+                </Alert>
+              )}
+              {p.status === 'success' && !p.voucher && resolveDisplayStatus(p) !== 'paid_unfulfilled' && (
                 <Alert tone="warning" title="Paid, no voucher">
                   Payment is recorded as successful, but no voucher is linked yet.{' '}
                   {canRecover
@@ -104,6 +121,45 @@ export function PaymentDrawer({
                   { label: 'Plan', value: p.plan ? `#${p.plan}` : null },
                   { label: 'Created', value: formatDateTime(p.created_at) },
                   { label: 'Paid', value: p.paid_at ? formatDateTime(p.paid_at) : null },
+                  { label: 'Financial status', value: p.status },
+                  {
+                    label: 'Display status',
+                    value: p.display_status_label ?? resolveDisplayStatus(p),
+                  },
+                  { label: 'Provider status', value: p.provider_status || null },
+                  {
+                    label: 'Reconciliation state',
+                    value: p.reconciliation_state
+                      ? (RECONCILIATION_STATE_LABELS[p.reconciliation_state] ?? p.reconciliation_state)
+                      : null,
+                  },
+                  {
+                    label: 'Verification attempts',
+                    value: p.verification_attempts != null ? String(p.verification_attempts) : null,
+                  },
+                  {
+                    label: 'Last verification',
+                    value: p.last_verified_at
+                      ? `${formatDateTime(p.last_verified_at)} (${formatRelative(p.last_verified_at)})`
+                      : null,
+                  },
+                  {
+                    label: 'Next reconciliation',
+                    value: p.next_reconciliation_at
+                      ? `${formatDateTime(p.next_reconciliation_at)} (${formatRelative(p.next_reconciliation_at)})`
+                      : null,
+                  },
+                  {
+                    label: 'Fulfilment attempts',
+                    value: p.fulfilment_attempts != null ? String(p.fulfilment_attempts) : null,
+                  },
+                  {
+                    label: 'Last fulfilment attempt',
+                    value: p.last_fulfilment_attempt_at
+                      ? `${formatDateTime(p.last_fulfilment_attempt_at)} (${formatRelative(p.last_fulfilment_attempt_at)})`
+                      : null,
+                  },
+                  { label: 'Reconciliation error', value: p.reconciliation_error || null },
                 ]}
               />
 

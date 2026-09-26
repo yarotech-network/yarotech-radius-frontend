@@ -1,8 +1,8 @@
 import { useEffect, useMemo } from 'react';
 import { Route, Routes, useSearchParams } from 'react-router';
 import { Plus, Wallet } from 'lucide-react';
-import { StatusBadge } from '@/components/layout';
 import { Button, Select, Stat } from '@/components/ui';
+import { PaymentStatusBadge } from '@/features/payments/components/PaymentStatusBadge';
 import { EmptyState } from '@/components/feedback';
 import { DataTable, Pagination, useListParams, type Column } from '@/components/data';
 import { formatDateTime, formatRelative } from '@/lib/formatting/dates';
@@ -21,6 +21,7 @@ const STATUS_OPTIONS = [
   { value: 'pending', label: 'Pending' },
   { value: 'success', label: 'Successful' },
   { value: 'failed', label: 'Failed' },
+  { value: 'reversed', label: 'Reversed' },
 ];
 
 /** `/agent/wallet` (+ `/agent/wallet/return?reference=` where Paystack may send the agent back). */
@@ -93,7 +94,7 @@ function WalletScreen({ returning = false }: { returning?: boolean }) {
       align: 'right',
       cell: (f) => <span className="tabular-nums">{formatKobo(f.amount)}</span>,
     },
-    { key: 'status', header: 'Status', cell: (f) => <StatusBadge status={f.status} size="sm" /> },
+    { key: 'status', header: 'Status', cell: (f) => <PaymentStatusBadge displayStatusCode={f.display_status_code} displayStatusLabel={f.display_status_label} status={f.status} size="sm" /> },
     {
       key: 'completed',
       header: 'Completed',

@@ -1,7 +1,9 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { isApiError } from '@/services/api/errors';
+import { isPollableDisplayStatus, resolveDisplayStatus } from '@/features/payments/paymentStatus';
 import type {
   MembershipRole,
+  PaymentDisplayStatus,
   SubscriptionCheckoutRequest,
   TenantMembershipWrite,
   TenantProfileWrite,
@@ -117,7 +119,7 @@ export function useCheckout() {
   });
 }
 
-/** Polls a checkout reference every 5 s until Paystack's webhook/callback settles it. */
+/** Polls a checkout reference every 5 s while pending/needs_review/paid_unfulfilled. Backend is authoritative. */
 export function useSubscriptionPayment(reference: string | null) {
   const client = useQueryClient();
   return useQuery({
@@ -129,7 +131,14 @@ export function useSubscriptionPayment(reference: string | null) {
       return payment;
     },
     enabled: reference !== null,
-    refetchInterval: (query) => (query.state.data?.status === 'pending' ? 5_000 : false),
+    refetchInterval: (query) => {
+      const data = query.state.data as unknown as {
+        display_status_code?: PaymentDisplayStatus | null;
+        status?: string | null;
+      } | undefined;
+      if (!data) return false;
+      return isPollableDisplayStatus(resolveDisplayStatus(data)) ? 5_000 : false;
+    },
   });
 }
 

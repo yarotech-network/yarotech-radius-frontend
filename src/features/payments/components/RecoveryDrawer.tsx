@@ -19,6 +19,8 @@ import {
   deliveryNeedsAcknowledgement,
   isDeliveryLive,
 } from '../paymentRules';
+import { PaymentStatusBadge } from './PaymentStatusBadge';
+import { resolveDisplayStatus } from '../paymentStatus';
 
 export function RecoveryDrawer({
   paymentId,
@@ -131,20 +133,42 @@ function RecoveryDetail({ row }: { row: PaymentRecovery }) {
             {formatKobo(row.amount)}
           </p>
         </div>
-        <StatusBadge status={row.status} size="md" dot />
+        <PaymentStatusBadge displayStatusCode={row.display_status_code} displayStatusLabel={row.display_status_label} status={row.status} size="md" dot />
       </div>
+      {resolveDisplayStatus(row) === 'paid_unfulfilled' && (
+        <Alert tone="warning" title="Provider payment confirmed, fulfilment needs recovery">
+          Your payment has been confirmed. Do not make another payment for this purchase.
+        </Alert>
+      )}
+      {resolveDisplayStatus(row) === 'needs_review' && (
+        <Alert tone="warning" title="Provider confirmation unresolved">
+          Confirmation is taking longer than expected. We are still checking automatically. Do not make another payment while this transaction is being reviewed.
+        </Alert>
+      )}
+      {resolveDisplayStatus(row) === 'reversed' && (
+        <Alert tone="warning" title="Financial reversal requiring support review">
+          The provider reports that this payment was reversed. Contact support with this reference before delivering value.
+        </Alert>
+      )}
+      {row.fulfillment_status === 'fulfilled' && row.delivery_status === 'failed' && (
+        <Alert tone="warning" title="Only credential delivery failed">
+          Payment and voucher are already correct; only the credentials email failed. Resend the email — do not re-charge the customer.
+        </Alert>
+      )}
       <DescriptionList
         columns={2}
         items={[
+          { label: 'Financial status', value: <StatusBadge status={row.status} size="sm" /> },
+          { label: 'Display status', value: <PaymentStatusBadge displayStatusCode={row.display_status_code} displayStatusLabel={row.display_status_label} status={row.status} size="sm" /> },
+          { label: 'Provider status', value: row.provider_status || <span className="text-ink-400">—</span> },
+          { label: 'Reconciliation', value: row.reconciliation_state ? `${row.reconciliation_state}${row.next_reconciliation_at ? ` → ${formatRelative(row.next_reconciliation_at)}` : ''}` : <span className="text-ink-400">—</span> },
+          { label: 'Verification', value: `${row.verification_attempts ?? 0} attempts${row.last_verified_at ? ` · ${formatRelative(row.last_verified_at)}` : ''}` },
+          { label: 'Fulfilment', value: `${row.fulfilment_attempts ?? 0} attempts${row.last_fulfilment_attempt_at ? ` · ${formatRelative(row.last_fulfilment_attempt_at)}` : ''}` },
+          { label: 'Error', value: row.reconciliation_error ? <code className="text-xs break-all">{row.reconciliation_error}</code> : <span className="text-ink-400">—</span> },
           {
             label: 'Voucher',
             value: row.voucher ? (
-              <Link
-                to={`/vouchers/${row.voucher}`}
-                className="font-mono text-brand-700 hover:underline"
-              >
-                #{row.voucher}
-              </Link>
+              <Link to={`/vouchers/${row.voucher}`} className="font-mono text-brand-700 hover:underline">#{row.voucher}</Link>
             ) : (
               <span className="inline-flex items-center gap-1.5">
                 <StatusBadge status={row.fulfillment_status} size="sm" />
@@ -157,24 +181,11 @@ function RecoveryDetail({ row }: { row: PaymentRecovery }) {
             value: (
               <span className="inline-flex items-center gap-1.5">
                 <StatusBadge status={row.delivery_status} size="sm" />
-                {live && (
-                  <RefreshCw
-                    className="h-3 w-3 animate-spin text-brand-700"
-                    aria-label="Updating"
-                  />
-                )}
+                {live && <RefreshCw className="h-3 w-3 animate-spin text-brand-700" aria-label="Updating" />}
               </span>
             ),
           },
-          {
-            label: 'Verified with Paystack',
-            value: row.verified_at ? (
-              formatDateTime(row.verified_at)
-            ) : (
-              <span className="text-ink-400">Not yet</span>
-            ),
-            span: 2,
-          },
+          { label: 'Verified with Paystack', value: row.verified_at ? formatDateTime(row.verified_at) : <span className="text-ink-400">Not yet</span>, span: 2 },
         ]}
       />
 

@@ -1,4 +1,4 @@
-import type { IsoDateTime, Kobo, PageParams } from './common';
+import type { IsoDateTime, Kobo, PageParams, PaymentDisplayStatus, ReconciliationState } from './common';
 import type { PaymentStatus } from './vouchers';
 
 export type FulfillmentStatus = 'fulfilled' | 'paid_unfulfilled' | 'unverified';
@@ -15,6 +15,17 @@ export interface PaymentRecovery {
   voucher: number | null;
   fulfillment_status: FulfillmentStatus;
   delivery_status: DeliveryStatus;
+  // Phase 3B
+  provider_status?: string | null;
+  reconciliation_state?: ReconciliationState | null;
+  next_reconciliation_at?: IsoDateTime | null;
+  display_status_code?: PaymentDisplayStatus | null;
+  display_status_label?: string | null;
+  fulfilment_attempts?: number | null;
+  last_fulfilment_attempt_at?: IsoDateTime | null;
+  verification_attempts?: number | null;
+  last_verified_at?: IsoDateTime | null;
+  reconciliation_error?: string | null;
 }
 
 export interface RecoveryListParams extends PageParams {
@@ -80,4 +91,9 @@ export interface PaymentCallbackResponse {
   tenant_name?: string;
   /** e.g. `c•••@example.com` — for "we emailed it to …" copy. */
   customer_email_masked?: string;
+  // Phase 3B
+  display_status_code?: PaymentDisplayStatus | null;
+  display_status_label?: string | null;
+  reconciliation_state?: ReconciliationState | null;
+  next_reconciliation_at?: IsoDateTime | null;
 }

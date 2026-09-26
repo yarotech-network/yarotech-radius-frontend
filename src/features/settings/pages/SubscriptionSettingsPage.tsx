@@ -11,6 +11,7 @@ import { formatKobo } from '@/lib/formatting/money';
 import { cn } from '@/lib/utilities/cn';
 import { errorMessage, isApiError } from '@/services/api/errors';
 import { can } from '@/services/auth/principal';
+import { isPollableDisplayStatus, resolveDisplayStatus } from '@/features/payments/paymentStatus';
 import type { SubscriptionPlan, TenantSubscription } from '@/types/api';
 import {
   useCheckout,
@@ -264,69 +265,41 @@ function PaymentTracker({ reference, onDismiss }: { reference: string; onDismiss
   const attempted = useRef(false);
   const { mutate: verify } = verification;
   useEffect(() => {
-    if (payment.data?.status === 'pending' && !attempted.current) {
+    if (!payment.data) return;
+    // Backend remains authoritative: never derive needs_review from timestamps.
+    if (isPollableDisplayStatus(resolveDisplayStatus(payment.data)) && !attempted.current) {
       attempted.current = true;
       verify();
     }
-  }, [payment.data?.status, verify]);
+  }, [payment.data, verify]);
   if (payment.isPending) return <Alert tone="info" className="mb-6" title="Checking payment…" />;
   if (payment.isError)
     return (
-      <Alert
-        tone="danger"
-        className="mb-6"
-        title="Could not check the payment"
-        onDismiss={onDismiss}
-      >
+      <Alert tone="danger" className="mb-6" title="Could not check the payment" onDismiss={onDismiss}>
         {errorMessage(payment.error)} Reference {reference}.
-        <Button size="sm" variant="secondary" onClick={() => void payment.refetch()}>
-          Retry status check
-        </Button>
+        <Button size="sm" variant="secondary" onClick={() => void payment.refetch()}>Retry status check</Button>
       </Alert>
     );
   const p = payment.data;
-  if (p.status === 'success') {
-    return (
-      <Alert tone="success" className="mb-6" title="Payment confirmed" onDismiss={onDismiss}>
-        {formatKobo(p.amount)} received {p.completed_at ? formatRelative(p.completed_at) : ''}. Your
-        subscription has been updated.
-      </Alert>
-    );
+  const code = resolveDisplayStatus(p);
+  if (code === 'paid') {
+    return <Alert tone="success" className="mb-6" title="Payment confirmed" onDismiss={onDismiss}>{formatKobo(p.amount)} received {p.completed_at ? formatRelative(p.completed_at) : ''}. Your subscription has been updated.</Alert>;
   }
-  if (p.status === 'failed') {
-    return (
-      <Alert tone="danger" className="mb-6" title="Payment failed" onDismiss={onDismiss}>
-        Paystack reported reference {reference} as failed. No subscription change was made — you can
-        try again below.
-      </Alert>
-    );
+  if (code === 'paid_unfulfilled') {
+    return <Alert tone="warning" className="mb-6" title="Payment confirmed. Subscription activation is being recovered. Do not pay again." onDismiss={onDismiss}>Your payment has been confirmed. We are recovering your subscription automatically. <Button size="sm" variant="secondary" onClick={() => verify()} loading={verification.isPending} className="mt-2">Check again</Button></Alert>;
+  }
+  if (code === 'failed') {
+    return <Alert tone="danger" className="mb-6" title="Payment failed" onDismiss={onDismiss}>Paystack reported reference {reference} as failed. No subscription change was made — you can try again below.</Alert>;
+  }
+  if (code === 'reversed') {
+    return <Alert tone="warning" className="mb-6" title="Payment reversed — contact support" onDismiss={onDismiss}>The provider reports reversed. If subscription was already extended, contact support.</Alert>;
+  }
+  if (code === 'needs_review') {
+    return <Alert tone="warning" className="mb-6" title="Confirmation is taking longer than expected. We are still checking the payment automatically." onDismiss={onDismiss} actions={<Button size="sm" variant="secondary" onClick={() => verify()} disabled={verification.isPending} leadingIcon={<RefreshCw className={cn('h-4 w-4', verification.isPending && 'animate-spin')} aria-hidden />}>Check now</Button>}>Do not make another payment for this reference. {verification.isError && <p className="mt-2">{errorMessage(verification.error)}</p>}</Alert>;
   }
   return (
-    <Alert
-      tone="info"
-      className="mb-6"
-      title="Waiting for Paystack"
-      onDismiss={onDismiss}
-      actions={
-        <Button
-          size="sm"
-          variant="secondary"
-          onClick={() => verify()}
-          disabled={verification.isPending}
-          leadingIcon={
-            <RefreshCw
-              className={cn('h-4 w-4', verification.isPending && 'animate-spin')}
-              aria-hidden
-            />
-          }
-        >
-          Check now
-        </Button>
-      }
-    >
-      Payment of {formatKobo(p.amount)} (reference {reference}) is pending. Complete it in the
-      Paystack tab, then select Check now if it is still pending. Do not pay again if Paystack has
-      already confirmed success.
+    <Alert tone="info" className="mb-6" title="Waiting for Paystack" onDismiss={onDismiss} actions={<Button size="sm" variant="secondary" onClick={() => verify()} disabled={verification.isPending} leadingIcon={<RefreshCw className={cn('h-4 w-4', verification.isPending && 'animate-spin')} aria-hidden />}>Check now</Button>}>
+      Payment of {formatKobo(p.amount)} (reference {reference}) is pending. Complete it in the Paystack tab, then select Check now if it is still pending. Do not pay again if Paystack has already confirmed success.
       {verification.isError && <p className="mt-2">{errorMessage(verification.error)}</p>}
     </Alert>
   );

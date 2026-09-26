@@ -112,14 +112,14 @@ describe('PaymentsPage', () => {
     expect(await within(table).findByText('PAY-FULFILLED-001')).toBeInTheDocument();
     expect(within(table).getByText('PAY-PENDING-003')).toBeInTheDocument();
     // staff cannot see the recovery board
-    expect(screen.queryByRole('link', { name: /Recovery/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /payment recovery/i })).not.toBeInTheDocument();
 
     await userEvent.selectOptions(screen.getByLabelText('Status'), 'success');
     await waitFor(() => expect(seen.at(-1)?.searchParams.get('status')).toBe('success'));
     expect(seen.at(-1)?.searchParams.get('ordering')).toBe('-created_at');
 
     await userEvent.click(within(table).getByText('PAY-FULFILLED-001'));
-    const dialog = await screen.findByRole('dialog', { name: 'Payment' });
+    const dialog = await screen.findByRole('dialog', { name: /Payment Transaction/ });
     expect(await within(dialog).findByText('₦500.00')).toBeInTheDocument();
     expect(within(dialog).getByRole('link', { name: '2ju2AUqb' })).toHaveAttribute(
       'href',
@@ -140,11 +140,11 @@ describe('PaymentsPage', () => {
       route: '/payments?payment=1',
       role: 'manager',
     });
-    const dialog = await screen.findByRole('dialog', { name: 'Payment' });
+    const dialog = await screen.findByRole('dialog', { name: /Payment Transaction/ });
     expect(
       await within(dialog).findByRole('button', { name: /Resend credentials/ }),
     ).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /Recovery/ })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: /payment recovery/i })).toHaveAttribute(
       'href',
       '/payments/recovery',
     );
@@ -168,7 +168,7 @@ describe('PaymentsPage', () => {
     await user.click(screen.getByRole('button', { name: 'Refresh payments' }));
     expect(await screen.findByText('Payments could not be refreshed')).toBeInTheDocument();
     await user.click(within(table).getByRole('button', { name: row.reference }));
-    const dialog = await screen.findByRole('dialog', { name: 'Payment' });
+    const dialog = await screen.findByRole('dialog', { name: /Payment Transaction/ });
     expect(await within(dialog).findByText('Paid, no voucher')).toBeInTheDocument();
     expect(
       within(dialog).getByRole('button', { name: /Recover this payment/ }),

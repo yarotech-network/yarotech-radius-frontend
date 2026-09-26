@@ -1,5 +1,6 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { PAGE_SIZE_DEFAULT } from '@/app/config/constants';
+import { isPollableDisplayStatus, resolveDisplayStatus } from '@/features/payments/paymentStatus';
 import type {
   AgentGenerateRequest,
   AgentSelfEditRequest,
@@ -77,7 +78,7 @@ export function useFundings(params: FundingListParams) {
   return useQuery({ ...agentFundingsQuery(params), placeholderData: keepPreviousData });
 }
 
-/** One funding payment looked up by reference; polls every 5 s while it is still pending. */
+/** One funding payment looked up by reference; polls every 5 s while pending/needs_review/paid_unfulfilled. Backend is authoritative. */
 export function useFundingByReference(reference: string | null) {
   return useQuery({
     queryKey: agentKeys.funding(reference ?? ''),
@@ -85,8 +86,11 @@ export function useFundingByReference(reference: string | null) {
       (await agentPortalApi.fundings({ reference: reference ?? '', page_size: 1 })).results[0] ??
       null,
     enabled: Boolean(reference),
-    refetchInterval: (query) =>
-      query.state.data === undefined || query.state.data?.status === 'pending' ? 5_000 : false,
+    refetchInterval: (query) => {
+      if (query.state.data === undefined) return 5_000;
+      if (query.state.data === null) return false;
+      return isPollableDisplayStatus(resolveDisplayStatus(query.state.data)) ? 5_000 : false;
+    },
   });
 }
 

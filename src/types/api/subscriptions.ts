@@ -1,4 +1,4 @@
-import type { IsoDateTime, Kobo, PageParams } from './common';
+import type { IsoDateTime, Kobo, PageParams, PaymentDisplayStatus, ReconciliationState } from './common';
 
 export interface PlanLimits {
   max_routers?: number | null;
@@ -52,7 +52,7 @@ export interface SubscriptionCheckoutRequest {
   plan_id: number;
 }
 
-export type SubscriptionPaymentStatus = 'pending' | 'success' | 'failed';
+export type SubscriptionPaymentStatus = 'pending' | 'success' | 'failed' | 'reversed';
 
 export interface SubscriptionPayment {
   reference: string;
@@ -62,6 +62,17 @@ export interface SubscriptionPayment {
   subscription: number | null;
   created_at: IsoDateTime;
   completed_at: IsoDateTime | null;
+  // Phase 3B
+  display_status_code?: PaymentDisplayStatus | null;
+  display_status_label?: string | null;
+  provider_status?: string | null;
+  reconciliation_state?: ReconciliationState | null;
+  next_reconciliation_at?: IsoDateTime | null;
+  verification_attempts?: number | null;
+  last_verified_at?: IsoDateTime | null;
+  reconciliation_error?: string | null;
+  fulfilment_attempts?: number | null;
+  last_fulfilment_attempt_at?: IsoDateTime | null;
 }
 
 export interface PlatformSubscriptionPayment extends SubscriptionPayment {

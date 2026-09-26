@@ -15,6 +15,10 @@ const TONES: Record<string, BadgeTone> = {
   disabled: 'danger',
   // payments / funding / operations
   pending: 'warning',
+  needs_review: 'warning',
+  paid: 'success',
+  paid_unfulfilled: 'warning',
+  reversed: 'danger',
   success: 'success',
   succeeded: 'success',
   failed: 'danger',
@@ -22,7 +26,6 @@ const TONES: Record<string, BadgeTone> = {
   running: 'info',
   // recovery
   fulfilled: 'success',
-  paid_unfulfilled: 'warning',
   unverified: 'neutral',
   // delivery
   not_requested: 'neutral',
@@ -61,7 +64,10 @@ const TONES: Record<string, BadgeTone> = {
 };
 
 const LABELS: Record<string, string> = {
-  paid_unfulfilled: 'Paid, not delivered',
+  needs_review: 'Needs review',
+  paid: 'Paid',
+  reversed: 'Reversed',
+  paid_unfulfilled: 'Paid · Fulfilment issue',
   unverified: 'Not verified',
   not_requested: 'Not requested',
   waiting_for_vpn: 'Waiting for VPN',

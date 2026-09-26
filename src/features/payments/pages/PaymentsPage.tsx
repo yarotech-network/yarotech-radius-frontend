@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { Check, Copy, CreditCard, LifeBuoy, Receipt, RefreshCw, ShieldCheck } from 'lucide-react';
-import { StatusBadge } from '@/components/layout';
 import { Badge, Button, ButtonLink, Card, Select } from '@/components/ui';
+import { PaymentStatusBadge } from '@/features/payments/components/PaymentStatusBadge';
 import { Alert, EmptyState } from '@/components/feedback';
 import {
   DataTable,
@@ -106,7 +106,7 @@ export default function PaymentsPage() {
         <span className="font-bold text-ink-900 tabular-nums">{formatKobo(p.amount)}</span>
       ),
     },
-    { key: 'status', header: 'Status', cell: (p) => <StatusBadge status={p.status} size="sm" dot /> },
+    { key: 'status', header: 'Status', cell: (p) => <PaymentStatusBadge displayStatusCode={p.display_status_code} displayStatusLabel={p.display_status_label} status={p.status} size="sm" dot /> },
     {
       key: 'voucher',
       header: 'Voucher Code',
@@ -172,7 +172,7 @@ export default function PaymentsPage() {
               leadingIcon={<RefreshCw className={query.isFetching ? 'animate-spin motion-reduce:animate-none' : ''} />}
               onClick={() => void query.refetch()}
             >
-              {query.isFetching ? 'Refreshing...' : 'Refresh'}
+              {query.isFetching ? 'Refreshing...' : 'Refresh payments'}
             </Button>
             {can(principal, 'payments.recovery.view') && (
               <ButtonLink

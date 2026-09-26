@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router';
 import { LifeBuoy, RefreshCw } from 'lucide-react';
 import { StatusBadge } from '@/components/layout';
 import { Button, Card, Select, Tooltip } from '@/components/ui';
+import { PaymentStatusBadge } from '../components/PaymentStatusBadge';
 import { Alert, EmptyState } from '@/components/feedback';
 import {
   DataTable,
@@ -104,7 +105,7 @@ export default function RecoveryPage() {
         <span className="font-semibold text-ink-900 tabular-nums">{formatKobo(r.amount)}</span>
       ),
     },
-    { key: 'status', header: 'Payment', cell: (r) => <StatusBadge status={r.status} size="sm" /> },
+    { key: 'status', header: 'Payment', cell: (r) => <PaymentStatusBadge displayStatusCode={r.display_status_code} displayStatusLabel={r.display_status_label} status={r.status} size="sm" /> },
     {
       key: 'fulfillment',
       header: 'Voucher',
@@ -150,7 +151,7 @@ export default function RecoveryPage() {
               leadingIcon={<RefreshCw className={query.isFetching ? 'animate-spin motion-reduce:animate-none' : ''} />}
               onClick={() => void query.refetch()}
             >
-              {query.isFetching ? 'Refreshing...' : 'Refresh'}
+              {query.isFetching ? 'Refreshing...' : 'Refresh recovery'}
             </Button>
           </div>
         </div>
