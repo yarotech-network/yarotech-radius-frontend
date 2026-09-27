@@ -192,7 +192,7 @@ function CheckoutForm({ plan, slug }: { plan: PublicPlan; slug: string }) {
             value: String(i + 1),
             label: `${i + 1} device${i ? 's' : ''}`,
           }))}
-          disabled={form.formState.isSubmitting}
+          disabled={form.formState.isSubmitting || maxDevices <= 1}
         />
       </FormField>
       <FormField

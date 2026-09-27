@@ -442,3 +442,33 @@ describe('public IoT checkout', () => {
     expect(screen.queryByText('Your voucher has been issued.')).not.toBeInTheDocument();
   });
 });
+
+describe('storefront device ceiling', () => {
+  it('shows the device allowance on plan cards when above one', async () => {
+    mockStore();
+    server.use(
+      http.get(`${API}/public/tenants/wuse-hotspot/plans/`, () => HttpResponse.json(paginated([{...plans[0], max_devices:3}]))),
+    );
+    renderStore('/s/wuse-hotspot');
+    expect(await screen.findByText('Up to 3 devices')).toBeInTheDocument();
+  });
+
+  it('disables the device selector when the plan allows a single device', async () => {
+    mockStore();
+    renderStore('/s/wuse-hotspot/checkout/1');
+    const select = await screen.findByLabelText('Devices per voucher') as HTMLSelectElement;
+    expect(select).toBeDisabled();
+    expect(Array.from(select.options).map((o) => o.text)).toEqual(['1 device']);
+  });
+
+  it('renders 1..max with singular/plural labels on a multi-device plan', async () => {
+    mockStore();
+    server.use(
+      http.get(`${API}/public/tenants/wuse-hotspot/plans/`, () => HttpResponse.json(paginated([{...plans[0], max_devices:3}]))),
+    );
+    renderStore('/s/wuse-hotspot/checkout/1');
+    const select = await screen.findByLabelText('Devices per voucher') as HTMLSelectElement;
+    expect(select).toBeEnabled();
+    expect(Array.from(select.options).map((o) => o.text)).toEqual(['1 device', '2 devices', '3 devices']);
+  });
+});

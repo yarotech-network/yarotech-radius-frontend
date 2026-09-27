@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Clock, Database, Gauge } from 'lucide-react';
+import { Clock, Database, Gauge, Users } from 'lucide-react';
 import { formatKobo } from '@/lib/formatting/money';
 import { describeRateLimit, formatDataLimit, formatHours } from '@/lib/formatting/units';
 import { cn } from '@/lib/utilities/cn';
@@ -49,6 +49,13 @@ export function PlanCard({
           <dt className="sr-only">Speed</dt>
           <dd>{describeRateLimit(plan.rate_limit)}</dd>
         </div>
+        {(plan.max_devices ?? 1) > 1 && (
+          <div className="flex items-center gap-2">
+            <Users className="size-4 shrink-0 text-ink-400" aria-hidden />
+            <dt className="sr-only">Devices</dt>
+            <dd>Up to {plan.max_devices} devices</dd>
+          </div>
+        )}
       </dl>
       {action && <div className="mt-4 pt-1">{action}</div>}
     </article>

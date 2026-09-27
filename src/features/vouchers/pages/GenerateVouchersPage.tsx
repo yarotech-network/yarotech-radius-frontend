@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
 import { Controller, useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -68,6 +68,13 @@ export default function GenerateVouchersPage() {
     [plans.data, planId],
   );
   const maxDevices = Math.max(1, Math.min(10, selectedPlan?.max_devices ?? 1));
+  // Clamp the device selection when the selected plan changes to one with a
+  // lower ceiling, so a stale value can never be submitted.
+  useEffect(() => {
+    if (deviceLimit > maxDevices) {
+      form.setValue('device_limit', maxDevices, { shouldValidate: true });
+    }
+  }, [form, maxDevices, deviceLimit]);
   const validQuantity = Number.isInteger(quantity) && quantity >= 1 && quantity <= 100;
   const prefixPlaceholder = selectedPlan?.voucher_prefix
     ? `Defaults to ${selectedPlan.voucher_prefix}`
@@ -285,7 +292,7 @@ export default function GenerateVouchersPage() {
                 )}
               />
               <FormField label="Devices per voucher" error={form.formState.errors.device_limit?.message}>
-                <Select {...form.register('device_limit')} options={Array.from({length: maxDevices}, (_, i) => ({value:String(i+1), label:`${i+1} device${i ? 's' : ''}`}))} />
+                <Select {...form.register('device_limit')} options={Array.from({length: maxDevices}, (_, i) => ({value:String(i+1), label:`${i+1} device${i ? 's' : ''}`}))} disabled={generate.isPending || maxDevices <= 1} />
               </FormField>
               <FormField
                 label="Username prefix"

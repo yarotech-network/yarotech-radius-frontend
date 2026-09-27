@@ -381,3 +381,70 @@ it('submits device capacity separately from voucher batch quantity', async () =>
   await userEvent.click(screen.getByRole('button', {name:/Generate 20 vouchers/}));
   await waitFor(()=>expect(posted).toMatchObject({plan_id:1,quantity:20,device_limit:3}));
 });
+
+describe('GenerateVouchersPage device ceiling', () => {
+  const bigPlan = {...plan, id:1, name:'Daily 1GB', max_devices:5};
+  const smallPlan = {...plan, id:2, name:'Hourly 500MB', price:20000, max_devices:2};
+
+  it('renders 1..max with singular/plural labels and sends the chosen limit', async () => {
+    let posted: Record<string, unknown> | null = null;
+    server.use(
+      http.get(`${API}/plans/`, () => HttpResponse.json(paginated([bigPlan]))),
+      http.post(`${API}/vouchers/generate/`, async ({request}) => {
+        posted = await request.json() as Record<string, unknown>;
+        return HttpResponse.json([voucher(124, {device_limit:4})], {status:201});
+      }),
+    );
+    renderPage(<GenerateVouchersPage />, {role:'manager',path:'/vouchers/generate',route:'/vouchers/generate?plan=1'});
+    await screen.findByRole('radio', {name:/Daily 1GB/});
+    const select = screen.getByLabelText('Devices per voucher') as HTMLSelectElement;
+    expect(select).toBeEnabled();
+    expect(Array.from(select.options).map((o) => o.text)).toEqual([
+      '1 device', '2 devices', '3 devices', '4 devices', '5 devices',
+    ]);
+    await userEvent.selectOptions(select, '4');
+    await userEvent.click(screen.getByRole('button', {name:/Generate 20 vouchers/}));
+    await waitFor(()=>expect(posted).toMatchObject({plan_id:1,quantity:20,device_limit:4}));
+  });
+
+  it('disables the selector when the plan allows a single device', async () => {
+    server.use(http.get(`${API}/plans/`, () => HttpResponse.json(paginated([plan]))));
+    renderPage(<GenerateVouchersPage />, {role:'manager',path:'/vouchers/generate',route:'/vouchers/generate?plan=1'});
+    await screen.findByRole('radio', {name:/Daily 1GB/});
+    const select = screen.getByLabelText('Devices per voucher') as HTMLSelectElement;
+    expect(select).toBeDisabled();
+    expect(Array.from(select.options).map((o) => o.text)).toEqual(['1 device']);
+  });
+
+  it('clamps the selection when switching to a plan with a lower ceiling', async () => {
+    let posted: Record<string, unknown> | null = null;
+    server.use(
+      http.get(`${API}/plans/`, () => HttpResponse.json(paginated([bigPlan, smallPlan]))),
+      http.post(`${API}/vouchers/generate/`, async ({request}) => {
+        posted = await request.json() as Record<string, unknown>;
+        return HttpResponse.json([voucher(125, {device_limit:2})], {status:201});
+      }),
+    );
+    renderPage(<GenerateVouchersPage />, {role:'manager',path:'/vouchers/generate',route:'/vouchers/generate?plan=1'});
+    await screen.findByRole('radio', {name:/Daily 1GB/});
+    await userEvent.selectOptions(screen.getByLabelText('Devices per voucher'), '4');
+    await userEvent.click(screen.getByRole('radio', {name:/Hourly 500MB/}));
+    const select = screen.getByLabelText('Devices per voucher') as HTMLSelectElement;
+    await waitFor(()=>expect(select.value).toBe('2'));
+    await userEvent.click(screen.getByRole('button', {name:/Generate 20 vouchers/}));
+    await waitFor(()=>expect(posted).toMatchObject({plan_id:2,quantity:20,device_limit:2}));
+  });
+});
+
+describe('VouchersPage device column', () => {
+  it('shows per-voucher device entitlement with singular/plural text', async () => {
+    server.use(http.get(`${API}/vouchers/`, () => HttpResponse.json(paginated([
+      voucher(1, {device_limit:1}),
+      voucher(2, {username:'WH10002', device_limit:3}),
+    ]))));
+    renderPage(<VouchersPage />, { role:'staff', path:'/vouchers' });
+    const table = await screen.findByRole('table');
+    expect(await within(table).findByText('1 device')).toBeInTheDocument();
+    expect(within(table).getByText('3 devices')).toBeInTheDocument();
+  });
+});

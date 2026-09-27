@@ -178,6 +178,16 @@ export default function VouchersPage() {
       cell: (v) => <StatusBadge status={v.status} size="sm" dot />,
     },
     {
+      key: 'devices',
+      header: 'Devices',
+      hideBelow: 'md',
+      cell: (v) => (
+        <span className="text-xs text-ink-600">
+          {v.device_limit} device{v.device_limit === 1 ? '' : 's'}
+        </span>
+      ),
+    },
+    {
       key: 'expires',
       header: 'Expires',
       hideBelow: 'lg',
