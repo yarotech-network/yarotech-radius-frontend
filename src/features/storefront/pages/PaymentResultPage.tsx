@@ -9,7 +9,7 @@ import { paymentFulfilled, usePaymentResult, useVerifyPaymentResult } from '../q
 import { pendingCheckout } from '../pendingCheckout';
 import { AccessCodePanel } from '../components/AccessCodePanel';
 import { ConnectNow } from '../components/ConnectNow';
-import { isPollableDisplayStatus, resolveDisplayStatus } from '@/features/payments/paymentStatus';
+import { resolveDisplayStatus } from '@/features/payments/paymentStatus';
 
 /**
  * `/pay/result?reference=` is the voucher return destination supplied by the backend to Paystack.
@@ -31,20 +31,17 @@ export default function PaymentResultPage() {
   const { mutate: verify } = verification;
   const attempted = useRef<string | null>(null);
   useEffect(() => {
-    if (reference && result.data && attempted.current !== reference) {
-      const code = resolveDisplayStatus(result.data);
-      // Legacy backends without display_status_code: verify once while the
-      // voucher has not been issued yet (pre-existing recovery behavior).
-      const legacyUnfulfilled =
-        !result.data.display_status_code &&
-        result.data.status === 'success' &&
-        !paymentFulfilled(result.data);
-      if (isPollableDisplayStatus(code) || legacyUnfulfilled) {
-        attempted.current = reference;
-        verify(reference);
-      }
+    // Verify-on-return: as soon as the page opens with a known existing
+    // reference (Paystack redirect back, closed/cancelled checkout), ask the
+    // backend to verify that reference once, without waiting for the result
+    // poll. The backend re-checks provider truth on the SAME transaction and
+    // fulfils idempotently — this never creates a new payment and never
+    // treats closing Paystack as failure evidence.
+    if (reference && attempted.current !== reference) {
+      attempted.current = reference;
+      verify(reference);
     }
-  }, [reference, result.data, verify]);
+  }, [reference, verify]);
 
   useEffect(() => {
     document.title = 'Payment result · Yarotech RADIUS';

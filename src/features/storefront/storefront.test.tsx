@@ -228,21 +228,25 @@ describe('payment result', () => {
   });
 
   it.each([null, 'WH84QRKP'])('hides fulfilled credentials including legacy voucher value %s', async (voucher) => {
-    const verify = vi.fn(() => HttpResponse.json({}));
+    const payload = (reference: string | null) => ({
+      status: 'success',
+      reference,
+      voucher,
+      fulfilled: true,
+      access_code: 'WH84QRKP',
+      code_revealed: false,
+      plan: { name: 'Daily 1GB', duration_hours: 24, data_limit: 1024 },
+      tenant_name: 'Wuse Hotspot',
+      customer_email_masked: 'a•••@example.com',
+    });
+    const verify = vi.fn(async ({ request }: { request: Request }) => {
+      const body = (await request.json()) as { reference?: string };
+      return HttpResponse.json(payload(body.reference ?? 'yarotech-used'));
+    });
     server.use(
       http.post(`${API}/payments/verify/`, verify),
       http.get(`${API}/payments/callback/`, ({ request }) =>
-        HttpResponse.json({
-          status: 'success',
-          reference: new URL(request.url).searchParams.get('reference'),
-          voucher,
-          fulfilled: true,
-          access_code: 'WH84QRKP',
-          code_revealed: false,
-          plan: { name: 'Daily 1GB', duration_hours: 24, data_limit: 1024 },
-          tenant_name: 'Wuse Hotspot',
-          customer_email_masked: 'a•••@example.com',
-        }),
+        HttpResponse.json(payload(new URL(request.url).searchParams.get('reference'))),
       ),
     );
     pendingCheckout.save({ kind: 'voucher', reference: 'yarotech-used', slug: 'wuse-hotspot' });
@@ -253,7 +257,9 @@ describe('payment result', () => {
     expect(screen.queryByRole('button', { name: 'Check again' })).not.toBeInTheDocument();
     expect(screen.getByText(/Your voucher has been issued/)).toBeInTheDocument();
     await waitFor(() => expect(pendingCheckout.load()).toBeNull());
-    expect(verify).not.toHaveBeenCalled();
+    // Verify-on-return performs one idempotent re-check of the existing
+    // reference; it creates no new transaction and reveals nothing.
+    expect(verify).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole('status', { name: 'Access code' })).not.toBeInTheDocument();
   });
 
