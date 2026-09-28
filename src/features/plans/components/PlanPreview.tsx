@@ -43,6 +43,14 @@ export function PlanPreview({ draft }: { draft: Partial<PlanFormInput> }) {
             <dd>{draft.plan_type === 'iot_mac' ? 'IoT / MAC device' : 'Hotspot voucher'}</dd>
           </div>
           <div>
+            <dt>Devices</dt>
+            <dd>
+              {Number.isInteger(Number(draft.max_devices)) && Number(draft.max_devices) >= 1
+                ? `${Number(draft.max_devices)} device${Number(draft.max_devices) === 1 ? '' : 's'}`
+                : '—'}
+            </dd>
+          </div>
+          <div>
             <dt>Availability</dt>
             <dd>{draft.is_active ? 'Active' : 'Inactive'}</dd>
           </div>

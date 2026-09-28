@@ -25,7 +25,47 @@ describe('plan form schema', () => {
       voucher_prefix: 'DAY',
       voucher_code_format: 'legacy',
       is_active: true,
+      max_devices: 1,
     });
+  });
+  it('defaults maximum devices to 1 and rejects out-of-range counts', () => {
+    const parsed = planFormSchema.parse({
+      name: 'Family',
+      price: '10',
+      duration_hours: 24,
+      rate_limit: '',
+      data_limit_mb: 0,
+      voucher_prefix: '',
+      is_active: true,
+    });
+    expect(parsed.max_devices).toBe(1);
+    expect(formToPlan(parsed)).toMatchObject({ max_devices: 1 });
+    for (const max_devices of [0, -1, 11, 100, 1.5]) {
+      expect(
+        planFormSchema.safeParse({
+          name: 'Family',
+          price: '10',
+          duration_hours: 24,
+          rate_limit: '',
+          data_limit_mb: 0,
+          voucher_prefix: '',
+          is_active: true,
+          max_devices,
+        }).success,
+      ).toBe(false);
+    }
+    expect(
+      planFormSchema.safeParse({
+        name: 'Family',
+        price: '10',
+        duration_hours: 24,
+        rate_limit: '',
+        data_limit_mb: 0,
+        voucher_prefix: '',
+        is_active: true,
+        max_devices: 10,
+      }).success,
+    ).toBe(true);
   });
   it('rejects bad rate limits, negative data caps and long prefixes', () => {
     const res = planFormSchema.safeParse({
@@ -54,6 +94,7 @@ describe('plan form schema', () => {
       data_limit: 0,
       voucher_prefix: 'WK',
       is_active: false,
+      max_devices: 5,
       created_at: '2026-01-01T00:00:00Z',
     });
     expect(form).toMatchObject({
@@ -61,7 +102,9 @@ describe('plan form schema', () => {
       price: '2500',
       duration_hours: 168,
       is_active: false,
+      max_devices: 5,
     });
+    expect(formToPlan(planFormSchema.parse({ ...form }))).toMatchObject({ max_devices: 5 });
   });
 });
 

@@ -35,6 +35,7 @@ const FIELDS = [
   'voucher_prefix',
   'voucher_code_format',
   'is_active',
+  'max_devices',
 ] as const;
 const ALIASES = { data_limit: 'data_limit_mb' };
 
@@ -177,6 +178,19 @@ export function PlanForm({
                 )}
               </FormField>
             </div>
+            <FormField
+              label="Maximum devices"
+              hint="Maximum number of devices that can use one voucher at the same time."
+              error={form.formState.errors.max_devices?.message}
+            >
+              <Select
+                {...form.register('max_devices')}
+                options={Array.from({ length: 10 }, (_, i) => ({
+                  value: String(i + 1),
+                  label: `${i + 1} device${i ? 's' : ''}`,
+                }))}
+              />
+            </FormField>
             {customDuration && (
               <p className="-mt-3 text-xs text-ink-500">
                 {Number(duration) > 0

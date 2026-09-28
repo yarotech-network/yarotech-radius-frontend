@@ -43,6 +43,8 @@ export interface InternetPlanWrite {
   voucher_prefix?: string;
   voucher_code_format?: VoucherCodeFormat | 'tenant_default';
   is_active?: boolean;
+  /** Maximum simultaneous devices per voucher (1-10). */
+  max_devices?: number;
 }
 
 export interface PlanListParams extends PageParams {

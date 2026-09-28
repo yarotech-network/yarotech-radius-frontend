@@ -204,3 +204,57 @@ it('archives a plan and exposes its retained read-only history', async () => {
   expect(await within(history).findByText('Archived')).toBeInTheDocument();
   expect(within(history).queryByRole('button', { name: /Edit/ })).not.toBeInTheDocument();
 });
+
+it('creates a plan with a device ceiling and edits it 1 -> 5 -> 2', async () => {
+  let posted: Record<string, unknown> | null = null;
+  let patched: Record<string, unknown> | null = null;
+  server.use(
+    http.get(`${API}/plans/`, () => HttpResponse.json(paginated([{ ...plans[0]!, max_devices: 1 }]))),
+    http.post(`${API}/plans/`, async ({ request }) => {
+      posted = (await request.json()) as Record<string, unknown>;
+      return HttpResponse.json({ ...plans[0]!, id: 9, max_devices: posted.max_devices ?? 1 }, { status: 201 });
+    }),
+    http.patch(`${API}/plans/9/`, async ({ request }) => {
+      patched = (await request.json()) as Record<string, unknown>;
+      return HttpResponse.json({ ...plans[0]!, id: 9, max_devices: patched.max_devices ?? 1 });
+    }),
+  );
+  renderPage(<PlansPage />, { role: 'owner', path: '/plans' });
+  await userEvent.click(await screen.findByRole('button', { name: 'New plan' }));
+  const dialog = await screen.findByRole('dialog');
+  const select = within(dialog).getByLabelText('Maximum devices') as HTMLSelectElement;
+  expect(select.value).toBe('1');
+  expect(Array.from(select.options).map((o) => o.text)).toEqual([
+    '1 device', '2 devices', '3 devices', '4 devices', '5 devices',
+    '6 devices', '7 devices', '8 devices', '9 devices', '10 devices',
+  ]);
+  await userEvent.type(within(dialog).getByLabelText(/Plan name/), 'Family');
+  await userEvent.type(within(dialog).getByLabelText(/Price/), '1000');
+  await userEvent.selectOptions(select, '5');
+  await userEvent.click(within(dialog).getByRole('button', { name: 'Create plan' }));
+  await waitFor(() => expect(posted).toMatchObject({ name: 'Family', max_devices: 5 }));
+  expect(await screen.findByText('Plan created')).toBeInTheDocument();
+});
+
+it('edit populates the stored ceiling and persists a new value', async () => {
+  let patched: Record<string, unknown> | null = null;
+  server.use(
+    http.get(`${API}/plans/`, () => HttpResponse.json(paginated([{ ...plans[0]!, max_devices: 5 }]))),
+    http.patch(`${API}/plans/1/`, async ({ request }) => {
+      patched = (await request.json()) as Record<string, unknown>;
+      return HttpResponse.json({ ...plans[0]!, max_devices: patched.max_devices ?? 5 });
+    }),
+  );
+  renderPage(<PlansPage />, { role: 'owner', path: '/plans' });
+  const table = await screen.findByRole('table', { name: 'Internet plans' });
+  await within(table).findByText('Daily 1GB');
+  await userEvent.click(within(table).getByRole('button', { name: 'Actions for Daily 1GB' }));
+  await userEvent.click(await screen.findByRole('menuitem', { name: 'Edit' }));
+  const dialog = await screen.findByRole('dialog');
+  const select = within(dialog).getByLabelText('Maximum devices') as HTMLSelectElement;
+  expect(select.value).toBe('5');
+  await userEvent.selectOptions(select, '2');
+  await userEvent.click(within(dialog).getByRole('button', { name: 'Save changes' }));
+  await waitFor(() => expect(patched).toMatchObject({ max_devices: 2 }));
+  expect(await screen.findByText('Plan updated')).toBeInTheDocument();
+});

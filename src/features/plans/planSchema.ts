@@ -46,6 +46,7 @@ export const planFormSchema = z.object({
   voucher_prefix: idempotentPrefixSchema,
   voucher_code_format: z.enum(['legacy', 'tenant_default', 'numeric', 'alphabetic', 'alphanumeric']).default('legacy'),
   is_active: z.boolean(),
+  max_devices: z.coerce.number().int().min(1).max(10).default(1),
 });
 
 export type PlanFormInput = z.input<typeof planFormSchema>;
@@ -66,6 +67,7 @@ export function planToForm(plan?: InternetPlan): PlanFormInput {
     voucher_prefix: plan?.voucher_prefix ?? '',
     voucher_code_format: plan?.voucher_code_format ?? 'legacy',
     is_active: plan?.is_active ?? true,
+    max_devices: plan?.max_devices ?? 1,
   };
 }
 
@@ -86,5 +88,6 @@ export function formToPlan(values: PlanFormOutput): InternetPlanWrite {
     voucher_prefix: values.voucher_prefix,
     voucher_code_format: values.voucher_code_format,
     is_active: values.is_active,
+    max_devices: values.max_devices,
   };
 }
