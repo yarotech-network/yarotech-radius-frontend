@@ -137,19 +137,18 @@ describe('workspace shell', () => {
       '/storefront',
     );
     expect(within(drawer).getByRole('link', { name: 'Audit log' })).toBeInTheDocument();
-    await userEvent.click(within(drawer).getByRole('button', { name: 'Expand Service Plans' }));
-    await userEvent.click(within(drawer).getByRole('link', { name: 'Hotspot Plans' }));
+    expect(within(drawer).queryByRole('button', { name: /^Expand / })).not.toBeInTheDocument();
+    await userEvent.click(within(drawer).getByRole('link', { name: 'Service Plans' }));
     expect(await screen.findByRole('heading', { name: 'Plans page' })).toBeInTheDocument();
     expect(screen.queryByRole('dialog', { name: 'Navigation' })).not.toBeInTheDocument();
   });
 
-  it('expands supported router links and keeps restricted actions hidden for staff', async () => {
+  it('shows direct router navigation and keeps restricted actions hidden for staff', async () => {
     server.use(mswHttp.get(`${API}/auth/user/`, () => HttpResponse.json(makeUser('staff'))));
     mount('/');
     await screen.findByRole('heading', { name: 'Dashboard page' });
     const sidebar = within(screen.getByRole('complementary'));
-    await userEvent.click(sidebar.getByRole('button', { name: 'Expand Routers Management' }));
-    expect(sidebar.getByRole('link', { name: 'All Routers' })).toHaveAttribute('href', '/routers');
+    expect(sidebar.getByRole('link', { name: 'Routers' })).toHaveAttribute('href', '/routers');
     expect(sidebar.queryByRole('link', { name: 'Add Router' })).not.toBeInTheDocument();
     expect(sidebar.queryByRole('link', { name: 'Operations' })).not.toBeInTheDocument();
     expect(sidebar.queryByRole('link', { name: 'Team' })).not.toBeInTheDocument();
@@ -157,47 +156,16 @@ describe('workspace shell', () => {
     expect(sidebar.getByRole('link', { name: 'Settings' })).toBeInTheDocument();
   });
 
-  it('allows an owner to open and close nested router navigation', async () => {
+  it.each([
+    ['/routers/7', 'Router detail page', 'Routers'],
+    ['/settings/subscription', 'Subscription page', 'Settings'],
+  ])('highlights its section for nested URL %s', async (path, heading, label) => {
     server.use(mswHttp.get(`${API}/auth/user/`, () => HttpResponse.json(makeUser('owner'))));
-    mount('/');
-    await screen.findByRole('heading', { name: 'Dashboard page' });
+    mount(path!);
+    await screen.findByRole('heading', { name: heading! });
     const sidebar = within(screen.getByRole('complementary'));
-    await userEvent.click(sidebar.getByRole('button', { name: 'Expand Routers Management' }));
-    expect(sidebar.getByRole('link', { name: 'Add Router' })).toHaveAttribute(
-      'href',
-      '/routers/new',
-    );
-    expect(sidebar.getByRole('link', { name: 'Operations' })).toHaveAttribute(
-      'href',
-      '/routers/operations',
-    );
-    await userEvent.click(sidebar.getByRole('button', { name: 'Collapse Routers Management' }));
-    expect(sidebar.queryByRole('link', { name: 'Add Router' })).not.toBeInTheDocument();
-    expect(sidebar.getByRole('button', { name: 'Sign out' })).toBeInTheDocument();
-  });
-
-  it('opens the router branch for a direct detail URL', async () => {
-    server.use(mswHttp.get(`${API}/auth/user/`, () => HttpResponse.json(makeUser('owner'))));
-    mount('/routers/7');
-    await screen.findByRole('heading', { name: 'Router detail page' });
-    const sidebar = within(screen.getByRole('complementary'));
-    expect(sidebar.getByRole('button', { name: 'Collapse Routers Management' })).toHaveAttribute(
-      'aria-expanded',
-      'true',
-    );
-    expect(sidebar.getByRole('link', { name: 'Operations' })).toBeInTheDocument();
-  });
-
-  it('keeps subscription accessible through the settings branch', async () => {
-    server.use(mswHttp.get(`${API}/auth/user/`, () => HttpResponse.json(makeUser('owner'))));
-    mount('/settings/subscription');
-    await screen.findByRole('heading', { name: 'Subscription page' });
-    const sidebar = within(screen.getByRole('complementary'));
-    expect(sidebar.queryByRole('link', { name: 'Billing & Subscription' })).not.toBeInTheDocument();
-    expect(sidebar.getByRole('button', { name: 'Collapse Settings' })).toHaveAttribute(
-      'aria-expanded',
-      'true',
-    );
+    expect(sidebar.getByRole('link', { name: label! })).toHaveAttribute('aria-current', 'page');
+    expect(sidebar.queryByRole('button', { name: /^(Expand|Collapse) (Routers|Settings|Service Plans|Vouchers)$/ })).not.toBeInTheDocument();
   });
 
   it('remembers the collapsed sidebar preference', async () => {

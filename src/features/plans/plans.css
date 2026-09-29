@@ -1,7 +1,30 @@
-/* Scope the reference palette to the catalogue and its editor, not the app shell. */
+/* Both the catalogue and portaled editor follow the dashboard theme. */
 .service-plans-workspace,
 .service-plan-dialog {
+  color-scheme: light;
+  color: var(--color-ink-900);
+  --plan-canvas: var(--color-surface);
+  --plan-input: var(--color-surface);
+  --plan-panel: var(--color-surface-muted);
+  --plan-accent: #1d4ed8;
+  --plan-banner-start: #eff6ff;
+  --plan-banner-end: #f8fafc;
+  --plan-banner-glow: #bfdbfe70;
+  --plan-pass-start: #eff6ff;
+  --plan-pass-end: #fff;
+}
+.dark .service-plans-workspace,
+.dark .service-plan-dialog {
   color-scheme: dark;
+  --plan-canvas: #0a101f;
+  --plan-input: #080e19;
+  --plan-panel: #0e182e;
+  --plan-accent: #93c5fd;
+  --plan-banner-start: #0f1d38;
+  --plan-banner-end: #0d1629;
+  --plan-banner-glow: #19396770;
+  --plan-pass-start: #101d3b;
+  --plan-pass-end: #0c1424;
   --color-surface: #0b1425;
   --color-surface-muted: #101c31;
   --color-border: #283449;
@@ -23,9 +46,10 @@
   --color-danger-700: #fda4af;
   color: #e2e8f0;
 }
+
 .service-plans-workspace {
-  background: #0a101f;
-  border: 1px solid #253149;
+  background: var(--plan-canvas);
+  border: 1px solid var(--color-border);
   border-radius: 20px;
   padding: clamp(16px, 2.5vw, 30px);
 }
@@ -35,21 +59,21 @@
   box-shadow: none;
 }
 .service-plans-workspace .router-page-hero h1 {
-  color: #fff;
+  color: var(--color-ink-900);
 }
 .service-plans-workspace .router-page-hero-subtitle {
-  color: #a9b8cf;
+  color: var(--color-ink-600);
 }
 .service-plans-workspace .plan-catalogue-banner {
   background:
-    radial-gradient(ellipse at top right, #19396770, transparent 65%),
-    linear-gradient(100deg, #0f1d38, #0d1629);
-  border: 1px solid #2a3953;
+    radial-gradient(ellipse at top right, var(--plan-banner-glow), transparent 65%),
+    linear-gradient(100deg, var(--plan-banner-start), var(--plan-banner-end));
+  border: 1px solid var(--color-border);
   border-radius: 16px;
   box-shadow: 0 12px 30px #0002;
 }
 .service-plans-workspace table thead {
-  background: #101c32;
+  background: var(--color-surface-muted);
 }
 .service-plans-workspace table th {
   font-size: 11px;
@@ -62,8 +86,8 @@
 }
 .service-plan-dialog {
   max-width: 1120px;
-  background: #0b1323;
-  border-color: #2b374b;
+  background: var(--color-surface);
+  border-color: var(--color-border);
   border-radius: 20px;
 }
 dialog:has(.service-plan-dialog)::backdrop {
@@ -72,8 +96,8 @@ dialog:has(.service-plan-dialog)::backdrop {
 }
 .service-plan-dialog > header {
   padding: 24px 30px;
-  background: #0e182e;
-  border-bottom: 1px solid #283449;
+  background: var(--plan-panel);
+  border-bottom: 1px solid var(--color-border);
 }
 .service-plan-dialog > header p {
   margin-left: 55px;
@@ -95,8 +119,8 @@ dialog:has(.service-plan-dialog)::backdrop {
   flex-shrink: 0;
   border: 1px solid #2563eb;
   border-radius: 10px;
-  background: #132950;
-  color: #60a5fa;
+  background: var(--color-brand-50);
+  color: var(--plan-accent);
 }
 .plan-editor-layout {
   display: grid;
@@ -125,25 +149,25 @@ dialog:has(.service-plan-dialog)::backdrop {
 }
 .plan-editor input:not([type='checkbox']),
 .plan-editor select {
-  background: #080e19;
+  background: var(--plan-input);
   min-height: 48px;
-  border-color: #647084;
+  border-color: var(--color-border-strong);
   border-radius: 10px;
 }
 .plan-editor input[aria-invalid='true'],
 .plan-editor select[aria-invalid='true'] {
-  border-color: #fb7185;
+  border-color: var(--color-danger-700);
 }
 .plan-editor input:focus,
 .plan-editor select:focus {
-  outline: 2px solid #60a5fa;
+  outline: 2px solid var(--plan-accent);
   outline-offset: 2px;
 }
 .plan-editor label:has(> input[type='checkbox']) {
   align-items: center;
   justify-content: space-between;
   padding-top: 12px;
-  border-top: 1px solid #283449;
+  border-top: 1px solid var(--color-border);
 }
 .plan-editor input[type='checkbox'] {
   order: 2;
@@ -153,7 +177,7 @@ dialog:has(.service-plan-dialog)::backdrop {
   margin: 0;
   border-radius: 99px;
   border: 1px solid #53627b;
-  background: radial-gradient(circle at 11px 50%, #cbd5e1 8px, transparent 9px), #253149;
+  background: radial-gradient(circle at 11px 50%, #cbd5e1 8px, transparent 9px), var(--color-border);
   cursor: pointer;
 }
 .plan-editor input[type='checkbox']:checked {
@@ -161,8 +185,8 @@ dialog:has(.service-plan-dialog)::backdrop {
   border-color: #3b82f6;
 }
 .plan-editor-fields fieldset {
-  background: #0c1628;
-  border-color: #283449;
+  background: var(--color-surface-muted);
+  border-color: var(--color-border);
 }
 .plan-editor-fields fieldset:first-child {
   background: transparent;
@@ -171,9 +195,9 @@ dialog:has(.service-plan-dialog)::backdrop {
   position: sticky;
   top: 0;
   padding: 20px;
-  border: 1px solid #283449;
+  border: 1px solid var(--color-border);
   border-radius: 16px;
-  background: #080e19;
+  background: var(--plan-input);
 }
 .plan-preview-heading {
   display: flex;
@@ -183,54 +207,54 @@ dialog:has(.service-plan-dialog)::backdrop {
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.05em;
-  color: #a3b4cb;
-  border-bottom: 1px solid #283449;
+  color: var(--color-ink-600);
+  border-bottom: 1px solid var(--color-border);
   padding-bottom: 18px;
 }
 .plan-preview-heading span {
-  background: #122a50;
+  background: var(--color-brand-50);
   padding: 3px 8px;
   border-radius: 5px;
-  color: #60a5fa;
+  color: var(--plan-accent);
   font-family: monospace;
 }
 .plan-preview-pass {
   margin-top: 20px;
-  border: 1px solid #244479;
+  border: 1px solid var(--color-border-strong);
   border-radius: 16px;
   padding: 20px;
-  background: linear-gradient(150deg, #101d3b, #0c1424);
+  background: linear-gradient(150deg, var(--plan-pass-start), var(--plan-pass-end));
   overflow-wrap: anywhere;
 }
 .plan-preview-brand {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  color: #60a5fa;
+  color: var(--plan-accent);
   font: 11px monospace;
   letter-spacing: 0.08em;
 }
 .plan-preview h3 {
   margin: 10px 0 22px;
   font-size: 20px;
-  color: white;
+  color: var(--color-ink-900);
   font-weight: 700;
 }
 .plan-preview-price {
   font-family: monospace;
   font-size: 30px;
   font-weight: 700;
-  color: white;
+  color: var(--color-ink-900);
 }
 .plan-preview-pass > p {
   margin-top: 4px;
   font-size: 12px;
-  color: #a9b8cf;
+  color: var(--color-ink-600);
 }
 .plan-preview dl {
   margin-top: 18px;
   padding-top: 14px;
-  border-top: 1px solid #283449;
+  border-top: 1px solid var(--color-border);
   font-size: 12px;
 }
 .plan-preview dl > div {
@@ -240,7 +264,7 @@ dialog:has(.service-plan-dialog)::backdrop {
   margin-bottom: 10px;
 }
 .plan-preview dt {
-  color: #a9b8cf;
+  color: var(--color-ink-600);
 }
 .plan-preview dd {
   text-align: right;
@@ -254,31 +278,31 @@ dialog:has(.service-plan-dialog)::backdrop {
   gap: 6px;
   margin-top: 18px;
   padding: 14px;
-  border: 1px dashed #3d4a60;
+  border: 1px dashed var(--color-border-strong);
   border-radius: 8px;
-  background: #080e19;
+  background: var(--plan-input);
   text-align: center;
 }
 .plan-preview-code span,
 .plan-preview-code small {
-  color: #9baac0;
+  color: var(--color-ink-500);
   font-size: 11px;
 }
 .plan-preview-code strong {
-  color: #34d399;
+  color: var(--color-success-700);
   font-family: monospace;
   letter-spacing: 0.1em;
 }
 .plan-preview-note {
   margin-top: 20px;
   padding-top: 16px;
-  border-top: 1px solid #283449;
-  color: #a9b8cf;
+  border-top: 1px solid var(--color-border);
+  color: var(--color-ink-600);
   font-size: 12px;
   line-height: 1.8;
 }
 .plan-preview-note strong {
-  color: #60a5fa;
+  color: var(--plan-accent);
   font-weight: 500;
 }
 .plan-editor-footer {
@@ -289,26 +313,26 @@ dialog:has(.service-plan-dialog)::backdrop {
   align-items: center;
   gap: 12px;
   padding: 20px 30px;
-  background: #0e182e;
-  border-top: 1px solid #283449;
+  background: var(--plan-panel);
+  border-top: 1px solid var(--color-border);
 }
 .plan-advanced {
-  border-top: 1px solid #283449;
+  border-top: 1px solid var(--color-border);
   padding-top: 14px;
 }
 .plan-advanced summary {
   cursor: pointer;
-  color: #93c5fd;
+  color: var(--plan-accent);
   font-size: 13px;
 }
 .plan-advanced summary:focus-visible {
-  outline: 2px solid #60a5fa;
+  outline: 2px solid var(--plan-accent);
   outline-offset: 4px;
 }
 .plan-editor-footer p {
   flex: 1;
   font: 12px monospace;
-  color: #a9b8cf;
+  color: var(--color-ink-600);
 }
 @media (max-width: 800px) {
   .plan-catalogue-banner > div {
@@ -340,4 +364,26 @@ dialog:has(.service-plan-dialog)::backdrop {
   .plan-name-row {
     grid-template-columns: 1fr;
   }
+}
+
+.service-plans-workspace :is(.router-page-hero-desc, .router-page-hero-stat) {
+  color: var(--color-ink-600);
+}
+.service-plans-workspace :is(.router-page-hero-eyebrow, .router-page-hero-stat svg, .router-page-hero-link) {
+  color: var(--plan-accent);
+}
+.service-plans-workspace .router-page-hero-strip {
+  border-color: var(--color-border);
+}
+.service-plans-workspace .router-page-hero-divider {
+  background: var(--color-border);
+}
+.service-plans-workspace .router-page-hero-actions :is(button, a) {
+  background: var(--color-brand-600) !important;
+  border-color: var(--color-brand-600) !important;
+  color: white !important;
+}
+.service-plans-workspace .router-page-hero-actions :is(button, a):hover {
+  background: var(--color-brand-700) !important;
+  border-color: var(--color-brand-700) !important;
 }

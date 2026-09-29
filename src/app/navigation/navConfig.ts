@@ -66,35 +66,11 @@ export const WORKSPACE_NAV: NavGroup[] = [
     items: [
       {
         key: 'routers',
-        label: 'Routers Management',
+        label: 'Routers',
         to: '/routers',
         icon: Router,
         capabilities: ['routers.view'],
         mobilePrimary: true,
-        children: [
-          {
-            key: 'router-list',
-            label: 'All Routers',
-            to: '/routers',
-            end: true,
-            icon: Router,
-            capabilities: ['routers.view'],
-          },
-          {
-            key: 'router-new',
-            label: 'Add Router',
-            to: '/routers/new',
-            icon: Router,
-            capabilities: ['routers.manage'],
-          },
-          {
-            key: 'router-operations',
-            label: 'Operations',
-            to: '/routers/operations',
-            icon: Activity,
-            capabilities: ['routers.manage'],
-          },
-        ],
       },
       {
         key: 'plans',
@@ -102,23 +78,6 @@ export const WORKSPACE_NAV: NavGroup[] = [
         to: '/plans',
         icon: ListChecks,
         capabilities: ['plans.view'],
-        children: [
-          {
-            key: 'hotspot-plans',
-            label: 'Hotspot Plans',
-            to: '/plans',
-            end: true,
-            icon: ListChecks,
-            capabilities: ['plans.view'],
-          },
-          {
-            key: 'bandwidth',
-            label: 'Bandwidth Control',
-            to: '/plans/bandwidth',
-            icon: Activity,
-            capabilities: ['plans.view'],
-          },
-        ],
       },
     ],
   },
@@ -142,28 +101,11 @@ export const WORKSPACE_NAV: NavGroup[] = [
       },
       {
         key: 'vouchers',
-        label: 'Voucher Desk',
+        label: 'Vouchers',
         to: '/vouchers',
         icon: Ticket,
         capabilities: ['vouchers.view', 'vouchers.generate'],
         mobilePrimary: true,
-        children: [
-          {
-            key: 'voucher-list',
-            label: 'All Vouchers',
-            to: '/vouchers',
-            end: true,
-            icon: Ticket,
-            capabilities: ['vouchers.view'],
-          },
-          {
-            key: 'voucher-new',
-            label: 'Generate Vouchers',
-            to: '/vouchers/generate',
-            icon: Ticket,
-            capabilities: ['vouchers.generate'],
-          },
-        ],
       },
       {
         key: 'storefront',
@@ -225,22 +167,6 @@ export const WORKSPACE_NAV: NavGroup[] = [
         end: false,
         icon: Settings,
         capabilities: ['settings.profile', 'settings.billing', 'subscription.view'],
-        children: [
-          {
-            key: 'general',
-            label: 'General',
-            to: '/settings/general',
-            icon: Settings,
-            capabilities: ['settings.profile'],
-          },
-          {
-            key: 'billing',
-            label: 'Payment Settings',
-            to: '/settings/billing',
-            icon: Wallet,
-            capabilities: ['settings.billing'],
-          },
-        ],
       },
       {
         key: 'audit',

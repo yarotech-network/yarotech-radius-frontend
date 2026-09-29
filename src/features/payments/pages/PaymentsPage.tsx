@@ -19,7 +19,7 @@ import { useDebouncedValue } from '@/lib/utilities/useDebouncedValue';
 import { can } from '@/services/auth/principal';
 import type { PaymentListParams, PaymentStatus, PaymentTransaction } from '@/types/api';
 import { PAYMENTS_DEFAULT_ORDERING, usePayments } from '../queries';
-import { PAYMENT_STATUS_FILTERS, customerLabel } from '../paymentRules';
+import { PAYMENT_STATUS_FILTERS } from '../paymentRules';
 import { PaymentDrawer } from '../components/PaymentDrawer';
 
 const FILTERS = ['status'] as const;

@@ -33,20 +33,24 @@ export function useBandwidth(params: Record<string, string | number | boolean>) 
     queryFn: () => bandwidthApi.list(params),
   });
 }
+export function speedInput(kbps: number) {
+  const unit = kbps >= 1000000 ? 'Gbps' : kbps >= 1000 ? 'Mbps' : 'kbps';
+  const factor = unit === 'Gbps' ? 1000000 : unit === 'Mbps' ? 1000 : 1;
+  return { value: String(kbps / factor), unit };
+}
 export function formatSpeed(kbps: number) {
-  return kbps >= 1000 ? `${kbps / 1000} Mbps` : `${kbps} kbps`;
+  const { value, unit } = speedInput(kbps);
+  return `${value} ${unit === 'kbps' ? 'Kbps' : unit}`;
 }
 export function toKbps(value: string, unit: string) {
-  const text = value.trim();
-  const match = /^(\d+)(?:\.(\d+))?$/.exec(text);
+  const precision = unit === 'Gbps' ? 6 : unit === 'Mbps' ? 3 : unit === 'kbps' ? 0 : -1;
+  const match = /^(\d+)(?:\.(\d+))?$/.exec(value.trim());
   const fraction = match?.[2] ?? '';
-  const precision = unit === 'Mbps' ? 3 : 0;
-  if (!match || /[1-9]/.test(fraction.slice(precision)))
-    throw new Error('Use whole kbps, or Mbps with up to three decimal places.');
-  const result =
-    Number(match[1]) * (unit === 'Mbps' ? 1000 : 1) +
-    (unit === 'Mbps' ? Number(fraction.slice(0, 3).padEnd(3, '0')) : 0);
+  if (precision < 0 || !match || /[1-9]/.test(fraction.slice(precision)))
+    throw new Error('Use whole Kbps, Mbps with up to three decimals, or Gbps with up to six decimals.');
+  const result = Number(match[1]) * 10 ** precision +
+    Number(fraction.slice(0, precision).padEnd(precision, '0'));
   if (!Number.isSafeInteger(result) || result < 1 || result > 10000000)
-    throw new Error('Enter a speed from 1 kbps to 10,000 Mbps, in whole kbps.');
+    throw new Error('Enter a speed from 1 Kbps to 10 Gbps, in whole Kbps.');
   return result;
 }

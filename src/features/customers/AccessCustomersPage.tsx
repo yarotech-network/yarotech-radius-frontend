@@ -72,7 +72,7 @@ export default function AccessCustomersPage() {
       cell: (row) => (
         <div className="min-w-40">
           <p className="font-semibold">{row.buyer_name || 'Name not provided'}</p>
-          <p className="text-xs text-ink-500">{row.reference}</p>
+          {/* <p className="text-xs text-ink-500">{row.reference}</p> */}
         </div>
       ),
     },

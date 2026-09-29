@@ -26,13 +26,19 @@ describe('Bandwidth profiles', () => {
     expect(toKbps('2.5', 'Mbps')).toBe(2500);
     expect(toKbps('1.001', 'Mbps')).toBe(1001);
     expect(toKbps('512', 'kbps')).toBe(512);
+    expect(toKbps('1.5', 'Gbps')).toBe(1500000);
+    expect(toKbps('0.000001', 'Gbps')).toBe(1);
+    expect(toKbps('10', 'Gbps')).toBe(10000000);
+    expect(() => toKbps('0.0000001', 'Gbps')).toThrow();
+    expect(() => toKbps('10.000001', 'Gbps')).toThrow();
+    expect(() => toKbps('1', 'unknown')).toThrow();
     expect(() => toKbps('0.5', 'kbps')).toThrow();
     expect(() => toKbps('10001', 'Mbps')).toThrow();
   });
   it('lists profile speeds while keeping mutation controls hidden for staff', async () => {
     server.use(http.get(endpoint, () => HttpResponse.json(paginated([profile]))));
     renderPage(<BandwidthPage />, { role: 'staff', path: '/plans/bandwidth' });
-    expect(await screen.findByText('2.5 Mbps')).toBeVisible();
+    expect(await screen.findByText('2.5 Mbps', {}, { timeout: 10000 })).toBeVisible();
     expect(screen.getByText('10 Mbps')).toBeVisible();
     expect(screen.queryByRole('button', { name: 'New profile' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument();
@@ -66,7 +72,7 @@ describe('Bandwidth profiles', () => {
     );
     expect(key).toBeTruthy();
   });
-  it('keeps speeds read-only during editing and displays protected delete errors', async () => {
+  it('allows speed editing and displays protected delete errors', async () => {
     server.use(
       http.get(endpoint, () => HttpResponse.json(paginated([profile]))),
       http.delete(`${endpoint}4/`, () =>
@@ -79,7 +85,8 @@ describe('Bandwidth profiles', () => {
     renderPage(<BandwidthPage />, { role: 'manager', path: '/plans/bandwidth' });
     const user = userEvent.setup();
     await user.click(await screen.findByRole('button', { name: 'Edit Home standard' }));
-    expect(screen.getByLabelText('Upload speed')).toHaveAttribute('readonly');
+    expect(screen.getByLabelText('Upload speed')).not.toHaveAttribute('readonly');
+    expect(screen.getByLabelText('Upload unit')).toBeEnabled();
     await user.click(screen.getByRole('button', { name: 'Cancel' }));
     await user.click(screen.getByRole('button', { name: 'Delete' }));
     await user.click(screen.getByRole('button', { name: 'Delete profile' }));
@@ -101,7 +108,7 @@ describe('Bandwidth profiles', () => {
     renderPage(<PlansPage />, { role: 'manager', path: '/plans' });
     const user = userEvent.setup();
     await user.click(screen.getByRole('button', { name: 'New plan' }));
-    const form = within(screen.getByRole('dialog', { name: 'New plan' }));
+    const form = within(screen.getByRole('dialog', { name: 'Create New Hotspot Plan' }));
     await user.type(form.getByLabelText(/Plan name/), 'Daily');
     await user.type(form.getByLabelText(/^Price/), '50.50');
     await user.click(form.getByRole('button', { name: 'Use bandwidth profile' }));
@@ -113,4 +120,33 @@ describe('Bandwidth profiles', () => {
     expect(body?.price).toBe(5050);
     expect(body?.rate_limit).toBe('2500k/10000k');
   });
+});
+
+it('updates every editable profile field with Kbps/Mbps/Gbps conversion', async () => {
+  let payload: unknown;
+  server.use(
+    http.get(endpoint, () => HttpResponse.json(paginated([profile]))),
+    http.patch(`${endpoint}4/`, async ({ request }) => {
+      payload = await request.json();
+      return HttpResponse.json(profile);
+    }),
+  );
+  renderPage(<BandwidthPage />, { role: 'owner', path: '/plans/bandwidth' });
+  const user = userEvent.setup();
+  await user.click(await screen.findByRole('button', { name: 'Edit Home standard' }));
+  const form = within(screen.getByRole('dialog', { name: 'Edit bandwidth profile' }));
+  expect(form.getByLabelText('Upload speed')).toHaveValue(2.5);
+  expect(form.getByLabelText('Upload unit')).toHaveValue('Mbps');
+  await user.clear(form.getByLabelText('Profile name'));
+  await user.type(form.getByLabelText('Profile name'), 'Business');
+  await user.clear(form.getByLabelText('Upload speed'));
+  await user.type(form.getByLabelText('Upload speed'), '1.5');
+  await user.selectOptions(form.getByLabelText('Upload unit'), 'Gbps');
+  await user.clear(form.getByLabelText('Download speed'));
+  await user.type(form.getByLabelText('Download speed'), '512');
+  await user.selectOptions(form.getByLabelText('Download unit'), 'kbps');
+  await user.click(form.getByRole('checkbox', { name: /^Active profile/ }));
+  await user.click(form.getByRole('button', { name: 'Save profile' }));
+  await waitFor(() => expect(payload).toEqual({ name: 'Business', upload_kbps: 1500000, download_kbps: 512, is_active: false }));
+  await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
 });

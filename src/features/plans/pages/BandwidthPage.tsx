@@ -13,6 +13,7 @@ import {
   bandwidthApi,
   bandwidthKey,
   formatSpeed,
+  speedInput,
   toKbps,
   useBandwidth,
   type BandwidthProfile,
@@ -97,9 +98,9 @@ export default function BandwidthPage() {
               One speed profile. Multiple packages.
             </h2>
             <p className="mt-1 max-w-3xl text-sm text-ink-600">
-              Choose speeds once, then reuse them across daily, weekly and monthly plans. Profile
-              speeds stay fixed so editing a name or deactivating a profile cannot change an issued
-              voucher's speed.
+              Choose speeds once, then reuse them across daily, weekly and monthly plans. Editing
+              speeds updates linked plans for future purchases. Issued vouchers and existing orders
+              keep their saved speeds.
             </p>
           </div>
         </div>
@@ -217,7 +218,7 @@ export default function BandwidthPage() {
         dismissible={!saving}
         onClose={() => setEditor(null)}
         title={editor?.profile ? 'Edit bandwidth profile' : 'New bandwidth profile'}
-        description="Speeds are fixed after creation. Create another profile when you need different speeds."
+        description="Edit the name, speeds or active status. Speed changes apply to linked plans for future purchases; issued vouchers keep their original speeds."
       >
         {editor && (
           <ProfileForm
@@ -261,19 +262,19 @@ function ProfileForm({
   onCancel: () => void;
 }) {
   const [name, setName] = useState(profile?.name ?? '');
-  const [upload, setUpload] = useState(profile ? String(profile.upload_kbps) : '5');
-  const [download, setDownload] = useState(profile ? String(profile.download_kbps) : '10');
-  const [upUnit, setUpUnit] = useState(profile ? 'kbps' : 'Mbps');
-  const [downUnit, setDownUnit] = useState(profile ? 'kbps' : 'Mbps');
+  const [upload, setUpload] = useState(profile ? speedInput(profile.upload_kbps).value : '5');
+  const [download, setDownload] = useState(profile ? speedInput(profile.download_kbps).value : '10');
+  const [upUnit, setUpUnit] = useState(profile ? speedInput(profile.upload_kbps).unit : 'Mbps');
+  const [downUnit, setDownUnit] = useState(profile ? speedInput(profile.download_kbps).unit : 'Mbps');
   const [active, setActive] = useState(profile?.is_active ?? true);
   const [key] = useState(() => newIdempotencyKey('bandwidth'));
   const save = useMutation({
     mutationFn: async () =>
       profile
-        ? bandwidthApi.update(profile.id, { name, is_active: active })
+        ? bandwidthApi.update(profile.id, { name: name.trim(), is_active: active, upload_kbps: toKbps(upload, upUnit), download_kbps: toKbps(download, downUnit) })
         : bandwidthApi.create(
             {
-              name,
+              name: name.trim(),
               upload_kbps: toKbps(upload, upUnit),
               download_kbps: toKbps(download, downUnit),
               is_active: active,
@@ -325,29 +326,28 @@ function ProfileForm({
                 {f.label} speed
                 <Input
                   type="number"
-                  min="0.001"
+                  min={f.unit === 'Gbps' ? '0.000001' : f.unit === 'Mbps' ? '0.001' : '1'}
                   step="any"
                   required
                   value={f.value}
-                  readOnly={!!profile}
                   onChange={(e) => f.set(e.target.value)}
                 />
               </label>
               <Select
                 aria-label={`${f.label} unit`}
                 value={f.unit}
-                disabled={!!profile}
                 onChange={(e) => f.setUnit(e.target.value)}
                 options={[
                   { value: 'Mbps', label: 'Mbps' },
-                  { value: 'kbps', label: 'kbps' },
+                  { value: 'kbps', label: 'Kbps' },
+                  { value: 'Gbps', label: 'Gbps' },
                 ]}
               />
             </div>
           ))}
         </div>
         <p className="text-xs text-ink-500">
-          1 Mbps = 1,000 kbps. Limits are from the customer's perspective.
+          1 Gbps = 1,000 Mbps = 1,000,000 Kbps. Limits are from the customer's perspective.
         </p>
         <Checkbox
           checked={active}

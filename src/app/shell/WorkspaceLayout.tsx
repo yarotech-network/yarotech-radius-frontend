@@ -1,4 +1,4 @@
-import { WORKSPACE_NAV } from '@/app/navigation/navConfig';
+import { can, WORKSPACE_NAV } from '@/app/navigation/navConfig';
 import { useAuth } from '@/app/auth/useAuth';
 import { AppShell } from './AppShell';
 import { SubscriptionBanner } from '@/features/settings/components/SubscriptionBanner';
@@ -16,9 +16,13 @@ export function WorkspaceLayout() {
     subscription.data?.entitlements?.enabled === true &&
     subscription.data.entitlements.terms.whatsapp_enabled === true
   );
-  const groups = showWhatsApp ? WORKSPACE_NAV : WORKSPACE_NAV.map((group) => ({
+  const groups = WORKSPACE_NAV.map((group) => ({
     ...group,
-    items: group.items.filter((item) => item.key !== 'whatsapp'),
+    items: group.items
+      .filter((item) => showWhatsApp || item.key !== 'whatsapp')
+      .map((item) => item.key === 'vouchers' && !can(principal, 'vouchers.view')
+        ? { ...item, to: '/vouchers/generate' }
+        : item),
   }));
   return (
     <AppShell

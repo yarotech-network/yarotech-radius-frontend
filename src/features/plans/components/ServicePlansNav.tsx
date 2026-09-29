@@ -8,7 +8,6 @@ export function ServicePlansNav() {
       {[
         ['/plans', 'Hotspot plans'],
         ['/plans/bandwidth', 'Bandwidth control'],
-        ['/devices', 'IoT / MAC devices'],
       ].map(([to, label]) => (
         <NavLink
           key={to}

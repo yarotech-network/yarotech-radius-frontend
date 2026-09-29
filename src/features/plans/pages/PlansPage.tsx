@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router';
 import {
-  ArrowRight,
   Banknote,
   Layers,
   MoreHorizontal,
@@ -364,7 +363,7 @@ export default function PlansPage() {
       </section>
 
       {/* Info Feature Cards */}
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-4">
         <Card className="border-border/60 transition-shadow hover:shadow-md">
           <div className="flex items-center gap-2">
             <h2 className="font-semibold text-ink-900">Free Hotspot access</h2>
@@ -375,25 +374,6 @@ export default function PlansPage() {
           <p className="mt-2 text-sm leading-relaxed text-ink-500">
             Free access needs enforced time limits, repeat-visit cooldowns and router support. A
             zero-price plan is not an automatic free-access policy.
-          </p>
-        </Card>
-        <Card className="border-border/60 transition-shadow hover:shadow-md">
-          <div className="flex items-center gap-2">
-            <h2 className="font-semibold text-ink-900">
-              <Link
-                to="/devices"
-                className="inline-flex items-center gap-1 text-brand-600 hover:underline"
-              >
-                IoT / MAC devices <ArrowRight className="size-3.5" />
-              </Link>
-            </h2>
-            <span className="rounded-full bg-surface-muted px-2.5 py-0.5 text-xs font-medium text-ink-600">
-              Device access
-            </span>
-          </div>
-          <p className="mt-2 text-sm leading-relaxed text-ink-500">
-            Register equipment by MAC address, assign its router and plan, and choose permanent or
-            time-limited access.
           </p>
         </Card>
       </div>

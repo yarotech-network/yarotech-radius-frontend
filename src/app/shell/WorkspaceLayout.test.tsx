@@ -1,9 +1,10 @@
+import { derivePrincipal } from '@/services/auth/principal';
 import { http, HttpResponse } from 'msw';
 import { describe, expect, it } from 'vitest';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { server } from '@/test/server';
-import { API } from '@/test/fixtures';
+import { API, makeAssignment, makeUser } from '@/test/fixtures';
 import { renderPage } from '@/test/renderPage';
 import { settingsKeys } from '@/features/settings/queries';
 import { WorkspaceLayout } from './WorkspaceLayout';
@@ -58,5 +59,33 @@ describe('workspace WhatsApp navigation', () => {
   it('retains platform WhatsApp administration', () => {
     renderPage(<PlatformLayout />, { role: 'platform_admin', path: '/platform' });
     expect(screen.getByRole('link', { name: 'WhatsApp' })).toHaveAttribute('href', '/platform/whatsapp');
+  });
+});
+
+
+describe('direct workspace navigation', () => {
+  it.each([
+    ['/routers/new', 'Routers', '/routers'],
+    ['/plans/bandwidth', 'Service Plans', '/plans'],
+    ['/vouchers/generate', 'Vouchers', '/vouchers'],
+    ['/settings/billing', 'Settings', '/settings'],
+  ])('keeps the section active at %s without submenus', (path, label, destination) => {
+    renderPage(<WorkspaceLayout />, { role: 'owner', path });
+    const sidebar = within(screen.getByRole('complementary'));
+    expect(sidebar.getByRole('link', { name: label })).toHaveAttribute('href', destination);
+    expect(sidebar.getByRole('link', { name: label })).toHaveAttribute('aria-current', 'page');
+    expect(sidebar.queryByRole('button', { name: /^(Expand|Collapse) (Routers|Service Plans|Vouchers|Settings)$/ })).not.toBeInTheDocument();
+  });
+
+  it('routes generation-only staff directly to generation on desktop and mobile', async () => {
+    const principal = derivePrincipal(makeUser('platform_staff'), [makeAssignment(5, ['vouchers.generate'])], 5);
+    renderPage(<WorkspaceLayout />, { principal, path: '/vouchers/generate' });
+    const sidebar = within(screen.getByRole('complementary'));
+    expect(sidebar.getByRole('link', { name: 'Vouchers' })).toHaveAttribute('href', '/vouchers/generate');
+    expect(sidebar.getByRole('link', { name: 'Vouchers' })).toHaveAttribute('aria-current', 'page');
+    expect(sidebar.queryByRole('link', { name: 'Settings' })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Open navigation' }));
+    const drawer = within(screen.getByRole('dialog', { name: 'Navigation' }));
+    expect(drawer.getByRole('link', { name: 'Vouchers' })).toHaveAttribute('href', '/vouchers/generate');
   });
 });
