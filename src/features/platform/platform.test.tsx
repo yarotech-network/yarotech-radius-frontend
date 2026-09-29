@@ -685,7 +685,7 @@ describe('PlatformPaymentsPage', () => {
     await userEvent.click(screen.getByRole('tab', { name: 'Agent wallet top-ups' }));
     const wallet = await screen.findByRole('table', { name: 'Agent wallet top-ups' });
     expect(await within(wallet).findByText('WAL-5')).toBeInTheDocument();
-    expect(within(wallet).getByText('Agent #1')).toBeInTheDocument();
+    expect(within(wallet).getByText('Agent account')).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole('tab', { name: 'Subscriptions' }));
     const subs = await screen.findByRole('table', { name: 'Subscription payments' });
@@ -699,6 +699,7 @@ describe('StaffPage', () => {
   const assignment: StaffAssignment = {
     id: 1,
     user: 6,
+    user_display: 'Support staff',
     tenant: 2,
     services: ['routers.view', 'payments.view'],
     is_active: true,
@@ -740,7 +741,7 @@ describe('StaffPage', () => {
     );
     renderPage(<StaffPage />, { path: '/platform/staff', role: 'platform_admin' });
     const table = await screen.findByRole('table', { name: 'Staff assignments' });
-    expect(await within(table).findByText('User #6')).toBeInTheDocument();
+    expect(await within(table).findByText('Support staff')).toBeInTheDocument();
     expect(within(table).getByText('View routers')).toBeInTheDocument();
     expect(within(table).getByRole('link', { name: 'Wuse Hotspot' })).toHaveAttribute(
       'href',
@@ -857,7 +858,7 @@ describe('PlatformAuditPage', () => {
       'href',
       '/platform/tenants/3',
     );
-    expect(within(table).getByRole('link', { name: 'staffinvitation #inv-1' })).toHaveAttribute(
+    expect(within(table).getByRole('link', { name: 'View staff invitation' })).toHaveAttribute(
       'href',
       '/platform/staff?view=invitations',
     );

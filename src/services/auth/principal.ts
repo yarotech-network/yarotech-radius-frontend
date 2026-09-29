@@ -58,7 +58,7 @@ export function workspaceName(principal: Principal | null): string | null {
   if (!principal) return null;
   if (principal.kind === 'member') return principal.tenantName || null;
   if (principal.kind === 'platform_staff' && principal.activeTenantId !== null)
-    return `Tenant #${principal.activeTenantId}`;
+    return principal.assignments.find((a) => a.tenant === principal.activeTenantId)?.tenant_display || 'Workspace';
   return null;
 }
 

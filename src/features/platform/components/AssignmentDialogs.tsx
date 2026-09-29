@@ -155,7 +155,7 @@ export function EditGrantsDialog({
       onClose={onClose}
       title="Edit grants"
       description={
-        assignment ? `User #${assignment.user} · ${tenantName(assignment.tenant)}` : undefined
+        assignment ? `${assignment.user_display || 'Staff account'} · ${tenantName(assignment.tenant)}` : undefined
       }
       size="lg"
     >

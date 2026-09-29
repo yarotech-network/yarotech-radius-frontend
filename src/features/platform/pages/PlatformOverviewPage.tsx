@@ -270,7 +270,7 @@ export default function PlatformOverviewPage() {
                             {t.name.trim().slice(0, 2).toUpperCase()}
                           </span>
                           <span className="min-w-0">
-                            <Link to={`/platform/tenants/${t.id}`}>{t.name}</Link>
+                            <Link className="dashboard-data-link" to={`/platform/tenants/${t.id}`}>{t.name}</Link>
                             <span className="platform-tenant-slug">/s/{t.slug}</span>
                           </span>
                         </div>

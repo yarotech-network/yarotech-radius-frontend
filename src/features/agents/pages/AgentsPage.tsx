@@ -50,7 +50,7 @@ export default function AgentsPage() {
         <div className="min-w-0">
           <Link
             to={`/agents/${a.id}`}
-            className="font-bold break-all text-brand-700 dark:text-brand-400 hover:underline"
+            className="dashboard-data-link font-bold break-all"
           >
             {a.username}
           </Link>

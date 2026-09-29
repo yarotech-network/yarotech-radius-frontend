@@ -99,6 +99,7 @@ export interface FundingListParams extends PageParams {
 
 /** `platform/wallet-payments/` rows carry the owning tenant and agent ids. */
 export interface PlatformWalletPayment extends AgentFundingPayment {
+  agent_display?: string;
   tenant_id: number;
   agent_id: number;
 }

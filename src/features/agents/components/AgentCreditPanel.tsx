@@ -242,8 +242,8 @@ function CreditControls({
               <option value="issue">Issue vouchers on credit</option>
               {selected && (
                 <>
-                  <option value="repay">Record repayment for allocation #{selected.id}</option>
-                  <option value="reverse">Cancel allocation #{selected.id}</option>
+                  <option value="repay">Record repayment for selected allocation</option>
+                  <option value="reverse">Cancel selected allocation</option>
                 </>
               )}
             </Select>
@@ -331,7 +331,7 @@ function CreditControls({
           {mode === 'repay' && (
             <>
               <p>
-                Allocation #{selected?.id} owes {formatKobo(selected?.outstanding)}. Record money
+                Selected allocation owes {formatKobo(selected?.outstanding)}. Record money
                 already received; this does not charge a payment provider.
               </p>
               <FormField label="Amount received (naira)">
@@ -378,7 +378,7 @@ function CreditControls({
           )}
           {mode === 'reverse' && (
             <Alert tone="warning">
-              Cancel all {selected?.quantity} vouchers in allocation #{selected?.id}, provided none
+              Cancel all {selected?.quantity} vouchers in the selected allocation, provided none
               has been used. Clear {formatKobo(selected?.outstanding)} unpaid debt. Keep{' '}
               {formatKobo(selected?.repaid)} already repaid. No refund or wallet credit will be
               issued.
@@ -432,7 +432,7 @@ function CreditControls({
               {data.results.map((batch) => (
                 <div key={batch.id} className="space-y-2 rounded border border-border p-3">
                   <p>
-                    #{batch.id} · {batch.quantity} vouchers · Total {formatKobo(batch.total)} ·
+                    {batch.quantity} vouchers · Total {formatKobo(batch.total)} ·
                     Repaid {formatKobo(batch.repaid)} · Outstanding {formatKobo(batch.outstanding)}
                   </p>
                   <p>
@@ -489,7 +489,7 @@ function CreditControls({
                 <p key={entry.id}>
                   {entry.created_at.slice(0, 10)} · {formatKobo(entry.amount)} · {entry.description}
                   {entry.evidence &&
-                    ` · Allocation #${entry.evidence.batch_id} · ${entry.evidence.external_reference || entry.evidence.kind}`}
+                    ` · Allocation · ${entry.evidence.external_reference || entry.evidence.kind}`}
                 </p>
               ))}
               <Pagination

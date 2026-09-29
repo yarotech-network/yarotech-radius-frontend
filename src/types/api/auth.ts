@@ -118,6 +118,8 @@ export const STAFF_SERVICES: readonly StaffService[] = [
 ] as const;
 
 export interface StaffAssignment {
+  user_display?: string;
+  tenant_display?: string;
   id: number;
   user: number;
   tenant: number;

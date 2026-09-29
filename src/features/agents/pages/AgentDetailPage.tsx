@@ -13,7 +13,7 @@ import {
 } from '@/components/ui';
 import { Alert, EmptyState, QueryBoundary, useToast } from '@/components/feedback';
 import { DataTable, Pagination, type Column } from '@/components/data';
-import { formatDateTime, formatRelative } from '@/lib/formatting/dates';
+import { formatDateTime } from '@/lib/formatting/dates';
 import { formatKobo } from '@/lib/formatting/money';
 import type { AgentProfile, Voucher } from '@/types/api';
 import { useVouchers } from '@/features/vouchers/queries';
@@ -183,7 +183,7 @@ function AgentDetail({
           <Stat
             label="Account Status"
             value={AGENT_STATUS_LABELS[agent.status]}
-            hint={`Joined ${formatRelative(agent.created_at)}`}
+            hint={`Joined ${formatDateTime(agent.created_at)}`}
           />
         </div>
       </div>
@@ -291,7 +291,7 @@ function AgentSales({ agent }: { agent: AgentProfile }) {
       cell: (v) => (
         <Link
           to={`/vouchers/${v.id}`}
-          className="font-mono text-sm font-semibold break-all text-brand-700 hover:underline"
+          className="dashboard-data-link font-mono text-sm font-semibold break-all"
           onClick={(e) => e.stopPropagation()}
         >
           {v.username}
@@ -313,7 +313,7 @@ function AgentSales({ agent }: { agent: AgentProfile }) {
       hideBelow: 'lg',
       cell: (v) => (
         <time dateTime={v.created_at} title={formatDateTime(v.created_at)}>
-          {formatRelative(v.created_at)}
+          {formatDateTime(v.created_at)}
         </time>
       ),
     },

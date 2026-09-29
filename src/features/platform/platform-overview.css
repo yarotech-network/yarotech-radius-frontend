@@ -145,10 +145,6 @@
   font-weight: 600;
   overflow-wrap: anywhere;
 }
-.platform-tenant-name a:hover {
-  color: var(--color-brand-700);
-  text-decoration: underline;
-}
 .platform-tenant-avatar {
   display: grid;
   place-items: center;

@@ -70,7 +70,7 @@ export function TenantMembersPanel({
       cell: (m) => (
         <div className="min-w-0">
           <div className="truncate font-medium text-ink-900">{m.user_display}</div>
-          <div className="text-xs text-ink-500">User #{m.user}</div>
+
         </div>
       ),
     },

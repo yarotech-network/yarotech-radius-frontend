@@ -107,6 +107,7 @@ export interface VoucherManualWrite {
 export type PaymentStatus = 'pending' | 'success' | 'failed' | 'abandoned' | 'reversed';
 
 export interface PaymentTransaction {
+  plan_name?: string | null;
   id: number;
   reference: string;
   amount: Kobo;

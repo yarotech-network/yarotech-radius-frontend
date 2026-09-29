@@ -83,7 +83,7 @@ function DeviceDirectory() {
           {canManage ? (
             <button
               type="button"
-              className="text-left font-semibold break-all text-brand-700 dark:text-brand-400 hover:underline focus-visible:outline-2 focus-visible:outline-brand-600"
+              className="dashboard-data-link text-left font-semibold break-all"
               onClick={(event) => {
                 event.stopPropagation();
                 if (d.status === 'deleted') setManaging(d);
@@ -343,7 +343,7 @@ function DeviceDirectory() {
                     ? [
                         {
                           value: list.state.filters.plan,
-                          label: `Selected plan #${list.state.filters.plan}`,
+                          label: 'Selected plan unavailable',
                         },
                       ]
                     : []),

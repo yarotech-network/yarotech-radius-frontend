@@ -111,7 +111,7 @@ export default function TeamSettingsPage() {
                 <span className="ml-2 text-xs font-normal text-ink-500">(you)</span>
               )}
             </div>
-            <div className="text-xs text-ink-500">User #{m.user}</div>
+
           </div>
         </div>
       ),

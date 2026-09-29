@@ -4,7 +4,7 @@ import { StatusBadge } from '@/components/layout';
 import { Button, ButtonLink, CopyButton, Select } from '@/components/ui';
 import { Alert, EmptyState } from '@/components/feedback';
 import { DataTable, Pagination, useListParams, type Column } from '@/components/data';
-import { formatDateTime, formatRelative } from '@/lib/formatting/dates';
+import { formatDateTime } from '@/lib/formatting/dates';
 import { formatKobo } from '@/lib/formatting/money';
 import type { AgentVoucherAllocation, AllocationListParams, VoucherStatus } from '@/types/api';
 import { useAllocationHistory } from '../queries';
@@ -68,7 +68,7 @@ export default function AgentVouchersPage() {
       header: 'Sold',
       cell: (a) => (
         <time dateTime={a.created_at} title={formatDateTime(a.created_at)} className="text-ink-600">
-          {formatRelative(a.created_at)}
+          {formatDateTime(a.created_at)}
         </time>
       ),
     },

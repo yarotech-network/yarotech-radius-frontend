@@ -226,13 +226,13 @@ describe('sign in and landing per role', () => {
     tokenStore.set({ access: 'A', refresh: 'R' });
     const assignments = paginated([
       makeAssignment(10, ['routers.view']),
-      makeAssignment(11, ['vouchers.generate', 'vouchers.print']),
+      { ...makeAssignment(11, ['vouchers.generate', 'vouchers.print']), tenant_display: 'Habiba Wi-Fi' },
     ]);
     mockSession(makeUser('platform_staff'), assignments);
     const router = renderApp('/vouchers');
     expect(await screen.findByRole('heading', { name: 'Choose a tenant' })).toBeInTheDocument();
     expect(router.state.location.pathname).toBe('/select-tenant');
-    await userEvent.click(screen.getByRole('button', { name: /Tenant #11/ }));
+    await userEvent.click(screen.getByRole('button', { name: /Habiba Wi-Fi/ }));
     expect(await screen.findByRole('heading', { name: 'Dashboard page' })).toBeInTheDocument();
     // Vouchers is visible thanks to the vouchers.* grants, Routers is not (different tenant).
     expect(screen.getAllByRole('link', { name: 'Vouchers' }).length).toBeGreaterThan(0);

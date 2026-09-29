@@ -13,7 +13,7 @@ import {
   type Column,
 } from '@/components/data';
 import { usePrincipal } from '@/app/auth/useAuth';
-import { formatDateTime, formatRelative } from '@/lib/formatting/dates';
+import { formatDateTime } from '@/lib/formatting/dates';
 import { formatKobo } from '@/lib/formatting/money';
 import { useDebouncedValue } from '@/lib/utilities/useDebouncedValue';
 import { can } from '@/services/auth/principal';
@@ -74,7 +74,7 @@ export default function PaymentsPage() {
                 e.stopPropagation();
                 select(p.id);
               }}
-              className="text-left font-mono text-sm font-bold tracking-wide break-all text-brand-700 dark:text-brand-400 hover:underline focus-visible:underline"
+              className="dashboard-data-link text-left font-mono text-sm font-bold tracking-wide break-all"
             >
               {p.reference}
             </button>
@@ -94,7 +94,7 @@ export default function PaymentsPage() {
               )}
             </button>
           </div>
-          <div className="mt-0.5 text-xs text-ink-500">{customerLabel(p)}</div>
+          {/* <div className="mt-0.5 text-xs text-ink-500">{customerLabel(p)}</div> */}
         </div>
       ),
     },
@@ -131,24 +131,24 @@ export default function PaymentsPage() {
       sortField: 'created_at',
       cell: (p) => (
         <time dateTime={p.created_at} title={formatDateTime(p.created_at)} className="text-xs text-ink-600">
-          {formatRelative(p.created_at)}
+          {formatDateTime(p.created_at)}
         </time>
       ),
     },
-    {
-      key: 'paid',
-      header: 'Paid',
-      hideBelow: 'xl',
-      sortField: 'paid_at',
-      cell: (p) =>
-        p.paid_at ? (
-          <span className="text-xs text-ink-700 font-medium" title={formatDateTime(p.paid_at)}>
-            {formatRelative(p.paid_at)}
-          </span>
-        ) : (
-          <span className="text-xs text-ink-400">—</span>
-        ),
-    },
+    // {
+    //   key: 'paid',
+    //   header: 'Paid',
+    //   hideBelow: 'xl',
+    //   sortField: 'paid_at',
+    //   cell: (p) =>
+    //     p.paid_at ? (
+    //       <span className="text-xs text-ink-700 font-medium" title={formatDateTime(p.paid_at)}>
+    //         {formatDateTime(p.paid_at)}
+    //       </span>
+    //     ) : (
+    //       <span className="text-xs text-ink-400">—</span>
+    //     ),
+    // },
   ];
 
   return (

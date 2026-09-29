@@ -4,7 +4,7 @@ import type { Paginated, Tenant } from '@/types/api';
 
 /**
  * Platform staff see tenant *ids* in their assignments. `GET tenants/` is platform-admin scoped, so
- * we try it once and quietly fall back to "Tenant #id" when it is forbidden (API gap #3 family).
+ * we try it once and quietly fall back to a neutral label when it is forbidden (API gap #3 family).
  */
 export function useAssignedTenantNames(tenantIds: number[]) {
   return useQuery({
@@ -19,7 +19,7 @@ export function useAssignedTenantNames(tenantIds: number[]) {
         );
         for (const t of page.results) names.set(t.id, t.name);
       } catch {
-        /* not permitted — fall back to ids */
+        /* not permitted — fall back to the assignment label */
       }
       return names;
     },
@@ -29,5 +29,5 @@ export function useAssignedTenantNames(tenantIds: number[]) {
 }
 
 export function tenantLabel(names: Map<number, string> | undefined, id: number): string {
-  return names?.get(id) ?? `Tenant #${id}`;
+  return names?.get(id) ?? 'Workspace unavailable';
 }

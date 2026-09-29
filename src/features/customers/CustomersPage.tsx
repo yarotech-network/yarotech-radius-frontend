@@ -319,7 +319,7 @@ export default function CustomersPage() {
                   <h3 className="font-mono font-semibold break-all text-ink-900">
                     {code.access_code}{' '}
                     <span className="font-sans text-xs text-ink-500">
-                      Voucher #{code.voucher_id}
+                      Voucher
                     </span>
                   </h3>
                   <span className="text-sm capitalize font-medium text-ink-700">{code.status}</span>

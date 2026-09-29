@@ -1,3 +1,4 @@
+import { formatDateTime } from '@/lib/formatting/dates';
 import { usePrintVouchers } from '../hooks/usePrintVouchers';
 import { http, HttpResponse } from 'msw';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -63,6 +64,15 @@ beforeEach(() => {
 afterEach(() => vi.restoreAllMocks());
 
 describe('VouchersPage', () => {
+  it('shows exact creation and expiry timestamps', async () => {
+    const row = voucher(1, { expires_at: '2026-10-06T10:00:00Z' });
+    server.use(http.get(`${API}/vouchers/`, () => HttpResponse.json(paginated([row]))));
+    renderPage(<VouchersPage />, { role: 'manager', path: '/vouchers' });
+    const table = await screen.findByRole('table', { name: 'Vouchers' });
+    expect(await within(table).findByText(formatDateTime(row.created_at))).toBeVisible();
+    expect(within(table).getByText(formatDateTime(row.expires_at))).toBeVisible();
+  });
+
   it('lists vouchers, maps the status tab to ?status= and prints a selection into one sheet', async () => {
     const seen: URL[] = [];
     const rows = [
@@ -136,7 +146,7 @@ describe('VouchersPage', () => {
         HttpResponse.json({ detail: 'Unavailable' }, { status: 503 }),
       ),
     );
-    await user.click(screen.getByRole('button', { name: 'Refresh vouchers' }));
+    await user.click(screen.getByRole('button', { name: 'Refresh' }));
     expect(await screen.findByText('Vouchers could not be refreshed')).toBeInTheDocument();
     expect(within(table).getByText('WH10001')).toBeInTheDocument();
   });
@@ -280,7 +290,7 @@ describe('VoucherDetailPage', () => {
     await userEvent.click(within(dialog).getByRole('button', { name: 'Disable voucher' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     await waitFor(() =>
-      expect(screen.getByRole('heading', { name: /WH10007/ })).toHaveTextContent('Disabled'),
+      expect(screen.getByText('Disabled')).toBeInTheDocument(),
     );
     expect(screen.queryByRole('button', { name: 'Disable' })).not.toBeInTheDocument();
   });
@@ -311,7 +321,7 @@ describe('VoucherDetailPage', () => {
         HttpResponse.json({ detail: 'Unavailable' }, { status: 503 }),
       ),
     );
-    await user.click(screen.getByRole('button', { name: 'Refresh voucher' }));
+    await user.click(screen.getByRole('button', { name: 'Refresh' }));
     expect(await screen.findByText('Voucher could not be refreshed')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: /WH10007/ })).toBeInTheDocument();
   });

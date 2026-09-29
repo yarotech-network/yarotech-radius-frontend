@@ -4,19 +4,18 @@ import {
   ChevronDown,
   ChevronRight,
   ScrollText,
-  Copy,
-  Check,
   ExternalLink,
   User,
   Shield,
 } from 'lucide-react';
 import type { UseQueryResult } from '@tanstack/react-query';
-import { Badge, Button, Input, Select } from '@/components/ui';
-import { EmptyState, useToast } from '@/components/feedback';
+import { Badge, Button, Select } from '@/components/ui';
+import { EmptyState } from '@/components/feedback';
 import { DataTable, FilterBar, Pagination, SearchInput, type Column } from '@/components/data';
 import type { useListParams } from '@/components/data';
-import { formatDateTime, formatRelative } from '@/lib/formatting/dates';
+import { formatDateTime } from '@/lib/formatting/dates';
 import type { AuditEvent, Paginated } from '@/types/api';
+import { visibleAuditDetails } from '../visibleAuditDetails';
 import { AUDIT_ACTION_GROUPS, actionLabel, actionTone, parseResource } from '../auditVocabulary';
 
 export interface AuditLogViewProps {
@@ -58,7 +57,7 @@ export function AuditLogView({
           title={formatDateTime(e.created_at)}
           className="text-xs font-medium whitespace-nowrap text-slate-500 dark:text-slate-400"
         >
-          {formatRelative(e.created_at)}
+          {formatDateTime(e.created_at)}
         </time>
       ),
     },
@@ -99,7 +98,7 @@ export function AuditLogView({
           </span>
         ) : (
           <span className="inline-flex items-center gap-1 text-xs font-medium text-slate-700 dark:text-slate-300">
-            <User className="size-3 text-slate-400" /> User #{e.actor}
+            <User className="size-3 text-slate-400" /> {e.actor_display || 'Account unavailable'}
           </span>
         ),
     },
@@ -144,7 +143,7 @@ export function AuditLogView({
             <SearchInput
               value={list.state.search}
               onChange={list.setSearch}
-              placeholder="Search resource, e.g. voucher:56"
+              placeholder="Search username or resource"
               ariaLabel="Search audit resources"
             />
           }
@@ -168,16 +167,6 @@ export function AuditLogView({
                   </optgroup>
                 ))}
               </Select>
-              <Input
-                aria-label="Actor user ID"
-                type="number"
-                min={1}
-                inputMode="numeric"
-                className="h-8 w-32 text-xs"
-                placeholder="Actor user ID"
-                value={list.state.filters.actor ?? ''}
-                onChange={(e) => list.setFilter('actor', e.target.value || undefined)}
-              />
               {currentUserId !== undefined && (
                 <Button
                   size="sm"
@@ -257,12 +246,18 @@ export function AuditLogView({
 
 function ResourceCell({ resource, to }: { resource: string; to: string | null }) {
   const parsed = parseResource(resource);
-  const label = parsed ? `${parsed.model} #${parsed.pk}` : resource;
+  const resourceNames: Record<string, string> = {
+    nasdevice: 'router', macdevice: 'device', staffinvitation: 'staff invitation',
+    staffassignment: 'staff assignment', tenantsubscription: 'subscription',
+    paymenttransaction: 'payment', agentprofile: 'agent', tenantmembership: 'team member',
+  };
+  const name = parsed ? resourceNames[parsed.model] || parsed.model : 'activity';
+  const label = to ? `View ${name}` : name;
   return to ? (
     <Link
       to={to}
       onClick={(e) => e.stopPropagation()}
-      className="inline-flex items-center gap-1 font-mono text-xs font-semibold text-brand-600 hover:underline dark:text-brand-400"
+      className="dashboard-data-link inline-flex items-center gap-1 font-mono text-xs font-semibold"
     >
       <span>{label}</span>
       <ExternalLink className="size-3" />
@@ -275,74 +270,16 @@ function ResourceCell({ resource, to }: { resource: string; to: string | null })
 }
 
 function DetailsPanel({ event }: { event: AuditEvent }) {
-  const toast = useToast();
-  const [copiedId, setCopiedId] = useState(false);
-  const [copiedRes, setCopiedRes] = useState(false);
-  const entries = Object.entries(event.details ?? {});
-
-  const copyText = (text: string, type: 'id' | 'res') => {
-    void navigator.clipboard.writeText(text);
-    if (type === 'id') {
-      setCopiedId(true);
-      setTimeout(() => setCopiedId(false), 2000);
-      toast.success('Event ID copied', text);
-    } else {
-      setCopiedRes(true);
-      setTimeout(() => setCopiedRes(false), 2000);
-      toast.success('Resource string copied', text);
-    }
-  };
+  const entries = Object.entries(visibleAuditDetails(event.details ?? {}));
 
   return (
     <div
       id={`audit-${event.id}`}
       className="dark:bg-slate-850 space-y-3 border-t border-slate-200 bg-slate-50/80 p-4 text-xs dark:border-slate-800"
     >
-      <div className="grid gap-3 sm:grid-cols-2">
-        <div className="flex items-center justify-between rounded-lg border border-slate-200/80 bg-white p-2.5 dark:border-slate-800 dark:bg-slate-900">
-          <div>
-            <span className="block text-[11px] font-medium text-slate-400 dark:text-slate-500">
-              Target Resource
-            </span>
-            <code className="font-mono text-xs font-semibold text-slate-800 dark:text-slate-200">
-              {event.resource}
-            </code>
-          </div>
-          <button
-            type="button"
-            onClick={() => copyText(event.resource, 'res')}
-            className="rounded p-1 text-slate-400 transition-colors hover:text-slate-600 dark:hover:text-slate-200"
-            title="Copy Resource"
-          >
-            {copiedRes ? (
-              <Check className="size-3.5 text-emerald-500" />
-            ) : (
-              <Copy className="size-3.5" />
-            )}
-          </button>
-        </div>
-
-        <div className="flex items-center justify-between rounded-lg border border-slate-200/80 bg-white p-2.5 dark:border-slate-800 dark:bg-slate-900">
-          <div>
-            <span className="block text-[11px] font-medium text-slate-400 dark:text-slate-500">
-              Event UUID
-            </span>
-            <code className="font-mono text-xs text-slate-800 dark:text-slate-200">{event.id}</code>
-          </div>
-          <button
-            type="button"
-            onClick={() => copyText(event.id, 'id')}
-            className="rounded p-1 text-slate-400 transition-colors hover:text-slate-600 dark:hover:text-slate-200"
-            title="Copy Event ID"
-          >
-            {copiedId ? (
-              <Check className="size-3.5 text-emerald-500" />
-            ) : (
-              <Copy className="size-3.5" />
-            )}
-          </button>
-        </div>
-      </div>
+      <p className="font-medium text-ink-700">
+        Recorded {formatDateTime(event.created_at)}
+      </p>
 
       {entries.length > 0 && (
         <div className="space-y-2 rounded-lg border border-slate-200/80 bg-white p-3 dark:border-slate-800 dark:bg-slate-900">

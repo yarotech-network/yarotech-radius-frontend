@@ -26,7 +26,7 @@ export function TenantSwitcher({ className }: { className?: string }) {
               )}
               aria-hidden
             />
-            {tenantLabel(names.data, a.tenant)}
+            {a.tenant_display || tenantLabel(names.data, a.tenant)}
           </span>
         ),
         onSelect: () => selectTenant(a.tenant),
@@ -40,7 +40,7 @@ export function TenantSwitcher({ className }: { className?: string }) {
         >
           <Building2 className="size-4 shrink-0 text-ink-500" aria-hidden />
           <span className="truncate">
-            {active ? tenantLabel(names.data, active) : 'Choose tenant'}
+            {active ? principal.assignments.find((a) => a.tenant === active)?.tenant_display || tenantLabel(names.data, active) : 'Choose tenant'}
           </span>
           <ChevronDown className="size-4 shrink-0 text-ink-400" aria-hidden />
         </button>

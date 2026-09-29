@@ -1,3 +1,4 @@
+import { formatDateTime } from '@/lib/formatting/dates';
 import { http, HttpResponse } from 'msw';
 import { describe, expect, it } from 'vitest';
 import { screen, waitFor, within } from '@testing-library/react';
@@ -84,6 +85,15 @@ describe('payment rules', () => {
 });
 
 describe('PaymentsPage', () => {
+  it('shows exact creation and payment timestamps', async () => {
+    const row = payment();
+    server.use(http.get(`${API}/payments/transactions/`, () => HttpResponse.json(paginated([row]))));
+    renderPage(<PaymentsPage />, { role: 'manager', path: '/payments' });
+    const table = await screen.findByRole('table', { name: 'Payments' });
+    expect(await within(table).findByText(formatDateTime(row.created_at))).toBeVisible();
+    expect(within(table).getByText(formatDateTime(row.paid_at))).toBeVisible();
+  });
+
   it('lists payments, filters by status and opens the detail drawer from the URL', async () => {
     const seen: URL[] = [];
     server.use(

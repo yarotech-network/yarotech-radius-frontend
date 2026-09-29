@@ -193,7 +193,7 @@ export function OperationRow({
       {showRouter && (
         <Link
           to={`/routers/${op.router}?tab=vpn`}
-          className="min-w-0 font-medium break-words text-brand-700 hover:underline"
+          className="dashboard-data-link min-w-0 font-medium break-words"
         >
           {showRouter}
         </Link>

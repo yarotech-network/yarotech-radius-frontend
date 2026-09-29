@@ -1368,3 +1368,22 @@ a.sidebar-identity:hover {
 .dark .router-operation-row:hover {
   background: #1c2230 !important;
 }
+
+/* Opt-in data links also work in dashboard drawers portaled outside the shell. */
+.dashboard-data-link,
+.dashboard-data-link:visited {
+  color: var(--color-ink-900);
+  text-decoration: none;
+  border-radius: 0.25rem;
+  cursor: pointer;
+}
+.dashboard-data-link:hover,
+.dashboard-data-link:focus-visible {
+  color: var(--color-ink-900);
+  text-decoration: none;
+  background-color: var(--color-surface-muted);
+}
+.dashboard-data-link:focus-visible {
+  outline: 2px solid var(--color-brand-600);
+  outline-offset: 3px;
+}

@@ -153,10 +153,10 @@ describe('Customer directory', () => {
     renderPage(<CustomersPage />, { role: 'manager' });
     await userEvent.click(await screen.findByRole('button', { name: 'View details' }));
     const history = await screen.findByRole('region', { name: 'Customer purchase history' });
-    expect(await within(history).findByText('Purchase #1: Day pass')).toBeVisible();
+    expect(await within(history).findByText('Purchase: Day pass')).toBeVisible();
     expect(within(history).getByRole('button', { name: 'Previous purchases' })).toBeDisabled();
     await userEvent.click(within(history).getByRole('button', { name: 'Next purchases' }));
-    expect(await within(history).findByText('Purchase #2: Day pass')).toBeVisible();
+    expect(await within(history).findByText('Purchase: Day pass')).toBeVisible();
     expect(within(history).getByRole('button', { name: 'Next purchases' })).toBeDisabled();
   });
   it('closes the old customer detail and ignores its late response after switching workspace', async () => {

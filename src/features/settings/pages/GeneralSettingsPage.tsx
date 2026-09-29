@@ -99,7 +99,7 @@ export default function GeneralSettingsPage() {
               <div className="mb-5 rounded-xl border border-brand-200 bg-brand-50/80 dark:bg-brand-950/60 dark:border-brand-900 p-3.5">
                 <p className="text-xs font-bold text-brand-800 dark:text-brand-300">Storefront address</p>
                 <Link
-                  className="mt-1 inline-block text-sm font-semibold break-all text-brand-600 dark:text-brand-400 hover:underline"
+                  className="dashboard-data-link mt-1 inline-block text-sm font-semibold break-all"
                   to={`/s/${encodeURIComponent(profile.data.slug)}`}
                 >
                   /s/{profile.data.slug}

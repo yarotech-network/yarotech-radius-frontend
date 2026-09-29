@@ -13,7 +13,7 @@ import {
   Skeleton,
 } from '@/components/ui';
 import { Alert, QueryBoundary, useToast } from '@/components/feedback';
-import { formatDateTime, formatRelative } from '@/lib/formatting/dates';
+import { formatDateTime } from '@/lib/formatting/dates';
 import { formatHours } from '@/lib/formatting/units';
 import { can } from '@/services/auth/principal';
 import { usePrincipal } from '@/app/auth/useAuth';
@@ -177,7 +177,7 @@ export default function VoucherDetailPage() {
                     {
                       label: 'Expires',
                       value: voucher.expires_at
-                        ? `${formatDateTime(voucher.expires_at)} (${formatRelative(voucher.expires_at)})`
+                        ? formatDateTime(voucher.expires_at)
                         : voucher.status === 'unused'
                           ? 'Starts counting at first login'
                           : '—',

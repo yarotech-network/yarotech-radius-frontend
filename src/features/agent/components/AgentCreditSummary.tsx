@@ -75,7 +75,7 @@ function CreditRecords() {
             {!data.count && <p>No credit allocations recorded in this workflow.</p>}
             {data.results.map((batch) => (
               <p key={batch.id}>
-                #{batch.id} · {batch.quantity} vouchers · Repaid {formatKobo(batch.repaid)} ·
+                {batch.quantity} vouchers · Repaid {formatKobo(batch.repaid)} ·
                 Outstanding {formatKobo(batch.outstanding)}
                 {batch.reversed_at
                   ? ' · Cancelled without refund'

@@ -1,3 +1,4 @@
+import { formatDateTime } from '@/lib/formatting/dates';
 import { http, HttpResponse } from 'msw';
 import { describe, expect, it } from 'vitest';
 import { screen, waitFor, within } from '@testing-library/react';
@@ -15,7 +16,7 @@ const event = (extra: Partial<AuditEvent> = {}): AuditEvent => ({
   actor: 42,
   action: 'vouchers.generated',
   resource: 'vouchers.voucher:56',
-  details: { count: 10, plan: 1 },
+  details: { count: 10, plan: 1, tenant_id: 5 },
   created_at: '2026-09-01T10:00:00Z',
   ...extra,
 });
@@ -55,6 +56,7 @@ describe('AuditPage', () => {
             event({
               id: 'evt-2',
               actor: 7,
+              actor_display: 'Support staff',
               action: 'router.secrets_replaced',
               resource: 'routers.nasdevice:abc',
               details: {},
@@ -74,9 +76,10 @@ describe('AuditPage', () => {
     const table = await screen.findByRole('table', { name: 'Audit events' });
     expect(await within(table).findByText('Vouchers generated')).toBeInTheDocument();
     expect(within(table).getByText('You')).toBeInTheDocument();
-    expect(within(table).getByText('User #7')).toBeInTheDocument();
+    expect(within(table).getByText('Support staff')).toBeInTheDocument();
     expect(within(table).getByText('System')).toBeInTheDocument();
-    expect(within(table).getByRole('link', { name: 'voucher #56' })).toHaveAttribute(
+    expect(within(table).getAllByText(formatDateTime(event().created_at))).toHaveLength(3);
+    expect(within(table).getByRole('link', { name: 'View voucher' })).toHaveAttribute(
       'href',
       '/vouchers/56',
     );
@@ -85,6 +88,10 @@ describe('AuditPage', () => {
     await userEvent.click(within(table).getByRole('button', { name: 'Details' }));
     expect(await within(table).findByText('count')).toBeInTheDocument();
     expect(within(table).getByText('10')).toBeInTheDocument();
+    expect(within(table).queryByText('tenant_id')).not.toBeInTheDocument();
+    expect(within(table).queryByText('plan')).not.toBeInTheDocument();
+    expect(within(table).queryByText('evt-1')).not.toBeInTheDocument();
+    expect(within(table).queryByText('vouchers.voucher:56')).not.toBeInTheDocument();
 
     await userEvent.selectOptions(screen.getByLabelText('Action'), 'router.secrets_replaced');
     await waitFor(() =>

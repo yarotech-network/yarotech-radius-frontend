@@ -61,7 +61,7 @@ export default function SelectTenantPage() {
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm font-medium text-ink-900">
-                    {tenantLabel(names.data, assignment.tenant)}
+                    {assignment.tenant_display || tenantLabel(names.data, assignment.tenant)}
                   </span>
                   <span className="mt-1 flex flex-wrap gap-1">
                     {assignment.services.map((s) => (

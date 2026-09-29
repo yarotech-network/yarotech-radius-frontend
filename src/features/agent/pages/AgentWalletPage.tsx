@@ -5,7 +5,7 @@ import { Button, Select, Stat } from '@/components/ui';
 import { PaymentStatusBadge } from '@/features/payments/components/PaymentStatusBadge';
 import { EmptyState } from '@/components/feedback';
 import { DataTable, Pagination, useListParams, type Column } from '@/components/data';
-import { formatDateTime, formatRelative } from '@/lib/formatting/dates';
+import { formatDateTime } from '@/lib/formatting/dates';
 import { formatKobo } from '@/lib/formatting/money';
 import { pendingCheckout } from '@/features/storefront/pendingCheckout';
 import type { AgentFundingPayment, FundingListParams, FundingStatus } from '@/types/api';
@@ -82,7 +82,7 @@ function WalletScreen({ returning = false }: { returning?: boolean }) {
           <code className="font-mono text-sm font-semibold text-ink-900">{f.reference}</code>
           <div className="text-xs text-ink-500">
             <time dateTime={f.created_at} title={formatDateTime(f.created_at)}>
-              {formatRelative(f.created_at)}
+              {formatDateTime(f.created_at)}
             </time>
           </div>
         </div>
@@ -101,7 +101,7 @@ function WalletScreen({ returning = false }: { returning?: boolean }) {
       hideBelow: 'md',
       cell: (f) =>
         f.completed_at ? (
-          <span title={formatDateTime(f.completed_at)}>{formatRelative(f.completed_at)}</span>
+          <span title={formatDateTime(f.completed_at)}>{formatDateTime(f.completed_at)}</span>
         ) : (
           <span className="text-ink-400">—</span>
         ),
@@ -131,7 +131,7 @@ function WalletScreen({ returning = false }: { returning?: boolean }) {
         value={wallet.data ? formatKobo(wallet.data.balance) : wallet.isError ? 'Unavailable' : '—'}
         loading={wallet.isPending}
         icon={<Wallet className="size-4" aria-hidden />}
-        hint={wallet.data ? `Updated ${formatRelative(wallet.data.updated_at)}` : undefined}
+        hint={wallet.data ? `Updated ${formatDateTime(wallet.data.updated_at)}` : undefined}
       />
 
       {reference && (

@@ -23,10 +23,10 @@ describe('WhatsApp workflow controls', () => {
       payload = await request.json(); return HttpResponse.json(defaults);
     }));
     renderPage(<WorkflowControls scope={5} />);
-    await userEvent.click(screen.getByRole('button', { name: 'Manage orders and reminders' }));
-    const enabled = await screen.findByRole('checkbox', { name: 'Enable reminders' });
+    await userEvent.click(screen.getByRole('button', { name: 'Manage orders & reminders' }));
+    const enabled = await screen.findByRole('checkbox', { name: 'Enable Reminders System' });
     expect(enabled).not.toBeChecked();
-    await userEvent.click(screen.getByRole('button', { name: 'Save reminder settings' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Save Reminder Settings' }));
     await waitFor(() => expect(payload).toMatchObject({ expected_version: 'v1', enabled: false, unused_hours: 24 }));
   });
   it('uses the API page metadata to load the next order page', async () => {
@@ -38,20 +38,19 @@ describe('WhatsApp workflow controls', () => {
       ] });
     }));
     renderPage(<WorkflowControls scope={5} />);
-    await userEvent.click(screen.getByRole('button', { name: 'Manage orders and reminders' }));
-    await screen.findByRole('button', { name: 'Recheck order #1' });
+    await userEvent.click(screen.getByRole('button', { name: 'Manage orders & reminders' }));
+    await screen.findByRole('button', { name: 'Recheck payment' });
     expect(screen.getByRole('button', { name: 'Previous orders' })).toBeDisabled();
     await userEvent.click(screen.getByRole('button', { name: 'Next orders' }));
-    await screen.findByRole('button', { name: 'Recheck order #2' });
-    expect(screen.getByRole('button', { name: 'Next orders' })).toBeDisabled();
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Next orders' })).toBeDisabled());
     expect(screen.getByRole('button', { name: 'Previous orders' })).toBeEnabled();
   });
   it('requires a business link before displaying the reminder settings form', async () => {
     handlers(null);
     renderPage(<WorkflowControls scope={5} />);
-    await userEvent.click(screen.getByRole('button', { name: 'Manage orders and reminders' }));
-    expect(await screen.findByText('Create your shared-number business link before configuring reminders.')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Save reminder settings' })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Manage orders & reminders' }));
+    expect(await screen.findByText('Create your shared-number business link above before configuring customer reminders.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Save Reminder Settings' })).not.toBeInTheDocument();
   });
   it('requires explicit resend confirmation and retains its request identity after a failed response', async () => {
     handlers();
@@ -61,13 +60,13 @@ describe('WhatsApp workflow controls', () => {
       return calls.length === 1 ? HttpResponse.json({ detail: 'Please retry.' }, { status: 503 }) : HttpResponse.json({});
     }));
     renderPage(<WorkflowControls scope={5} />);
-    await userEvent.click(screen.getByRole('button', { name: 'Manage orders and reminders' }));
-    await userEvent.click(await screen.findByRole('button', { name: 'Resend voucher #9' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Manage orders & reminders' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Resend voucher' }));
     expect(calls).toHaveLength(0);
-    await userEvent.click(screen.getByRole('button', { name: 'Confirm resend' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Confirm Resend' }));
     await waitFor(() => expect(calls).toHaveLength(1));
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Confirm resend' })).toBeEnabled());
-    await userEvent.click(screen.getByRole('button', { name: 'Confirm resend' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Confirm Resend' })).toBeEnabled());
+    await userEvent.click(screen.getByRole('button', { name: 'Confirm Resend' }));
     await waitFor(() => expect(calls).toHaveLength(2));
     expect(calls[0]?.acknowledge_duplicate_risk).toBe(true);
     expect(calls[1]?.request_id).toBe(calls[0]?.request_id);

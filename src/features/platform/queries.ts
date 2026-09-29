@@ -120,7 +120,7 @@ export function useTenantName() {
   const index = useTenantIndex();
   const byId = new Map((index.data ?? []).map((t) => [t.id, t.name]));
   return (id: number | null | undefined) =>
-    id === null || id === undefined ? null : (byId.get(id) ?? `Tenant #${id}`);
+    id === null || id === undefined ? null : (byId.get(id) ?? 'Tenant unavailable');
 }
 
 function useInvalidateTenants() {

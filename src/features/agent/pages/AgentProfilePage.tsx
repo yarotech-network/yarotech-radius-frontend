@@ -58,7 +58,6 @@ export default function AgentProfilePage() {
               { label: 'Status', value: <StatusBadge status={me.data.status} size="sm" /> },
               { label: 'Agent since', value: formatDate(me.data.created_at) },
               { label: 'Commission rate', value: `${me.data.commission_rate}%` },
-              { label: 'Agent ID', value: String(me.data.id), mono: true },
             ]}
           />
         )}

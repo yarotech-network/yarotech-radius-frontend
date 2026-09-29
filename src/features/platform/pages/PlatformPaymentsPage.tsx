@@ -14,7 +14,7 @@ import { Button, Select, Tabs } from '@/components/ui';
 import { Alert, EmptyState } from '@/components/feedback';
 import { useDebouncedValue } from '@/lib/utilities/useDebouncedValue';
 import { formatKobo } from '@/lib/formatting/money';
-import { formatDateTime, formatRelative } from '@/lib/formatting/dates';
+import { formatDateTime } from '@/lib/formatting/dates';
 import type {
   PaymentListParams,
   PaymentStatus,
@@ -106,21 +106,21 @@ export default function PlatformPaymentsPage() {
     source === 'subscriptions',
   );
   const active = source === 'vouchers' ? vouchers : source === 'wallet' ? wallet : subscriptions;
-  const planName = (id: number) => pricing.data?.find((p) => p.id === id)?.name ?? `Plan #${id}`;
+  const planName = (id: number) => pricing.data?.find((p) => p.id === id)?.name ?? 'Plan unavailable';
 
   const tenantCell = (id: number) => (
-    <Link to={`/platform/tenants/${id}`} className="text-brand-700 hover:underline">
+    <Link to={`/platform/tenants/${id}`} className="dashboard-data-link ">
       {tenantName(id)}
     </Link>
   );
   const when = (iso: string) => (
     <time dateTime={iso} title={formatDateTime(iso)} className="text-ink-600">
-      {formatRelative(iso)}
+      {formatDateTime(iso)}
     </time>
   );
   const completed = (iso: string | null) =>
     iso ? (
-      <span title={formatDateTime(iso)}>{formatRelative(iso)}</span>
+      <span title={formatDateTime(iso)}>{formatDateTime(iso)}</span>
     ) : (
       <span className="text-ink-400">—</span>
     );
@@ -178,7 +178,7 @@ export default function PlatformPaymentsPage() {
           <code className="font-mono text-sm font-semibold break-all text-ink-900">
             {p.reference}
           </code>
-          <div className="text-xs text-ink-500">Agent #{p.agent_id}</div>
+          <div className="text-xs text-ink-500">{p.agent_display || 'Agent account'}</div>
         </div>
       ),
     },

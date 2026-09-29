@@ -76,7 +76,7 @@ export default function PlatformRoutersPage() {
       cell: (r) => (
         <Link
           to={`/platform/tenants/${r.tenant}`}
-          className="font-medium break-words text-brand-700 hover:underline"
+          className="dashboard-data-link font-medium break-words"
         >
           {r.tenant_name || tenantName(r.tenant)}
         </Link>

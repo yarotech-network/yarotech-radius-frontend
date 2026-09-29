@@ -176,7 +176,7 @@ function ContactWorkspace({ scope, actorId }: { scope: number | null; actorId: n
                     {customer.reference}
                   </p>
                   <button
-                    className="mt-2 text-left text-lg font-semibold break-words text-brand-950 hover:underline"
+                    className="dashboard-data-link mt-2 text-left text-lg font-semibold break-words"
                     onClick={() => setSelected(customer.id)}
                   >
                     {customerLabel(customer)}

@@ -65,7 +65,7 @@ export default function TenantsPage() {
               <Link
                 to={`/platform/tenants/${t.id}`}
                 onClick={(e) => e.stopPropagation()}
-                className="min-w-0 font-semibold break-words text-brand-700 hover:underline"
+                className="dashboard-data-link min-w-0 font-semibold break-words"
               >
                 {t.name}
               </Link>

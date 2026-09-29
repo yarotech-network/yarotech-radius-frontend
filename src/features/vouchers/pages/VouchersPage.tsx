@@ -13,7 +13,7 @@ import {
 import { Button, Card, Checkbox, ConfirmDialog, Select } from '@/components/ui';
 import { Alert, EmptyState, useToast } from '@/components/feedback';
 import { useDebouncedValue } from '@/lib/utilities/useDebouncedValue';
-import { formatDateTime, formatRelative } from '@/lib/formatting/dates';
+import { formatDateTime } from '@/lib/formatting/dates';
 import { can } from '@/services/auth/principal';
 import { usePrincipal } from '@/app/auth/useAuth';
 import { usePlanOptions } from '@/features/plans/queries';
@@ -128,7 +128,7 @@ export default function VouchersPage() {
             <Link
               to={`/vouchers/${v.id}`}
               onClick={(e) => e.stopPropagation()}
-              className="font-mono text-sm font-bold tracking-wider text-brand-700 dark:text-brand-400 hover:underline focus-visible:underline break-all"
+              className="dashboard-data-link font-mono text-sm font-bold tracking-wider break-all"
             >
               {v.username}
             </Link>
@@ -195,7 +195,7 @@ export default function VouchersPage() {
       cell: (v) =>
         v.expires_at ? (
           <span className="text-xs text-ink-700 font-medium" title={formatDateTime(v.expires_at)}>
-            {formatRelative(v.expires_at)}
+            {formatDateTime(v.expires_at)}
           </span>
         ) : (
           <span className="text-xs text-ink-400">
@@ -210,7 +210,7 @@ export default function VouchersPage() {
       sortField: 'created_at',
       cell: (v) => (
         <span className="text-xs text-ink-600" title={formatDateTime(v.created_at)}>
-          {formatRelative(v.created_at)}
+          {formatDateTime(v.created_at)}
         </span>
       ),
     },

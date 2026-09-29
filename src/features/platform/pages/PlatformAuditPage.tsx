@@ -52,7 +52,7 @@ export default function PlatformAuditPage() {
           <Link
             to={`/platform/tenants/${e.tenant}`}
             onClick={(ev) => ev.stopPropagation()}
-            className="inline-flex items-center gap-1.5 font-medium text-brand-600 hover:underline dark:text-brand-400"
+            className="dashboard-data-link inline-flex items-center gap-1.5 font-medium"
           >
             <Building2 className="size-3.5" aria-hidden />
             {tenantName(e.tenant)}

@@ -131,7 +131,7 @@ function StorefrontDetails({ tenant }: { tenant: TenantProfile }) {
                 href={path}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="block text-sm font-semibold break-all text-brand-600 hover:text-brand-700 underline underline-offset-4"
+                className="dashboard-data-link block text-sm font-semibold break-all"
               >
                 {url}
               </a>

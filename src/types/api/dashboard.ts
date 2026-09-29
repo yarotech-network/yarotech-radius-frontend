@@ -83,6 +83,7 @@ export interface PlatformStats {
 }
 
 export interface AuditEvent {
+  actor_display?: string | null;
   id: string;
   tenant: number | null;
   actor: number | null;

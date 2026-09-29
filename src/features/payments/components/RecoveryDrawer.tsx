@@ -5,7 +5,7 @@ import { Button, Checkbox, DescriptionList, Dialog, Skeleton } from '@/component
 import { Alert, EmptyState, ErrorState, QueryBoundary, useToast } from '@/components/feedback';
 import { StatusBadge } from '@/components/layout';
 import { usePrincipal } from '@/app/auth/useAuth';
-import { formatDateTime, formatRelative } from '@/lib/formatting/dates';
+import { formatDateTime } from '@/lib/formatting/dates';
 import { formatKobo } from '@/lib/formatting/money';
 import { can } from '@/services/auth/principal';
 import { errorMessage, isApiError } from '@/services/api/errors';
@@ -161,14 +161,14 @@ function RecoveryDetail({ row }: { row: PaymentRecovery }) {
           { label: 'Financial status', value: <StatusBadge status={row.status} size="sm" /> },
           { label: 'Display status', value: <PaymentStatusBadge displayStatusCode={row.display_status_code} displayStatusLabel={row.display_status_label} status={row.status} size="sm" /> },
           { label: 'Provider status', value: row.provider_status || <span className="text-ink-400">—</span> },
-          { label: 'Reconciliation', value: row.reconciliation_state ? `${row.reconciliation_state}${row.next_reconciliation_at ? ` → ${formatRelative(row.next_reconciliation_at)}` : ''}` : <span className="text-ink-400">—</span> },
-          { label: 'Verification', value: `${row.verification_attempts ?? 0} attempts${row.last_verified_at ? ` · ${formatRelative(row.last_verified_at)}` : ''}` },
-          { label: 'Fulfilment', value: `${row.fulfilment_attempts ?? 0} attempts${row.last_fulfilment_attempt_at ? ` · ${formatRelative(row.last_fulfilment_attempt_at)}` : ''}` },
+          { label: 'Reconciliation', value: row.reconciliation_state ? `${row.reconciliation_state}${row.next_reconciliation_at ? ` → ${formatDateTime(row.next_reconciliation_at)}` : ''}` : <span className="text-ink-400">—</span> },
+          { label: 'Verification', value: `${row.verification_attempts ?? 0} attempts${row.last_verified_at ? ` · ${formatDateTime(row.last_verified_at)}` : ''}` },
+          { label: 'Fulfilment', value: `${row.fulfilment_attempts ?? 0} attempts${row.last_fulfilment_attempt_at ? ` · ${formatDateTime(row.last_fulfilment_attempt_at)}` : ''}` },
           { label: 'Error', value: row.reconciliation_error ? <code className="text-xs break-all">{row.reconciliation_error}</code> : <span className="text-ink-400">—</span> },
           {
             label: 'Voucher',
             value: row.voucher ? (
-              <Link to={`/vouchers/${row.voucher}`} className="font-mono text-brand-700 hover:underline">#{row.voucher}</Link>
+              <Link to={`/vouchers/${row.voucher}`} className="dashboard-data-link font-mono">View voucher</Link>
             ) : (
               <span className="inline-flex items-center gap-1.5">
                 <StatusBadge status={row.fulfillment_status} size="sm" />
@@ -322,7 +322,7 @@ function DeliveryRow({ delivery }: { delivery: PaymentDelivery }) {
         title={formatDateTime(delivery.created_at)}
         className="ml-auto text-xs text-ink-500"
       >
-        {formatRelative(delivery.completed_at ?? delivery.created_at)}
+        {formatDateTime(delivery.completed_at ?? delivery.created_at)}
       </time>
     </li>
   );

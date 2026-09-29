@@ -3,7 +3,7 @@ import { LifeBuoy } from 'lucide-react';
 import { Button, CopyButton, DescriptionList, Dialog, Skeleton } from '@/components/ui';
 import { Alert, QueryBoundary } from '@/components/feedback';
 import { usePrincipal } from '@/app/auth/useAuth';
-import { formatDateTime, formatRelative } from '@/lib/formatting/dates';
+import { formatDateTime } from '@/lib/formatting/dates';
 import { formatKobo } from '@/lib/formatting/money';
 import { can } from '@/services/auth/principal';
 import { usePayment } from '../queries';
@@ -97,7 +97,7 @@ export function PaymentDrawer({
                     value: p.customer_email ? (
                       <a
                         href={`mailto:${p.customer_email}`}
-                        className="break-all font-medium text-brand-600 dark:text-brand-400 hover:underline"
+                        className="dashboard-data-link break-all font-medium"
                       >
                         {p.customer_email}
                       </a>
@@ -110,7 +110,7 @@ export function PaymentDrawer({
                     value: p.voucher ? (
                       <Link
                         to={`/vouchers/${p.voucher}`}
-                        className="font-mono font-bold text-brand-600 dark:text-brand-400 hover:underline"
+                        className="dashboard-data-link font-mono font-bold"
                       >
                         {p.voucher_username}
                       </Link>
@@ -118,7 +118,7 @@ export function PaymentDrawer({
                       <span className="text-ink-400">Not issued</span>
                     ),
                   },
-                  { label: 'Plan', value: p.plan ? `#${p.plan}` : null },
+                  { label: 'Plan', value: p.plan_name || 'Plan unavailable' },
                   { label: 'Created', value: formatDateTime(p.created_at) },
                   { label: 'Paid', value: p.paid_at ? formatDateTime(p.paid_at) : null },
                   { label: 'Financial status', value: p.status },
@@ -140,13 +140,13 @@ export function PaymentDrawer({
                   {
                     label: 'Last verification',
                     value: p.last_verified_at
-                      ? `${formatDateTime(p.last_verified_at)} (${formatRelative(p.last_verified_at)})`
+                      ? formatDateTime(p.last_verified_at)
                       : null,
                   },
                   {
                     label: 'Next reconciliation',
                     value: p.next_reconciliation_at
-                      ? `${formatDateTime(p.next_reconciliation_at)} (${formatRelative(p.next_reconciliation_at)})`
+                      ? formatDateTime(p.next_reconciliation_at)
                       : null,
                   },
                   {
@@ -156,7 +156,7 @@ export function PaymentDrawer({
                   {
                     label: 'Last fulfilment attempt',
                     value: p.last_fulfilment_attempt_at
-                      ? `${formatDateTime(p.last_fulfilment_attempt_at)} (${formatRelative(p.last_fulfilment_attempt_at)})`
+                      ? formatDateTime(p.last_fulfilment_attempt_at)
                       : null,
                   },
                   { label: 'Reconciliation error', value: p.reconciliation_error || null },

@@ -51,7 +51,7 @@ export function CustomerPurchases({
             {query.data.results.map((purchase) => (
               <li key={purchase.id} className="rounded border border-border p-3 text-sm">
                 <p className="font-medium">
-                  Purchase #{purchase.id}: {purchase.plan_name || 'Plan unavailable'}
+                  Purchase: {purchase.plan_name || 'Plan unavailable'}
                 </p>
                 <p>
                   {new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN' }).format(

@@ -85,7 +85,7 @@ export function WorkflowControls({ scope }: { scope: number | null }) {
                       <div key={order.id} className="space-y-3 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30 p-4 transition-all hover:bg-slate-50 dark:hover:bg-slate-800/60">
                         <div className="flex flex-wrap items-center justify-between gap-2">
                           <div className="flex items-center gap-2">
-                            <span className="font-mono text-sm font-semibold text-slate-900 dark:text-slate-100">Order #{order.id}</span>
+                            <span className="font-mono text-sm font-semibold text-slate-900 dark:text-slate-100">Order</span>
                             <StatusBadge status={order.payment_status} size="sm" />
                           </div>
                           <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
@@ -125,12 +125,12 @@ export function WorkflowControls({ scope }: { scope: number | null }) {
                         <div className="flex flex-wrap gap-2 pt-1 border-t border-slate-200/50 dark:border-slate-700/50">
                           {!order.fulfilled && (
                             <Button size="sm" variant="secondary" onClick={() => setAction({ id: order.id, type: 'recheck', requestId: crypto.randomUUID() })}>
-                              Recheck payment #{order.id}
+                              Recheck payment
                             </Button>
                           )}
                           {order.fulfilled && (
                             <Button size="sm" variant="secondary" onClick={() => setAction({ id: order.id, type: 'resend', requestId: crypto.randomUUID() })}>
-                              Resend voucher #{order.id}
+                              Resend voucher
                             </Button>
                           )}
                         </div>

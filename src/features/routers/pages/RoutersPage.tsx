@@ -66,7 +66,7 @@ export default function RoutersPage() {
           <Link
             to={`/routers/${r.id}`}
             onClick={(e) => e.stopPropagation()}
-            className="font-semibold break-words text-brand-700 hover:underline"
+            className="dashboard-data-link font-semibold break-words"
           >
             {r.name}
           </Link>

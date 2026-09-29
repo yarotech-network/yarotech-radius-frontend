@@ -42,7 +42,7 @@ export function TenantSelect({
   ];
   // Keep an unknown value (e.g. a deleted tenant id in the URL) visible instead of silently resetting.
   if (value && !tenants.some((t) => String(t.id) === value))
-    options.push({ value, label: `Tenant #${value}` });
+    options.push({ value, label: 'Selected tenant unavailable' });
   return (
     <Select
       {...(id ? { id } : {})}

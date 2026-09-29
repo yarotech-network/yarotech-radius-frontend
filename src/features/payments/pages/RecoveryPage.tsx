@@ -14,7 +14,7 @@ import {
   type Column,
 } from '@/components/data';
 import { formatKobo } from '@/lib/formatting/money';
-import { formatDateTime, formatRelative } from '@/lib/formatting/dates';
+import { formatDateTime } from '@/lib/formatting/dates';
 import { useDebouncedValue } from '@/lib/utilities/useDebouncedValue';
 import { usePlanOptions } from '@/features/plans/queries';
 import type { PaymentRecovery, PaymentStatus, RecoveryListParams } from '@/types/api';
@@ -74,7 +74,7 @@ export default function RecoveryPage() {
               e.stopPropagation();
               select(r.id);
             }}
-            className="text-left font-mono text-sm font-semibold break-all text-brand-700 hover:underline focus-visible:underline"
+            className="dashboard-data-link text-left font-mono text-sm font-semibold break-all"
           >
             {r.reference}
           </button>
@@ -88,7 +88,7 @@ export default function RecoveryPage() {
           <div className="mt-1 text-xs text-ink-500">
             {r.verified_at ? (
               <span title={formatDateTime(r.verified_at)}>
-                Verified {formatRelative(r.verified_at)}
+                Verified {formatDateTime(r.verified_at)}
               </span>
             ) : (
               'Not verified with Paystack'

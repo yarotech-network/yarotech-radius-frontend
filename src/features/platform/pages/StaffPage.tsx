@@ -98,7 +98,7 @@ export default function StaffPage() {
   const active = view === 'assignments' ? assignments : invitations;
 
   const tenantCell = (id: number) => (
-    <Link to={`/platform/tenants/${id}`} className="text-brand-700 hover:underline">
+    <Link to={`/platform/tenants/${id}`} className="dashboard-data-link ">
       {tenantName(id)}
     </Link>
   );
@@ -114,7 +114,7 @@ export default function StaffPage() {
             <Users size={18} />
           </span>
           <div className="min-w-0">
-            <div className="font-medium text-ink-900">User #{a.user}</div>
+            <div className="font-medium text-ink-900">{a.user_display || 'Staff account'}</div>
             <div className="text-xs text-ink-500">Assigned {formatDate(a.created_at)}</div>
           </div>
         </div>
@@ -428,7 +428,7 @@ export default function StaffPage() {
         open={revokingAssignment !== null}
         onClose={() => setRevokingAssignment(null)}
         tone="danger"
-        title={`Revoke access for user #${revokingAssignment?.user ?? ''}?`}
+        title={`Revoke access for ${revokingAssignment?.user_display || 'this staff account'}?`}
         description={`They immediately lose access to ${revokingAssignment ? tenantName(revokingAssignment.tenant) : 'this tenant'}. To pause instead, edit the grants and switch it off.`}
         confirmLabel="Revoke"
         onConfirm={async () => {
