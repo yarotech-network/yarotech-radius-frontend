@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
@@ -70,4 +70,8 @@ describe('Customer access workspace', () => {
       expect(requests.at(-1)?.searchParams.get('activity')).toBe('online');
     });
   });
+});
+
+beforeEach(() => {
+  server.use(http.get(`${API}/dashboard/stats/`, () => HttpResponse.json({}, { status: 503 })));
 });

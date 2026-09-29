@@ -70,10 +70,7 @@ describe('Legacy dashboard cards', () => {
       'href',
       '/payments?status=failed',
     );
-    expect(screen.getByRole('link', { name: 'View voucher activity' })).toHaveAttribute(
-      'href',
-      '/vouchers',
-    );
+    expect(screen.getByRole('heading', { name: 'Voucher usage' })).toBeInTheDocument();
     expect(screen.getByText('Vouchers issued today')).toBeInTheDocument();
   });
 

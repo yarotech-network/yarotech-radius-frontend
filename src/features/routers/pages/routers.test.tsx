@@ -1,5 +1,5 @@
 import { http, HttpResponse } from 'msw';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { server } from '@/test/server';
@@ -339,4 +339,8 @@ describe('RouterOperationsPage', () => {
     expect(await screen.findByText('Operations could not be refreshed')).toBeInTheDocument();
     expect(screen.getByText('ssh_unreachable')).toBeInTheDocument();
   });
+});
+
+beforeEach(() => {
+  server.use(http.get(`${API}/dashboard/network/`, () => HttpResponse.json({}, { status: 503 })));
 });

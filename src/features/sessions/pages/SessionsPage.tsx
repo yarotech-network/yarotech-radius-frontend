@@ -11,7 +11,7 @@ import {
   useListParams,
   type Column,
 } from '@/components/data';
-import { Button, Card, ConfirmDialog, Select } from '@/components/ui';
+import { Button, ConfirmDialog, Select } from '@/components/ui';
 import { Alert, EmptyState, useToast } from '@/components/feedback';
 import { useDebouncedValue } from '@/lib/utilities/useDebouncedValue';
 import { formatBytes, formatDuration } from '@/lib/formatting/units';
@@ -156,31 +156,13 @@ export default function SessionsPage() {
           </div>
         }
       />
-      <Card className="border-brand-100 bg-gradient-to-br from-brand-50 via-white to-sky-50">
-        <div className="flex items-start gap-4">
-          <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-brand-600 text-white">
-            <Activity className="size-5" aria-hidden />
-          </span>
-          <div className="min-w-0">
-            <h2 className="text-lg font-semibold text-brand-950">Monitor hotspot sessions</h2>
-            <p className="mt-1 text-sm leading-relaxed text-ink-600">
-              Find a voucher session, review its connection time and traffic, and identify the
-              router reporting it.
-            </p>
-            <p className="mt-3 text-xs font-medium text-brand-700">
-              {observed
-                ? `Data observed ${formatDateTime(observed)}`
-                : 'Waiting for a session observation.'}
-            </p>
-            {paused && (
-              <p className="mt-2 text-xs text-ink-600">
-                Automatic updates are paused. Manual refresh remains available.
-              </p>
-            )}
-          </div>
-        </div>
-      </Card>
-      <NetworkCards live={!paused} />
+      <p className="text-xs text-ink-500">
+        {observed
+          ? `Data observed ${formatDateTime(observed)}`
+          : 'Waiting for a session observation.'}
+        {paused && ' Automatic updates are paused.'}
+      </p>
+      <NetworkCards section="sessions" live={!paused} />
       <section aria-labelledby="sessions-directory-title" className="space-y-4">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h2 id="sessions-directory-title" className="text-lg font-semibold text-brand-950">

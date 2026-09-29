@@ -1,3 +1,4 @@
+import { PageMetrics } from '@/features/dashboard/components/PageMetrics';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router';
@@ -160,6 +161,7 @@ export default function AccessCustomersPage() {
         Access-code purchases and observed printed or agent voucher users. Each purchase remains
         separate.
       </p>
+      <PageMetrics section="customers" />
       <Card className="grid gap-4 p-4 md:grid-cols-3">
         <SearchInput
           value={list.state.search}

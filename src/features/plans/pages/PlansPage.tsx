@@ -1,3 +1,4 @@
+import { PageMetrics } from '@/features/dashboard/components/PageMetrics';
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router';
 import {
@@ -7,7 +8,6 @@ import {
   Pencil,
   Plus,
   RefreshCw,
-  Store,
   Ticket,
   Trash2,
   Zap,
@@ -21,7 +21,7 @@ import {
   useListParams,
   type Column,
 } from '@/components/data';
-import { Button, ButtonLink, Card, ConfirmDialog, Menu, Select } from '@/components/ui';
+import { Button, Card, ConfirmDialog, Menu, Select } from '@/components/ui';
 import { Alert, EmptyState, useToast } from '@/components/feedback';
 import { useDebouncedValue } from '@/lib/utilities/useDebouncedValue';
 import { formatKobo } from '@/lib/formatting/money';
@@ -187,29 +187,7 @@ export default function PlansPage() {
       </div>
 
       <ServicePlansNav />
-
-      {/* Intro Hero Banner */}
-      <Card className="plan-catalogue-banner">
-        <div className="flex flex-wrap items-start justify-between gap-5">
-          <div className="flex min-w-0 flex-1 gap-4">
-            <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-brand-600 text-white shadow-md">
-              <Layers className="size-5" aria-hidden />
-            </span>
-            <div className="min-w-0">
-              <h2 className="text-lg font-semibold text-ink-900">Build your internet catalogue</h2>
-              <p className="mt-1 max-w-2xl text-sm leading-relaxed text-ink-600">
-                Set the price, duration, data allowance and speed for each package. Active plans are
-                available for new sales; deactivate a plan to keep its history.
-              </p>
-            </div>
-          </div>
-          {can(principal, 'settings.profile') && (
-            <ButtonLink to="/storefront" variant="secondary" leadingIcon={<Store />}>
-              View storefront
-            </ButtonLink>
-          )}
-        </div>
-      </Card>
+      <PageMetrics section="plans" />
 
       <section aria-labelledby="plan-catalogue-title" className="space-y-4">
         <div className="flex flex-wrap items-baseline justify-between gap-2">

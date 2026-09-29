@@ -62,7 +62,6 @@ export const ROUTE_CHUNK_PATHS: readonly string[] = Object.keys(routeChunks);
 
 /** Routes whose data (not just their chunk) is prefetched on hover/focus. */
 export const QUERY_ROUTE_PATHS: readonly string[] = [
-  '/dashboard',
   '/sessions',
   '/plans',
   '/vouchers',

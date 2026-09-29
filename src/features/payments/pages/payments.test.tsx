@@ -1,6 +1,6 @@
 import { formatDateTime } from '@/lib/formatting/dates';
 import { http, HttpResponse } from 'msw';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { server } from '@/test/server';
@@ -85,13 +85,14 @@ describe('payment rules', () => {
 });
 
 describe('PaymentsPage', () => {
-  it('shows exact creation and payment timestamps', async () => {
+  it('shows the exact creation timestamp in the payment list', async () => {
     const row = payment();
-    server.use(http.get(`${API}/payments/transactions/`, () => HttpResponse.json(paginated([row]))));
+    server.use(
+      http.get(`${API}/payments/transactions/`, () => HttpResponse.json(paginated([row]))),
+    );
     renderPage(<PaymentsPage />, { role: 'manager', path: '/payments' });
     const table = await screen.findByRole('table', { name: 'Payments' });
     expect(await within(table).findByText(formatDateTime(row.created_at))).toBeVisible();
-    expect(within(table).getByText(formatDateTime(row.paid_at))).toBeVisible();
   });
 
   it('lists payments, filters by status and opens the detail drawer from the URL', async () => {
@@ -119,8 +120,8 @@ describe('PaymentsPage', () => {
     );
     renderPage(<PaymentsPage />, { path: '/payments', role: 'staff' });
     const table = await screen.findByRole('table', { name: 'Payments' });
-    expect(await within(table).findByText('PAY-FULFILLED-001')).toBeInTheDocument();
-    expect(within(table).getByText('PAY-PENDING-003')).toBeInTheDocument();
+    expect(await within(table).findAllByText('ada@example.com')).toHaveLength(2);
+    expect(within(table).getByLabelText('Payment status Pending')).toBeInTheDocument();
     // staff cannot see the recovery board
     expect(screen.queryByRole('link', { name: /payment recovery/i })).not.toBeInTheDocument();
 
@@ -128,7 +129,7 @@ describe('PaymentsPage', () => {
     await waitFor(() => expect(seen.at(-1)?.searchParams.get('status')).toBe('success'));
     expect(seen.at(-1)?.searchParams.get('ordering')).toBe('-created_at');
 
-    await userEvent.click(within(table).getByText('PAY-FULFILLED-001'));
+    await userEvent.click(within(table).getAllByText('ada@example.com')[0]!);
     const dialog = await screen.findByRole('dialog', { name: /Payment Transaction/ });
     expect(await within(dialog).findByText('₦500.00')).toBeInTheDocument();
     expect(within(dialog).getByRole('link', { name: '2ju2AUqb' })).toHaveAttribute(
@@ -177,7 +178,7 @@ describe('PaymentsPage', () => {
     );
     await user.click(screen.getByRole('button', { name: 'Refresh payments' }));
     expect(await screen.findByText('Payments could not be refreshed')).toBeInTheDocument();
-    await user.click(within(table).getByRole('button', { name: row.reference }));
+    await user.click(within(table).getByRole('button', { name: row.customer_email! }));
     const dialog = await screen.findByRole('dialog', { name: /Payment Transaction/ });
     expect(await within(dialog).findByText('Paid, no voucher')).toBeInTheDocument();
     expect(
@@ -386,4 +387,8 @@ describe('RecoveryPage', () => {
     expect(await within(dialog).findByText(/need the payments-support role/)).toBeInTheDocument();
     expect(within(dialog).queryByRole('button', { name: /Re-verify/ })).not.toBeInTheDocument();
   });
+});
+
+beforeEach(() => {
+  server.use(http.get(`${API}/dashboard/stats/`, () => HttpResponse.json({}, { status: 503 })));
 });

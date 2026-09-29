@@ -9,7 +9,7 @@ import { API } from '@/test/fixtures';
 import { createTestQueryClient } from '@/test/render';
 
 describe('navigation prefetch registry (phase 9)', () => {
-  it('does not preload session data before the dashboard checks session permission', async () => {
+  it('does not preload aggregates before the dashboard resolves workspace permissions', async () => {
     let statsCalls = 0;
     let liveCalls = 0;
     server.use(
@@ -25,7 +25,7 @@ describe('navigation prefetch registry (phase 9)', () => {
     const client = createTestQueryClient();
     queryPrefetchers['/dashboard']?.(client);
     await waitFor(() => {
-      expect(statsCalls).toBe(1);
+      expect(statsCalls).toBe(0);
       expect(client.isFetching()).toBe(0);
     });
     expect(liveCalls).toBe(0);

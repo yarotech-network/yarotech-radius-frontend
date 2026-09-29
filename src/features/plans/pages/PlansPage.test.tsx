@@ -1,5 +1,5 @@
 import { http, HttpResponse } from 'msw';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { server } from '@/test/server';
@@ -152,10 +152,7 @@ describe('PlansPage', () => {
     expect(await within(table).findByText('Daily 1GB')).toBeInTheDocument();
     expect(within(table).getByText('\u20a6500.00')).toBeInTheDocument();
     expect(within(table).getByText('Active')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'View storefront' })).toHaveAttribute(
-      'href',
-      '/storefront',
-    );
+    expect(screen.queryByText('Build your internet catalogue')).not.toBeInTheDocument();
     expect(screen.getByText('2 total plans')).toBeInTheDocument();
     server.use(
       http.get(`${API}/plans/`, () =>
@@ -209,10 +206,15 @@ it('creates a plan with a device ceiling and edits it 1 -> 5 -> 2', async () => 
   let posted: Record<string, unknown> | null = null;
   let patched: Record<string, unknown> | null = null;
   server.use(
-    http.get(`${API}/plans/`, () => HttpResponse.json(paginated([{ ...plans[0]!, max_devices: 1 }]))),
+    http.get(`${API}/plans/`, () =>
+      HttpResponse.json(paginated([{ ...plans[0]!, max_devices: 1 }])),
+    ),
     http.post(`${API}/plans/`, async ({ request }) => {
       posted = (await request.json()) as Record<string, unknown>;
-      return HttpResponse.json({ ...plans[0]!, id: 9, max_devices: posted.max_devices ?? 1 }, { status: 201 });
+      return HttpResponse.json(
+        { ...plans[0]!, id: 9, max_devices: posted.max_devices ?? 1 },
+        { status: 201 },
+      );
     }),
     http.patch(`${API}/plans/9/`, async ({ request }) => {
       patched = (await request.json()) as Record<string, unknown>;
@@ -225,8 +227,16 @@ it('creates a plan with a device ceiling and edits it 1 -> 5 -> 2', async () => 
   const select = within(dialog).getByLabelText('Maximum devices') as HTMLSelectElement;
   expect(select.value).toBe('1');
   expect(Array.from(select.options).map((o) => o.text)).toEqual([
-    '1 device', '2 devices', '3 devices', '4 devices', '5 devices',
-    '6 devices', '7 devices', '8 devices', '9 devices', '10 devices',
+    '1 device',
+    '2 devices',
+    '3 devices',
+    '4 devices',
+    '5 devices',
+    '6 devices',
+    '7 devices',
+    '8 devices',
+    '9 devices',
+    '10 devices',
   ]);
   await userEvent.type(within(dialog).getByLabelText(/Plan name/), 'Family');
   await userEvent.type(within(dialog).getByLabelText(/Price/), '1000');
@@ -239,7 +249,9 @@ it('creates a plan with a device ceiling and edits it 1 -> 5 -> 2', async () => 
 it('edit populates the stored ceiling and persists a new value', async () => {
   let patched: Record<string, unknown> | null = null;
   server.use(
-    http.get(`${API}/plans/`, () => HttpResponse.json(paginated([{ ...plans[0]!, max_devices: 5 }]))),
+    http.get(`${API}/plans/`, () =>
+      HttpResponse.json(paginated([{ ...plans[0]!, max_devices: 5 }])),
+    ),
     http.patch(`${API}/plans/1/`, async ({ request }) => {
       patched = (await request.json()) as Record<string, unknown>;
       return HttpResponse.json({ ...plans[0]!, max_devices: patched.max_devices ?? 5 });
@@ -257,4 +269,8 @@ it('edit populates the stored ceiling and persists a new value', async () => {
   await userEvent.click(within(dialog).getByRole('button', { name: 'Save changes' }));
   await waitFor(() => expect(patched).toMatchObject({ max_devices: 2 }));
   expect(await screen.findByText('Plan updated')).toBeInTheDocument();
+});
+
+beforeEach(() => {
+  server.use(http.get(`${API}/dashboard/stats/`, () => HttpResponse.json({}, { status: 503 })));
 });

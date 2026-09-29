@@ -1,3 +1,4 @@
+import { PageMetrics } from '@/features/dashboard/components/PageMetrics';
 import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { Check, Copy, CreditCard, LifeBuoy, Receipt, RefreshCw, ShieldCheck } from 'lucide-react';
@@ -76,7 +77,8 @@ export default function PaymentsPage() {
               }}
               className="dashboard-data-link text-left font-mono text-sm font-bold tracking-wide break-all"
             >
-              {p.reference}
+              {/* {p.reference} */}
+              {p.customer_email}
             </button>
             <button
               type="button"
@@ -85,7 +87,7 @@ export default function PaymentsPage() {
                 copyRef(p.reference);
               }}
               title="Copy reference"
-              className="inline-flex size-5 shrink-0 items-center justify-center rounded text-ink-400 hover:bg-surface-muted hover:text-ink-700 transition"
+              className="inline-flex size-5 shrink-0 items-center justify-center rounded text-ink-400 transition hover:bg-surface-muted hover:text-ink-700"
             >
               {copiedRef === p.reference ? (
                 <Check className="size-3 text-emerald-600" />
@@ -106,14 +108,26 @@ export default function PaymentsPage() {
         <span className="font-bold text-ink-900 tabular-nums">{formatKobo(p.amount)}</span>
       ),
     },
-    { key: 'status', header: 'Status', cell: (p) => <PaymentStatusBadge displayStatusCode={p.display_status_code} displayStatusLabel={p.display_status_label} status={p.status} size="sm" dot /> },
+    {
+      key: 'status',
+      header: 'Status',
+      cell: (p) => (
+        <PaymentStatusBadge
+          displayStatusCode={p.display_status_code}
+          displayStatusLabel={p.display_status_label}
+          status={p.status}
+          size="sm"
+          dot
+        />
+      ),
+    },
     {
       key: 'voucher',
       header: 'Voucher Code',
       hideBelow: 'md',
       cell: (p) =>
         p.voucher_username ? (
-          <code className="rounded bg-surface-muted px-1.5 py-0.5 font-mono text-xs font-semibold text-ink-800 break-all">
+          <code className="text-ink-800 rounded bg-surface-muted px-1.5 py-0.5 font-mono text-xs font-semibold break-all">
             {p.voucher_username}
           </code>
         ) : p.status === 'success' && !p.voucher ? (
@@ -121,7 +135,9 @@ export default function PaymentsPage() {
             Paid, no voucher
           </Badge>
         ) : (
-          <span className="text-xs text-ink-400">{p.voucher ? 'Voucher linked' : 'Not issued'}</span>
+          <span className="text-xs text-ink-400">
+            {p.voucher ? 'Voucher linked' : 'Not issued'}
+          </span>
         ),
     },
     {
@@ -130,7 +146,11 @@ export default function PaymentsPage() {
       hideBelow: 'lg',
       sortField: 'created_at',
       cell: (p) => (
-        <time dateTime={p.created_at} title={formatDateTime(p.created_at)} className="text-xs text-ink-600">
+        <time
+          dateTime={p.created_at}
+          title={formatDateTime(p.created_at)}
+          className="text-xs text-ink-600"
+        >
           {formatDateTime(p.created_at)}
         </time>
       ),
@@ -169,7 +189,11 @@ export default function PaymentsPage() {
             <Button
               variant="secondary"
               disabled={query.isFetching}
-              leadingIcon={<RefreshCw className={query.isFetching ? 'animate-spin motion-reduce:animate-none' : ''} />}
+              leadingIcon={
+                <RefreshCw
+                  className={query.isFetching ? 'animate-spin motion-reduce:animate-none' : ''}
+                />
+              }
               onClick={() => void query.refetch()}
             >
               {query.isFetching ? 'Refreshing...' : 'Refresh payments'}
@@ -205,37 +229,26 @@ export default function PaymentsPage() {
       </div>
 
       {/* Intro Banner */}
-      <Card className="border-brand-200 bg-gradient-to-br from-brand-50/70 via-surface to-sky-50/50 dark:from-brand-950/40 dark:via-surface dark:to-slate-900/40">
-        <div className="flex items-start gap-4">
-          <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-brand-600 text-white shadow-md">
-            <Receipt className="size-5" aria-hidden />
-          </span>
-          <div className="min-w-0">
-            <h2 className="text-lg font-semibold text-ink-900">Track customer purchases</h2>
-            <p className="mt-1 text-sm leading-relaxed text-ink-600">
-              Find a transaction by reference or customer, check its payment status, and open the
-              details to see its linked voucher.
-            </p>
-            <p className="mt-3 text-xs font-semibold text-brand-600 dark:text-brand-400">
-              Payment confirmation and voucher issuance are separate. Review successful payments
-              without a voucher.
-            </p>
-          </div>
-        </div>
-      </Card>
+      <PageMetrics section="payments" />
 
       {/* Payment History Container Card */}
-      <Card className="p-5 md:p-6 border-border/70 space-y-5 shadow-sm">
+      <Card className="space-y-5 border-border/70 p-5 shadow-sm md:p-6">
         <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-border/60 pb-4">
           <div>
-            <h2 id="payment-history-title" className="text-xl font-bold tracking-tight text-ink-900">
+            <h2
+              id="payment-history-title"
+              className="text-xl font-bold tracking-tight text-ink-900"
+            >
               Payment History
             </h2>
             <p className="mt-0.5 text-xs text-ink-500">
               Transaction audit log for online purchases and voucher fulfillments.
             </p>
           </div>
-          <p role="status" className="text-xs font-medium text-ink-500 rounded-full bg-surface-muted px-3 py-1 border border-border/50">
+          <p
+            role="status"
+            className="rounded-full border border-border/50 bg-surface-muted px-3 py-1 text-xs font-medium text-ink-500"
+          >
             {query.isPlaceholderData
               ? 'Updating results...'
               : query.data

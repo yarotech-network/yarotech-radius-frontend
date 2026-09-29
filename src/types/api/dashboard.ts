@@ -1,6 +1,7 @@
 import type { IsoDateTime, Kobo, PageParams } from './common';
 
 export interface DashboardStats {
+  total_customers?: number;
   activated_voucher_revenue?: {
     basis: 'first_activation';
     totals: VoucherRevenuePeriods;

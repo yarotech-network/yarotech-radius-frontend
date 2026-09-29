@@ -1,6 +1,6 @@
 import type { QueryClient } from '@tanstack/react-query';
 import { PAGE_SIZE_DEFAULT } from '@/app/config/constants';
-import { dashboardLiveQuery, dashboardStatsQuery } from '@/features/dashboard/queries';
+import { dashboardLiveQuery } from '@/features/dashboard/queries';
 import { AUDIT_LIST_DEFAULT_PARAMS, auditListQuery } from '@/features/audit/queries';
 import {
   AGENT_FUNDINGS_DEFAULT_PARAMS,
@@ -40,10 +40,8 @@ import { VOUCHERS_LIST_DEFAULT_PARAMS, vouchersListQuery } from '@/features/vouc
  * a duplicate request.
  */
 export const queryPrefetchers: Record<string, (client: QueryClient) => void> = {
-  '/dashboard': (client) => {
-    void client.prefetchQuery(dashboardStatsQuery());
-    // Session access varies within the workspace; the page checks permission before fetching it.
-  },
+  // Dashboard aggregates use identity-scoped keys and service permissions.
+  // Fetch them in the page after resolving the active workspace and grants.
   '/sessions': (client) => {
     void client.prefetchQuery(dashboardLiveQuery({ page: 1, page_size: PAGE_SIZE_DEFAULT }));
     void client.prefetchQuery(routerOptionsQuery());

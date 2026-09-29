@@ -1,5 +1,5 @@
 ﻿import { http, HttpResponse } from 'msw';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { server } from '@/test/server';
@@ -56,4 +56,8 @@ describe('Router fleet controls', () => {
       'true',
     );
   });
+});
+
+beforeEach(() => {
+  server.use(http.get(`${API}/dashboard/network/`, () => HttpResponse.json({}, { status: 503 })));
 });

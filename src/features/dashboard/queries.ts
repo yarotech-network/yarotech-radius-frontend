@@ -11,10 +11,7 @@ export const dashboardKeys = {
   live: (params: LiveUsersParams) => [...dashboardKeys.all, 'live', params] as const,
 };
 
-/** Smallest live list the dashboard attention ticker needs. */
-export const DASHBOARD_LIVE_PARAMS = { page: 1, page_size: 1 } as const;
-
-/** Options shared by the hook and navigation prefetch (phase 9). */
+/** Aggregate options; callers must supply a permission-gated, identity-scoped key. */
 export function dashboardStatsQuery() {
   return {
     queryKey: dashboardKeys.stats(),
@@ -32,8 +29,19 @@ export function dashboardLiveQuery(params: LiveUsersParams) {
   };
 }
 
-export function useDashboardStats() {
-  return useQuery(dashboardStatsQuery());
+export function useDashboardStats(enabled = true) {
+  const principal = usePrincipal();
+  const tenant =
+    principal.kind === 'member'
+      ? principal.tenantId
+      : principal.kind === 'platform_staff'
+        ? principal.activeTenantId
+        : null;
+  return useQuery({
+    ...dashboardStatsQuery(),
+    queryKey: [...dashboardKeys.stats(), principal.user.id, tenant],
+    enabled: enabled && can(principal, 'dashboard.view'),
+  });
 }
 
 export function useLiveUsers(
@@ -57,7 +65,7 @@ export function useDisconnectSession() {
   });
 }
 
-export function useNetworkSummary(live = true) {
+export function useNetworkSummary(live = true, enabled = true) {
   const principal = usePrincipal();
   const tenant =
     principal.kind === 'member'
@@ -68,7 +76,7 @@ export function useNetworkSummary(live = true) {
   return useQuery({
     queryKey: [...dashboardKeys.all, 'network', principal.user.id, tenant],
     queryFn: dashboardApi.network,
-    enabled: can(principal, 'sessions.view'),
+    enabled: enabled && can(principal, 'sessions.view'),
     staleTime: 15_000,
     refetchInterval: live ? 30_000 : false,
     refetchIntervalInBackground: false,

@@ -1,370 +1,214 @@
-import { BusinessCards } from '../components/BusinessCards';
-import { NetworkCards } from '../components/NetworkCards';
-import { SubscriptionSummary } from '../components/SubscriptionSummary';
 import { Link } from 'react-router';
-import {
-  Activity,
-  AlertTriangle,
-  ArrowDownLeft,
-  ArrowRight,
-  ArrowUpRight,
-  Banknote,
-  Layers,
-  Radio,
-  RefreshCw,
-  ShoppingBag,
-  Ticket,
-  Users,
-} from 'lucide-react';
-import { Section } from '@/components/layout';
-import { Button, ButtonLink, Card, Stat } from '@/components/ui';
-import { Alert, ErrorState } from '@/components/feedback';
-import { formatKobo } from '@/lib/formatting/money';
-import { formatBytes, formatNumber } from '@/lib/formatting/units';
-import { formatRelative } from '@/lib/formatting/dates';
-import { can, workspaceName } from '@/services/auth/principal';
+import { useQuery } from '@tanstack/react-query';
 import { usePrincipal } from '@/app/auth/useAuth';
-import { DASHBOARD_LIVE_PARAMS, useDashboardStats, useLiveUsers } from '../queries';
-import { OverviewIntro } from '../components/OverviewIntro';
+import { can, workspaceName } from '@/services/auth/principal';
+import { Button, Card, Stat } from '@/components/ui';
+import { Alert } from '@/components/feedback';
+import { formatKobo } from '@/lib/formatting/money';
+import { formatNumber } from '@/lib/formatting/units';
+import { formatDateTime } from '@/lib/formatting/dates';
+import { paymentsListQuery } from '@/features/payments/queries';
+import { PaymentStatusBadge } from '@/features/payments/components/PaymentStatusBadge';
+import { useDashboardStats, useNetworkSummary } from '../queries';
+import { PaymentAttention } from '../components/PageMetrics';
 
 export default function DashboardPage() {
   const principal = usePrincipal();
-  const stats = useDashboardStats();
-  const canSessions = can(principal, 'sessions.view');
-  const live = useLiveUsers(DASHBOARD_LIVE_PARAMS, { live: canSessions, enabled: canSessions });
-  const s = stats.data;
-  const name = workspaceName(principal) || principal.user.first_name || principal.user.username;
-  const refreshing = stats.isFetching || (canSessions && live.isFetching);
-  const latest = live.data?.users[0];
-  const observed =
-    s?.observed_at && Number.isFinite(Date.parse(s.observed_at))
-      ? formatRelative(s.observed_at)
-      : null;
+  const paymentsAllowed = can(principal, 'payments.view');
+  const vouchersAllowed = can(principal, 'vouchers.view') && can(principal, 'dashboard.view');
+  const collectionsAllowed = paymentsAllowed && can(principal, 'dashboard.view');
+  const sessionsAllowed = can(principal, 'sessions.view');
+  const routersAllowed = can(principal, 'routers.view') && sessionsAllowed;
+  const stats = useDashboardStats(collectionsAllowed || vouchersAllowed);
+  const network = useNetworkSummary(true, sessionsAllowed || routersAllowed);
+  const tenant =
+    principal.kind === 'member'
+      ? principal.tenantId
+      : principal.kind === 'platform_staff'
+        ? principal.activeTenantId
+        : null;
+  const paymentOptions = paymentsListQuery({ page: 1, page_size: 5, ordering: '-created_at' });
+  const recent = useQuery({
+    ...paymentOptions,
+    queryKey: [...paymentOptions.queryKey, principal.user.id, tenant],
+    enabled: paymentsAllowed,
+  });
+  const s = collectionsAllowed || vouchersAllowed ? stats.data : undefined;
+  const n = sessionsAllowed ? network.data : undefined;
+  const refresh = () => {
+    if (collectionsAllowed || vouchersAllowed) void stats.refetch();
+    if (sessionsAllowed || routersAllowed) void network.refetch();
+    if (paymentsAllowed) void recent.refetch();
+  };
+  const cards = [
+    {
+      show: vouchersAllowed,
+      label: "Today's activated-voucher revenue",
+      value: s?.activated_voucher_revenue
+        ? formatKobo(s.activated_voucher_revenue.totals.today.amount)
+        : 'Unavailable',
+      hint: 'First activation today in Lagos; service value, not cash collected.',
+      to: '/vouchers#voucher-revenue',
+      link: 'View voucher revenue',
+      loading: stats.isPending,
+    },
+    {
+      show: collectionsAllowed,
+      label: "Today's collections",
+      value: s?.collected_revenue ? formatKobo(s.collected_revenue.today) : 'Unavailable',
+      hint: 'Recorded collections today in Lagos.',
+      to: '/payments',
+      link: 'View payments',
+      loading: stats.isPending,
+    },
+    {
+      show: sessionsAllowed,
+      label: 'Online users now',
+      value: n ? formatNumber(n.online_users) : 'Unavailable',
+      hint: 'Fresh RADIUS accounting observations.',
+      to: '/sessions',
+      link: 'View live sessions',
+      loading: network.isPending,
+    },
+    {
+      show: routersAllowed,
+      label: 'Router health',
+      value: n ? `${formatNumber(n.router_counts.online)} online` : 'Unavailable',
+      hint: n
+        ? `${formatNumber(n.router_counts.offline)} confirmed offline / ${formatNumber(n.router_counts.unknown)} unknown`
+        : 'Observations unavailable; unknown does not mean offline.',
+      to: '/routers',
+      link: 'View routers',
+      loading: network.isPending,
+    },
+  ];
   return (
-    <div className="overview-page min-w-0 space-y-6">
-      {/* Premium welcome hero card */}
-      <div className="overview-welcome-hero">
-        <div className="overview-welcome-content">
-          <div className="overview-welcome-text">
-            <span className="overview-welcome-eyebrow">Workspace overview</span>
-            <h1 className="overview-welcome-title">
-              Welcome back, <span>{name}</span> 👋
-            </h1>
-            {observed && (
-              <p className="overview-welcome-observed">Figures observed {observed}</p>
-            )}
-          </div>
-          <div className="overview-welcome-meta">
-            <span className="overview-role">{principal.user.role.replaceAll('_', ' ')}</span>
-          </div>
+    <div className="space-y-6">
+      <header className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="text-sm text-ink-500">Workspace overview</p>
+          <h1 className="text-2xl font-bold text-ink-900">
+            {workspaceName(principal) || 'Dashboard'}
+          </h1>
         </div>
-        <div className="overview-welcome-actions">
-          <Button
-            variant="secondary"
-            disabled={refreshing}
-            leadingIcon={
-              <RefreshCw
-                className={refreshing ? 'animate-spin motion-reduce:animate-none' : ''}
-              />
-            }
-            onClick={() => {
-              void stats.refetch();
-              if (canSessions) void live.refetch();
-            }}
-          >
-            {refreshing ? 'Refreshing...' : 'Refresh'}
-          </Button>
-          {can(principal, 'vouchers.generate') && (
-            <ButtonLink to="/vouchers/generate" leadingIcon={<Ticket />}>
-              Generate vouchers
-            </ButtonLink>
-          )}
-        </div>
-      </div>
-      <OverviewIntro />
-      <SubscriptionSummary />
-      {s && s.paid_unfulfilled_payments > 0 && can(principal, 'payments.recovery.view') && (
-        <Alert
-          tone="warning"
-          title={`${s.paid_unfulfilled_payments} paid ${s.paid_unfulfilled_payments === 1 ? 'order has' : 'orders have'} no voucher yet`}
-          actions={
-            <ButtonLink to="/payments/recovery" size="sm" variant="secondary">
-              Review
-            </ButtonLink>
-          }
+        <Button
+          variant="secondary"
+          disabled={stats.isFetching || network.isFetching || recent.isFetching}
+          onClick={refresh}
         >
-          Customers have paid and still need their access code. Review delivery and the available
-          recovery actions.
+          Refresh dashboard
+        </Button>
+      </header>
+      <PaymentAttention count={s?.paid_unfulfilled_payments} />
+      {(collectionsAllowed || vouchersAllowed) && stats.isError && (
+        <Alert tone="warning" title="Business figures unavailable">
+          {s ? 'Showing the last successful figures.' : 'Unavailable does not mean zero.'} Use
+          Refresh dashboard to retry.
         </Alert>
       )}
-      {stats.isError && !s ? (
-        <ErrorState
-          error={stats.error}
-          onRetry={() => void stats.refetch()}
-          title="Dashboard could not be loaded"
-        />
-      ) : (
-        <>
-          {stats.isError && s && (
-            <Alert tone="warning" title="Business figures could not be refreshed">
-              Showing the last observed figures. Refresh to try again.
+      {sessionsAllowed && network.isError && (
+        <Alert tone="warning" title="Network figures unavailable">
+          {n ? 'Showing the last successful observation.' : 'No current observation is available.'}{' '}
+          Unknown status is not proof a router is offline.
+        </Alert>
+      )}
+      <section
+        aria-label="Dashboard summaries"
+        className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4"
+      >
+        {cards
+          .filter((card) => card.show)
+          .map((card) => (
+            <Card key={card.label} className="flex min-w-0 flex-col gap-3">
+              <Stat
+                className="border-0 bg-transparent p-0"
+                label={card.label}
+                value={card.value}
+                hint={card.hint}
+                loading={card.loading}
+              />
+              <Link className="dashboard-data-link mt-auto text-sm font-semibold" to={card.to}>
+                {card.link}
+              </Link>
+            </Card>
+          ))}
+      </section>
+      {(s?.observed_at || n?.observed_at) && (
+        <p className="text-xs text-ink-500">
+          {s?.observed_at && `Business figures: ${formatDateTime(s.observed_at)}`}
+          {s?.observed_at && n?.observed_at && ' / '}
+          {n?.observed_at && `Network observed: ${formatDateTime(n.observed_at)}`}
+        </p>
+      )}
+      {paymentsAllowed && (
+        <section aria-labelledby="recent-payments-title" className="space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 id="recent-payments-title" className="text-lg font-semibold">
+              Recent customer payments
+            </h2>
+            <Link className="dashboard-data-link" to="/payments">
+              View all payments
+            </Link>
+          </div>
+          {recent.isPending && <p role="status">Loading recent payments...</p>}
+          {recent.isError && (
+            <Alert tone="warning" title="Recent payments unavailable">
+              {recent.data
+                ? 'Showing the last successful results.'
+                : 'Payment history could not be loaded.'}{' '}
+              <button type="button" className="underline" onClick={() => void recent.refetch()}>
+                Retry payments
+              </button>
             </Alert>
           )}
-          <section aria-label="Business overview" className="overview-metrics">
-            <Stat
-              label="Vouchers issued"
-              value={s ? formatNumber(s.total_vouchers) : '—'}
-              hint="Total access codes"
-              icon={<Ticket />}
-              loading={stats.isPending}
-              className="overview-metric overview-metric-blue"
-            />
-            <Stat
-              label="Active vouchers"
-              value={s ? formatNumber(s.active_vouchers) : '—'}
-              hint={s ? `of ${formatNumber(s.total_vouchers)} issued` : 'Current voucher status'}
-              icon={<Activity />}
-              loading={stats.isPending}
-              className="overview-metric overview-metric-green"
-            />
-            <Stat
-              label="Routers"
-              value={s ? `${formatNumber(s.active_routers)}/${formatNumber(s.total_routers)}` : '—'}
-              hint="Active configuration / registered"
-              icon={<Radio />}
-              loading={stats.isPending}
-              className="overview-metric overview-metric-purple"
-            />
-            <Stat
-              label="Activated voucher revenue"
-              value={s?.activated_voucher_revenue ? formatKobo(s.activated_voucher_revenue.totals.total.amount) : '—'}
-              hint="First activation across all channels | All time"
-              icon={<Banknote />}
-              loading={stats.isPending}
-              className="overview-metric overview-metric-blue"
-            />
-          </section>
-        </>
+          {recent.data?.count === 0 && (
+            <p className="text-sm text-ink-500">No customer payments yet.</p>
+          )}
+          {!!recent.data?.results.length && (
+            <div role="region" aria-label="Recent payments table" tabIndex={0} className="overflow-x-auto rounded-xl border border-border bg-surface focus-visible:outline-2 focus-visible:outline-brand-600">
+              <table className="w-full text-left text-sm">
+                <caption className="sr-only">Five most recent customer payments</caption>
+                <thead>
+                  <tr>
+                    {['Customer email', 'Amount', 'Status', 'Created'].map((label) => (
+                      <th key={label} scope="col" className="p-3">
+                        {label}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {recent.data.results.slice(0, 5).map((payment) => (
+                    <tr key={payment.id} className="border-t border-border">
+                      <td className="p-3">
+                        <Link
+                          className="dashboard-data-link break-all"
+                          to={`/payments/${payment.id}`}
+                        >
+                          {payment.customer_email || 'Email not provided'}
+                        </Link>
+                      </td>
+                      <td className="p-3 whitespace-nowrap">{formatKobo(payment.amount)}</td>
+                      <td className="p-3">
+                        <PaymentStatusBadge
+                          status={payment.status}
+                          displayStatusCode={payment.display_status_code}
+                          displayStatusLabel={payment.display_status_label}
+                        />
+                      </td>
+                      <td className="p-3 whitespace-nowrap">
+                        <time dateTime={payment.created_at}>
+                          {formatDateTime(payment.created_at)}
+                        </time>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
       )}
-      <BusinessCards stats={s} loading={stats.isPending} />
-      <NetworkCards />
-      <div className="overview-columns">
-        <Card className="overview-activity" padded={false}>
-          <div className="overview-panel-heading">
-            <div>
-              <h2>Network activity</h2>
-              <p>Current sessions reported by RADIUS accounting.</p>
-            </div>
-            <span className="overview-source">RADIUS</span>
-          </div>
-          <div className="overview-panel-body">
-            <Stat
-              label="Online now"
-              value={!canSessions ? 'n/a' : live.data ? formatNumber(live.data.count) : '—'}
-              hint={
-                !canSessions
-                  ? 'No access'
-                  : live.data
-                    ? `Observed ${formatRelative(live.data.observed_at)}`
-                    : live.isError
-                      ? 'Currently unavailable'
-                      : 'Loading live sessions'
-              }
-              icon={<Activity />}
-              loading={canSessions && live.isPending}
-              className="overview-live-count"
-            />
-            {canSessions && live.isError && (
-              <Alert
-                tone="warning"
-                title="Live sessions could not be refreshed"
-                actions={
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    onClick={() => void live.refetch()}
-                    disabled={live.isFetching}
-                  >
-                    Retry live sessions
-                  </Button>
-                }
-              >
-                {live.data
-                  ? 'The count above is from the last successful check.'
-                  : 'The current online count is unavailable. This does not mean nobody is connected.'}
-              </Alert>
-            )}
-            {canSessions && latest && (
-              <div className="overview-session">
-                <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
-                  <div className="min-w-0">
-                    <p className="overview-eyebrow">Most recent accounting session</p>
-                    <p className="mt-2 font-semibold break-words text-ink-900">{latest.username}</p>
-                    <p className="mt-1 text-xs break-words text-ink-500">
-                      {latest.router_name || 'Router name unavailable'}
-                    </p>
-                  </div>
-                </div>
-                <div className="overview-session-counters">
-                  <div>
-                    <span>
-                      <ArrowDownLeft className="size-4" aria-hidden /> Download
-                    </span>
-                    <strong>{formatBytes(latest.bytes_out)}</strong>
-                  </div>
-                  <div>
-                    <span>
-                      <ArrowUpRight className="size-4" aria-hidden /> Upload
-                    </span>
-                    <strong>{formatBytes(latest.bytes_in)}</strong>
-                  </div>
-                </div>
-                <p className="text-xs leading-relaxed text-ink-500">
-                  Cumulative data for this session only. These values are not current bandwidth
-                  rates.
-                </p>
-              </div>
-            )}
-            {canSessions && live.data?.count === 0 && !live.isError && (
-              <div className="overview-network-empty">
-                <Radio className="size-8 text-brand-400" aria-hidden />
-                <h3>No active sessions reported</h3>
-                <p>Connections appear here when your routers send RADIUS accounting records.</p>
-              </div>
-            )}
-            {canSessions ? (
-              <ButtonLink to="/sessions" variant="secondary" trailingIcon={<ArrowRight />}>
-                View live sessions
-              </ButtonLink>
-            ) : (
-              <p className="text-sm text-ink-500">
-                Your account does not have access to live sessions in this workspace.
-              </p>
-            )}
-          </div>
-        </Card>
-        <div className="space-y-5">
-          <Card className="overview-quick" padded={false}>
-            <div className="overview-panel-heading">
-              <div>
-                <h2>Quick deployment</h2>
-                <p>Your everyday workspace tools.</p>
-              </div>
-            </div>
-            <div className="overview-quick-links">
-              {can(principal, 'payments.view') && (
-                <QuickLink
-                  to="/payments"
-                  icon={<Banknote />}
-                  title="Review payments"
-                  description="Check customer payment status."
-                />
-              )}
-
-              {can(principal, 'routers.manage') && (
-                <QuickLink
-                  to="/routers/new"
-                  icon={<Radio />}
-                  title="Attach a router"
-                  description="Register a MikroTik device."
-                />
-              )}
-              {can(principal, 'plans.view') && (
-                <QuickLink
-                  to="/plans"
-                  icon={<Layers />}
-                  title="Internet plans"
-                  description="Review prices, speeds and durations."
-                />
-              )}
-              {can(principal, 'vouchers.view') && (
-                <QuickLink
-                  to="/vouchers"
-                  icon={<Ticket />}
-                  title="Vouchers"
-                  description="Find access codes and check status."
-                />
-              )}
-              {can(principal, 'settings.profile') && (
-                <QuickLink
-                  to="/storefront"
-                  icon={<ShoppingBag />}
-                  title="Manage storefront"
-                  description="Share your customer link and plans."
-                />
-              )}
-            </div>
-          </Card>
-          <Card className="overview-summary">
-            <p className="overview-eyebrow">Workspace activity</p>
-            <dl>
-              <div>
-                <dt>
-                  <Users className="size-4" aria-hidden /> Agents
-                </dt>
-                <dd>{s ? formatNumber(s.total_agents) : '—'}</dd>
-              </div>
-              <div>
-                <dt>
-                  <AlertTriangle className="size-4" aria-hidden /> Payment confirmation queue
-                </dt>
-                <dd>{s ? formatNumber(s.pending_payments) : '—'}</dd>
-              </div>
-            </dl>
-            <p className="text-xs text-ink-500">Pending payments are awaiting confirmation.</p>
-          </Card>
-        </div>
-      </div>
-      <Section title="Workspace shortcuts" description="Open the tools available to your role.">
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-          {can(principal, 'routers.view') && (
-            <QuickLink
-              to="/routers"
-              icon={<Radio />}
-              title="Routers"
-              description="Inspect registered devices and connection details."
-            />
-          )}
-          {can(principal, 'agents.manage') && (
-            <QuickLink
-              to="/agents"
-              icon={<Users />}
-              title="Agents"
-              description="Manage the resellers serving your customers."
-            />
-          )}
-          {can(principal, 'payments.view') && (
-            <QuickLink
-              to="/payments"
-              icon={<Banknote />}
-              title="Payments"
-              description="Track transactions and payment status."
-            />
-          )}
-        </div>
-      </Section>
     </div>
-  );
-}
-function QuickLink({
-  to,
-  icon,
-  title,
-  description,
-}: {
-  to: string;
-  icon: React.ReactNode;
-  title: string;
-  description: string;
-}) {
-  return (
-    <Link to={to} aria-label={title} className="overview-quick-link">
-      <span className="overview-link-icon">{icon}</span>
-      <span className="min-w-0 flex-1">
-        <span className="block text-sm font-semibold text-brand-950">{title}</span>
-        <span className="mt-1 block text-xs leading-relaxed text-ink-500">{description}</span>
-      </span>
-      <ArrowRight className="size-4 shrink-0 text-ink-400" aria-hidden />
-    </Link>
   );
 }

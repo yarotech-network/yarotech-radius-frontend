@@ -1,3 +1,4 @@
+import { NetworkCards } from '@/features/dashboard/components/NetworkCards';
 import { RouterConnectionBadge } from '../components/RouterTelemetry';
 import { useMemo } from 'react';
 import { Link, useNavigate } from 'react-router';
@@ -174,17 +175,8 @@ export default function RoutersPage() {
         </div>
       </div>
 
-      {/* Allowance + intro */}
-      <div className="router-fleet-intro">
-        <div className="router-intro-copy">
-          <Radio className="size-6 shrink-0 text-brand-600" aria-hidden />
-          <div>
-            <h2>Connect and manage your MikroTik fleet</h2>
-            <p>Review setup, configure VPN access and follow provisioning for each device.</p>
-          </div>
-        </div>
-        <RouterAllowance />
-      </div>
+      <RouterAllowance />
+      <NetworkCards section="routers" />
 
       {/* Router directory */}
       <section aria-labelledby="router-directory-title" className="space-y-4">
