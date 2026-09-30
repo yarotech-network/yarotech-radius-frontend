@@ -1205,6 +1205,69 @@ a.public-contact-card:hover {
 .public-payment-result textarea {
   max-width: 100%;
 }
+.public-result-card {
+  border-width: 1px;
+  border-style: solid;
+  border-radius: var(--public-radius);
+  background: white;
+  padding: clamp(1.25rem, 4vw, 2rem);
+  box-shadow: 0 16px 38px rgb(15 42 95 / 7%);
+}
+.public-result-success-heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.875rem;
+  color: var(--color-success-700);
+}
+.public-access-code-card {
+  border: 1px solid var(--color-border);
+  border-radius: 1rem;
+  background: var(--color-surface-muted);
+  padding: clamp(1rem, 3vw, 1.5rem);
+}
+.public-access-code-value {
+  display: block;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  border: 1px dashed var(--color-brand-600);
+  border-radius: 0.75rem;
+  background: white;
+  padding: 0.75rem 1rem;
+  color: var(--color-brand-950);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: clamp(1.35rem, 5vw, 2rem);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+}
+.public-connection-guide {
+  border: 1px solid var(--color-border);
+  border-radius: 1rem;
+  padding: clamp(1rem, 3vw, 1.5rem);
+}
+.public-connection-steps {
+  display: grid;
+  gap: 0.75rem;
+  list-style: none;
+  counter-reset: connection-step;
+  padding: 0;
+}
+.public-connection-steps li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  counter-increment: connection-step;
+}
+.public-connection-steps li::before {
+  content: counter(connection-step);
+  display: grid;
+  flex: 0 0 1.5rem;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--color-brand-100);
+  color: var(--color-brand-950);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
 @media (max-width: 1100px) {
   .public-nav-row {
     flex-wrap: wrap;
