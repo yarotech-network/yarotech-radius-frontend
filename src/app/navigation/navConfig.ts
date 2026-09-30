@@ -92,13 +92,13 @@ export const WORKSPACE_NAV: NavGroup[] = [
         icon: Users,
         capabilities: ['customers.view'],
       },
-      {
-        key: 'sessions',
-        label: 'Live sessions',
-        to: '/sessions',
-        icon: Activity,
-        capabilities: ['sessions.view'],
-      },
+      // {
+      //   key: 'sessions',
+      //   label: 'Live sessions',
+      //   to: '/sessions',
+      //   icon: Activity,
+      //   capabilities: ['sessions.view'],
+      // },
       {
         key: 'vouchers',
         label: 'Vouchers',
