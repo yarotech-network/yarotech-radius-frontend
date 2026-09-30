@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from 'react';
 import { Link } from 'react-router';
-import { ShieldCheck, History, Building2, RefreshCw } from 'lucide-react';
+import { History, Building2, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui';
 import { useListParams, type Column } from '@/components/data';
 import { usePrincipal } from '@/app/auth/useAuth';
@@ -10,8 +10,6 @@ import { AuditLogView } from '@/features/audit/components/AuditLogView';
 import { platformResourceLink } from '@/features/audit/auditVocabulary';
 import { usePlatformAudit, useTenantName } from '../queries';
 import { TenantSelect } from '../components/TenantSelect';
-
-import '../platform-audit.css';
 
 const FILTERS = ['tenant', 'action', 'actor'] as const;
 
@@ -62,7 +60,7 @@ export default function PlatformAuditPage() {
   ];
 
   return (
-    <div className="platform-audit min-w-0 space-y-6">
+    <div className="audit-page platform-audit min-w-0 space-y-6">
       <header className="platform-audit-header">
         <div>
           <p className="platform-audit-eyebrow">
@@ -82,49 +80,22 @@ export default function PlatformAuditPage() {
           Refresh events
         </Button>
       </header>
-      <section className="platform-audit-context" aria-label="Using the audit log">
-        <span className="platform-audit-icon">
-          <ShieldCheck size={22} aria-hidden />
-        </span>
-        <div>
-          <h2>A clear trail of recorded activity</h2>
-          <p>
-            Narrow the list by tenant, action or staff user. Open an event to inspect its recorded
-            details and resource. Platform Global identifies events without a tenant.
-          </p>
-        </div>
-      </section>
-      <section className="platform-audit-panel" aria-labelledby="audit-history-heading">
-        <div className="platform-audit-panel-header">
-          <div>
-            <h2 id="audit-history-heading">Event history</h2>
-            <p>Search resources or select Mine to review your own activity.</p>
-          </div>
-          <span role="status" className="platform-audit-count">
-            {query.isPending
-              ? 'Loading events?'
-              : query.isError
-                ? 'Events unavailable'
-                : `Matching events: ${query.data?.count ?? 0}`}
-          </span>
-        </div>
-        <AuditLogView
-          query={query}
-          list={list}
-          debouncedSearch={debouncedSearch}
-          currentUserId={principal?.user.id}
-          linkFor={platformResourceLink}
-          leadingFilters={
-            <TenantSelect
-              value={list.state.filters.tenant ?? ''}
-              onChange={(v) => list.setFilter('tenant', v || undefined)}
-              includePlatform
-            />
-          }
-          extraColumns={tenantColumn}
-          emptyDescription="Actions taken anywhere on the platform will appear here."
-        />
-      </section>
+      <AuditLogView
+        query={query}
+        list={list}
+        debouncedSearch={debouncedSearch}
+        currentUserId={principal?.user.id}
+        linkFor={platformResourceLink}
+        leadingFilters={
+          <TenantSelect
+            value={list.state.filters.tenant ?? ''}
+            onChange={(v) => list.setFilter('tenant', v || undefined)}
+            includePlatform
+          />
+        }
+        extraColumns={tenantColumn}
+        emptyDescription="Actions taken anywhere on the platform will appear here."
+      />
     </div>
   );
 }

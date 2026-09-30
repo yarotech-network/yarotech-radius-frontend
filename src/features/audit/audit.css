@@ -1,0 +1,145 @@
+/* Shared audit presentation; colors follow the active workspace theme. */
+.audit-page [id^='audit-'] {
+  background: var(--color-surface-muted);
+  border-color: var(--color-border);
+}
+.audit-page [id^='audit-'] .bg-white {
+  background: var(--color-surface);
+  border-color: var(--color-border);
+}
+.audit-page [id^='audit-'] code,
+.audit-page [id^='audit-'] dd {
+  color: var(--color-ink-900);
+}
+.audit-page [id^='audit-'] dd {
+  background: var(--color-surface-muted);
+}
+.platform-audit-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.platform-audit-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--color-ink-500);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.platform-audit-header h1 {
+  margin-top: 0.5rem;
+  font-size: 1.85rem;
+  font-weight: 750;
+  letter-spacing: -0.04em;
+  color: var(--color-ink-900);
+}
+.platform-audit-subtitle {
+  margin-top: 0.35rem;
+  font-size: 0.875rem;
+  color: var(--color-ink-500);
+}
+.audit-page .audit-filter-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem;
+  min-width: 0;
+}
+.audit-page .audit-filter-controls > div {
+  width: 12rem;
+  max-width: 100%;
+}
+.audit-page .audit-filter-bar > div {
+  flex-wrap: wrap;
+}
+.audit-page .audit-log-view > div:first-child {
+  background: var(--color-surface-muted);
+  border-color: var(--color-border);
+  box-shadow: none;
+}
+.audit-page td {
+  padding-top: 1rem;
+  padding-bottom: 1rem;
+}
+.audit-page code,
+.audit-page dd {
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+.audit-page [id^='audit-'] .grid > div > div {
+  min-width: 0;
+}
+.audit-page .bg-slate-100 {
+  background: var(--color-surface-muted);
+  color: var(--color-ink-700);
+}
+@media (max-width: 48rem) {
+  .audit-page .audit-filter-controls > div {
+    width: 100%;
+  }
+}
+
+.audit-history {
+  border: 1px solid var(--color-border);
+  border-radius: 1rem;
+  background: var(--color-surface);
+  overflow: hidden;
+}
+.audit-history-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.25rem;
+}
+.audit-history-heading h2 {
+  font-weight: 650;
+  color: var(--color-ink-900);
+}
+.audit-history-heading p,
+.audit-history-heading [role='status'] {
+  margin-top: 0.25rem;
+  font-size: 0.8rem;
+  color: var(--color-ink-500);
+}
+.audit-history > div:last-child {
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+.audit-refresh-error {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1.25rem;
+  color: var(--color-ink-900);
+  background: var(--color-surface-muted);
+}
+.audit-event-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+.audit-event-summary dt {
+  color: var(--color-ink-500);
+  margin-bottom: 0.35rem;
+}
+.audit-event-summary dd {
+  color: var(--color-ink-900);
+}
+.audit-log-view .md\:hidden dd {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 40rem) {
+  .audit-event-summary {
+    grid-template-columns: 1fr;
+  }
+}

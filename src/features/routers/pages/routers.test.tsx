@@ -51,6 +51,54 @@ const emptyDetailEndpoints = (r: NasDevice) => [
 ];
 
 describe('RoutersPage', () => {
+  it('opens the in-page setup guide and limits creation to managers', async () => {
+    const user = userEvent.setup();
+    server.use(
+      http.get(`${API}/routers/`, () => HttpResponse.json(paginated([]))),
+      http.get(`${API}/subscriptions/`, () => HttpResponse.json(paginated([]))),
+    );
+    renderPage(<RoutersPage />, { path: '/routers', role: 'staff' });
+
+    const toggle = screen.getByRole('button', { name: 'Setup guide' });
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(
+      screen.queryByRole('heading', { name: 'Set up a MikroTik HotSpot router' }),
+    ).not.toBeInTheDocument();
+
+    await user.click(toggle);
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    expect(
+      screen.getByRole('heading', { name: 'Set up a MikroTik HotSpot router' }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: '1. Before you add it' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: '2. Create it in Yarotech' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: '3. After import' })).toBeInTheDocument();
+    expect(screen.getByText(/Ask an owner or router manager/)).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Add router' })).not.toBeInTheDocument();
+
+    await user.click(toggle);
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(
+      screen.queryByRole('heading', { name: 'Set up a MikroTik HotSpot router' }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('links managers from the guide to the router registration form', async () => {
+    server.use(
+      http.get(`${API}/routers/`, () => HttpResponse.json(paginated([]))),
+      http.get(`${API}/subscriptions/`, () => HttpResponse.json(paginated([]))),
+    );
+    renderPage(<RoutersPage />, { path: '/routers', role: 'manager' });
+    await userEvent.click(screen.getByRole('button', { name: 'Setup guide' }));
+
+    const guide = screen.getByRole('region', { name: 'Set up a MikroTik HotSpot router' });
+    expect(within(guide).getByRole('link', { name: 'Add router' })).toHaveAttribute(
+      'href',
+      '/routers/new',
+    );
+    expect(screen.queryByRole('link', { name: 'Setup guide' })).not.toBeInTheDocument();
+  });
+
   it('lists routers with state badges and forwards filters to the API', async () => {
     const seen: URL[] = [];
     server.use(

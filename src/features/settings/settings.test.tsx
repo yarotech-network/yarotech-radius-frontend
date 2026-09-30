@@ -452,6 +452,37 @@ describe('SubscriptionSettingsPage', () => {
 });
 
 describe('Subscription payment recovery', () => {
+  it('rechecks an abandoned reference before suggesting another payment', async () => {
+    let verificationCalls = 0;
+    const payment = {
+      reference: 'subscription-abandoned', amount: 1500000, status: 'failed',
+      provider_status: 'abandoned', plan: 1, subscription: null,
+      created_at: '2026-09-01T10:00:00Z', completed_at: null,
+    };
+    server.use(
+      http.get(`${API}/pricing/`, () => HttpResponse.json(paginated(plans))),
+      http.get(`${API}/subscriptions/`, () =>
+        HttpResponse.json({ detail: 'Not found.' }, { status: 404 })),
+      http.get(`${API}/subscriptions/payments/:reference/`, () => HttpResponse.json(payment)),
+      http.post(`${API}/subscriptions/payments/:reference/verify/`, () => {
+        verificationCalls++;
+        return HttpResponse.json({ ...payment, status: 'success',
+          provider_status: 'success', subscription: 1 });
+      }),
+    );
+    renderPage(<SubscriptionSettingsPage />, {
+      path: '/settings/subscription',
+      route: '/settings/subscription?reference=subscription-abandoned',
+      role: 'owner',
+    });
+    expect(await screen.findByText('Payment not completed')).toBeInTheDocument();
+    expect(screen.getByText(/reported reference subscription-abandoned as abandoned/)).toBeInTheDocument();
+    expect(verificationCalls).toBe(0);
+    await userEvent.click(screen.getByRole('button', { name: 'Recheck with Paystack' }));
+    expect(await screen.findByText('Payment confirmed')).toBeInTheDocument();
+    expect(verificationCalls).toBe(1);
+  });
+
   it('verifies a returned payment and refreshes the purchased subscription', async () => {
     let verified = false;
     let readsAfterSuccess = 0;

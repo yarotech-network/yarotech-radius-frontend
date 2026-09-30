@@ -155,78 +155,12 @@ export default function PaymentsPage() {
         </time>
       ),
     },
-    // {
-    //   key: 'paid',
-    //   header: 'Paid',
-    //   hideBelow: 'xl',
-    //   sortField: 'paid_at',
-    //   cell: (p) =>
-    //     p.paid_at ? (
-    //       <span className="text-xs text-ink-700 font-medium" title={formatDateTime(p.paid_at)}>
-    //         {formatDateTime(p.paid_at)}
-    //       </span>
-    //     ) : (
-    //       <span className="text-xs text-ink-400">—</span>
-    //     ),
-    // },
   ];
 
   return (
     <div className="space-y-6">
       {/* Premium Hero Header */}
-      <div className="router-page-hero">
-        <div className="router-page-hero-inner">
-          <div className="router-page-hero-text">
-            <span className="router-page-hero-eyebrow">
-              <CreditCard className="size-3" aria-hidden /> Financial Transactions
-            </span>
-            <h1 className="router-page-hero-title">Customer Payments</h1>
-            <p className="router-page-hero-desc">
-              Customer purchases made through your storefront and online payment gateway.
-            </p>
-          </div>
-          <div className="router-page-hero-actions">
-            <Button
-              variant="secondary"
-              disabled={query.isFetching}
-              leadingIcon={
-                <RefreshCw
-                  className={query.isFetching ? 'animate-spin motion-reduce:animate-none' : ''}
-                />
-              }
-              onClick={() => void query.refetch()}
-            >
-              {query.isFetching ? 'Refreshing...' : 'Refresh payments'}
-            </Button>
-            {can(principal, 'payments.recovery.view') && (
-              <ButtonLink
-                to="/payments/recovery"
-                variant="secondary"
-                leadingIcon={<LifeBuoy className="size-4" aria-hidden />}
-              >
-                Payment recovery
-              </ButtonLink>
-            )}
-          </div>
-        </div>
-
-        {/* Hero Stats Strip */}
-        <div className="router-page-hero-strip">
-          <div className="router-page-hero-stat">
-            <Receipt className="size-4" aria-hidden />
-            <span>
-              {query.data
-                ? `${query.data.count} total transaction${query.data.count !== 1 ? 's' : ''}`
-                : 'Loading transactions...'}
-            </span>
-          </div>
-          <div className="router-page-hero-divider" />
-          <div className="router-page-hero-stat">
-            <ShieldCheck className="size-4 text-emerald-400" aria-hidden />
-            <span>Paystack Gateway Integration</span>
-          </div>
-        </div>
-      </div>
+   
 
       {/* Intro Banner */}
       <PageMetrics section="payments" />

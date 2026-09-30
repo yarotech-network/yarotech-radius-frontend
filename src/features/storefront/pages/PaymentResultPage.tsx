@@ -67,11 +67,13 @@ export default function PaymentResultPage() {
 
   return (
     <div className="public-payment-result py-6">
-      <p className="public-eyebrow">Your purchase</p>
-      <h1 className="text-2xl font-semibold text-brand-950">Payment result</h1>
-      <p className="mt-1 text-sm text-ink-500">
-        Reference <code className="font-mono break-all text-ink-700">{reference}</code>
-      </p>
+      <header>
+        <p className="public-eyebrow">Your purchase</p>
+        <h1 className="text-2xl font-semibold text-brand-950">Payment result</h1>
+        <p className="mt-2 text-sm text-ink-600">
+          Keep this page open while we confirm your payment and prepare your access.
+        </p>
+      </header>
       <div className="mt-6">
         {result.isPending ? (
           <div
@@ -95,10 +97,21 @@ export default function PaymentResultPage() {
           const code = resolveDisplayStatus(result.data);
           if (code === 'paid') {
             return (
-              <section aria-live="polite" className="rounded-card border border-success-100 bg-success-50 p-5">
-                <div className="flex items-center gap-2 text-success-700">
-                  <CheckCircle2 className="size-6" aria-hidden />
-                  <h2 className="text-lg font-semibold">Payment successful</h2>
+              <section aria-live="polite" className="public-result-card border-success-100">
+                <div className="public-result-success-heading">
+                  <CheckCircle2 className="size-7 shrink-0" aria-hidden />
+                  <div>
+                    <h2 className="text-xl font-semibold">Payment successful</h2>
+                    <p className="mt-1 text-sm font-normal text-ink-700">
+                      {paymentFulfilled(result.data)
+                        ? result.data.kind === 'iot'
+                          ? 'Your device access is ready.'
+                          : result.data.code_revealed && result.data.access_code
+                            ? 'Your voucher is ready. Follow the steps below to get online.'
+                            : 'Your voucher has been issued.'
+                        : 'Your payment is confirmed. We are preparing your access.'}
+                    </p>
+                  </div>
                 </div>
                 {result.data.kind === 'iot' && paymentFulfilled(result.data) ? (
                   <div className="mt-3 space-y-3">
@@ -196,6 +209,11 @@ export default function PaymentResultPage() {
           {errorMessage(verification.error)}
         </Alert>
       )}
+      <div className="mt-5 rounded-card border border-border bg-surface px-4 py-3 text-sm text-ink-600">
+        <span className="font-medium text-ink-700">Order reference</span>{' '}
+        <code className="break-all font-mono text-ink-700">{reference}</code>
+        <span className="mt-1 block">Keep this reference if you need help with this purchase.</span>
+      </div>
       <div className="mt-6 flex flex-wrap gap-3">
         {slug && (
           <ButtonLink to={`/s/${slug}`} variant="secondary">

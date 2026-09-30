@@ -289,7 +289,12 @@ function PaymentTracker({ reference, onDismiss }: { reference: string; onDismiss
     return <Alert tone="warning" className="mb-6" title="Payment confirmed. Subscription activation is being recovered. Do not pay again." onDismiss={onDismiss}>Your payment has been confirmed. We are recovering your subscription automatically. <Button size="sm" variant="secondary" onClick={() => verify()} loading={verification.isPending} className="mt-2">Check again</Button></Alert>;
   }
   if (code === 'failed') {
-    return <Alert tone="danger" className="mb-6" title="Payment failed" onDismiss={onDismiss}>Paystack reported reference {reference} as failed. No subscription change was made — you can try again below.</Alert>;
+    const abandoned = p.provider_status?.toLowerCase() === 'abandoned';
+    return <Alert tone="danger" className="mb-6" title={abandoned ? 'Payment not completed' : 'Payment failed'} onDismiss={onDismiss}>
+      Paystack reported reference {reference} as {abandoned ? 'abandoned' : 'failed'}. Before starting another payment, check this reference again in case its status changed.
+      <Button size="sm" variant="secondary" onClick={() => verify()} loading={verification.isPending} className="mt-2">Recheck with Paystack</Button>
+      {verification.isError && <p className="mt-2">{errorMessage(verification.error)}</p>}
+    </Alert>;
   }
   if (code === 'reversed') {
     return <Alert tone="warning" className="mb-6" title="Payment reversed — contact support" onDismiss={onDismiss}>The provider reports reversed. If subscription was already extended, contact support.</Alert>;

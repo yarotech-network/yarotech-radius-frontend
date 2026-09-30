@@ -1,6 +1,6 @@
 import { NetworkCards } from '@/features/dashboard/components/NetworkCards';
 import { RouterConnectionBadge } from '../components/RouterTelemetry';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import {
   ArrowRight,
@@ -30,6 +30,7 @@ import type { DeploymentStatus, NasDevice, OnboardingState, RouterListParams } f
 import { RouterStateBadges } from '../components/RouterStateBadges';
 import { ROUTERS_DEFAULT_ORDERING, useRouters } from '../queries';
 import { RouterAllowance } from '../components/RouterAllowance';
+import { RouterSetupGuide } from '../components/RouterSetupGuide';
 import { ONBOARDING_FILTER_OPTIONS } from '../routerSchemas';
 
 const FILTERS = ['onboarding_state', 'deployment_status', 'is_active'] as const;
@@ -40,6 +41,7 @@ export default function RoutersPage() {
   const principal = usePrincipal();
   const navigate = useNavigate();
   const canManage = can(principal, 'routers.manage');
+  const [guideOpen, setGuideOpen] = useState(false);
   const list = useListParams(FILTERS, { ordering: ROUTERS_DEFAULT_ORDERING });
   const debouncedSearch = useDebouncedValue(list.state.search);
   const params = useMemo<RouterListParams>(() => {
@@ -163,9 +165,15 @@ export default function RoutersPage() {
           </div>
           <div className="router-page-hero-divider" />
           <div className="router-page-hero-links">
-            <Link to="/guide" className="router-page-hero-link">
+            <button
+              type="button"
+              className="router-page-hero-link rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+              aria-expanded={guideOpen}
+              aria-controls="router-setup-guide"
+              onClick={() => setGuideOpen((open) => !open)}
+            >
               <BookOpen className="size-3.5" aria-hidden /> Setup guide
-            </Link>
+            </button>
             {canManage && (
               <Link to="/routers/operations" className="router-page-hero-link">
                 <ArrowRight className="size-3.5" aria-hidden /> Provisioning ops
@@ -173,6 +181,10 @@ export default function RoutersPage() {
             )}
           </div>
         </div>
+      </div>
+
+      <div id="router-setup-guide" hidden={!guideOpen}>
+        <RouterSetupGuide canManage={canManage} />
       </div>
 
       <RouterAllowance />

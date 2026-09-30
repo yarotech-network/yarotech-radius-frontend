@@ -74,7 +74,7 @@ export const WORKSPACE_NAV: NavGroup[] = [
       },
       {
         key: 'plans',
-        label: 'Service Plans',
+        label: 'Plans',
         to: '/plans',
         icon: ListChecks,
         capabilities: ['plans.view'],

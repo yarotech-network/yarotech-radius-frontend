@@ -85,7 +85,7 @@ describe('AuditPage', () => {
     );
     expect(seen[0]?.searchParams.get('ordering')).toBe('-created_at');
 
-    await userEvent.click(within(table).getByRole('button', { name: 'Details' }));
+    await userEvent.click(within(table).getAllByRole('button', { name: 'Details' })[0]!);
     expect(await within(table).findByText('count')).toBeInTheDocument();
     expect(within(table).getByText('10')).toBeInTheDocument();
     expect(within(table).queryByText('tenant_id')).not.toBeInTheDocument();
@@ -99,6 +99,50 @@ describe('AuditPage', () => {
     );
     await userEvent.click(screen.getByRole('button', { name: 'Mine' }));
     await waitFor(() => expect(seen.at(-1)?.searchParams.get('actor')).toBe('42'));
+  });
+
+  it('opens empty-payload events with the keyboard and labels the matching count', async () => {
+    server.use(
+      http.get(`${API}/audit-events/`, () =>
+        HttpResponse.json(paginated([event({ details: {} })])),
+      ),
+    );
+    renderPage(<AuditPage />, { path: '/audit', role: 'owner' });
+    const table = await screen.findByRole('table', { name: 'Audit events' });
+    const button = await within(table).findByRole('button', { name: 'Details' });
+    button.focus();
+    await userEvent.keyboard('{Enter}');
+    expect(button).toHaveAttribute('aria-expanded', 'true');
+    expect(
+      within(table).getByText('No additional details recorded for this event.'),
+    ).toBeInTheDocument();
+    expect(screen.getByText('1 matching events')).toBeInTheDocument();
+    expect(screen.queryByText('Real-time Logging Active')).not.toBeInTheDocument();
+    await userEvent.keyboard('{Enter}');
+    expect(button).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  it('keeps previous results with a clear warning when refresh fails, then retries', async () => {
+    let fail = false;
+    server.use(
+      http.get(`${API}/audit-events/`, () =>
+        fail
+          ? HttpResponse.json({ detail: 'Unavailable' }, { status: 503 })
+          : HttpResponse.json(paginated([event()])),
+      ),
+    );
+    renderPage(<AuditPage />, { path: '/audit', role: 'owner' });
+    expect(await screen.findByText('1 matching events')).toBeInTheDocument();
+    fail = true;
+    await userEvent.click(screen.getByRole('button', { name: 'Refresh events' }));
+    expect(await screen.findByText('Showing saved results ? refresh failed')).toBeInTheDocument();
+    const table = screen.getByRole('table', { name: 'Audit events' });
+    expect(within(table).getByText('Vouchers generated')).toBeInTheDocument();
+    fail = false;
+    await userEvent.click(screen.getByRole('button', { name: 'Retry refresh' }));
+    await waitFor(() =>
+      expect(screen.queryByText('Showing saved results ? refresh failed')).not.toBeInTheDocument(),
+    );
   });
 
   it('shows the empty state', async () => {
