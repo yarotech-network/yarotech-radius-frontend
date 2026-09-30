@@ -1,8 +1,8 @@
 import { PageMetrics } from '@/features/dashboard/components/PageMetrics';
 import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router';
-import { Check, Copy, CreditCard, LifeBuoy, Receipt, RefreshCw, ShieldCheck } from 'lucide-react';
-import { Badge, Button, ButtonLink, Card, Select } from '@/components/ui';
+import { Check, Copy, Receipt } from 'lucide-react';
+import { Badge, Button, Card, Select } from '@/components/ui';
 import { PaymentStatusBadge } from '@/features/payments/components/PaymentStatusBadge';
 import { Alert, EmptyState } from '@/components/feedback';
 import {
@@ -13,11 +13,9 @@ import {
   useListParams,
   type Column,
 } from '@/components/data';
-import { usePrincipal } from '@/app/auth/useAuth';
 import { formatDateTime } from '@/lib/formatting/dates';
 import { formatKobo } from '@/lib/formatting/money';
 import { useDebouncedValue } from '@/lib/utilities/useDebouncedValue';
-import { can } from '@/services/auth/principal';
 import type { PaymentListParams, PaymentStatus, PaymentTransaction } from '@/types/api';
 import { PAYMENTS_DEFAULT_ORDERING, usePayments } from '../queries';
 import { PAYMENT_STATUS_FILTERS } from '../paymentRules';
@@ -26,7 +24,6 @@ import { PaymentDrawer } from '../components/PaymentDrawer';
 const FILTERS = ['status'] as const;
 
 export default function PaymentsPage() {
-  const principal = usePrincipal();
   const [params, setParams] = useSearchParams();
   const list = useListParams(FILTERS, { ordering: PAYMENTS_DEFAULT_ORDERING });
   const debouncedSearch = useDebouncedValue(list.state.search);
