@@ -1,17 +1,9 @@
 import { NetworkCards } from '@/features/dashboard/components/NetworkCards';
 import { RouterConnectionBadge } from '../components/RouterTelemetry';
 import { useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router';
-import {
-  ArrowRight,
-  ArrowUpRight,
-  BookOpen,
-  Cpu,
-  Plus,
-  Radio,
-  RefreshCw,
-  Wifi,
-} from 'lucide-react';
+import { Link, useLocation, useNavigate } from 'react-router';
+import { AddRouterDialog } from '../components/AddRouterDialog';
+import { ArrowUpRight, Plus, Radio, RefreshCw } from 'lucide-react';
 import {
   DataTable,
   FilterBar,
@@ -40,8 +32,18 @@ const DEPLOYMENTS: readonly string[] = ['not_deployed', 'deploying', 'deployed',
 export default function RoutersPage() {
   const principal = usePrincipal();
   const navigate = useNavigate();
+  const location = useLocation();
   const canManage = can(principal, 'routers.manage');
   const [guideOpen, setGuideOpen] = useState(false);
+  const isNewRoute = location.pathname.replace(/\/+$/, '') === '/routers/new';
+  const dialogOpen = isNewRoute && canManage;
+  // Preserve fleet filters when opening/closing the popup: the dialog route
+  // carries the same search string as the fleet underneath.
+  const addRouterTo = `/routers/new${location.search}`;
+  const fleetTo = `/routers${location.search}`;
+  function closeDialog() {
+    navigate(fleetTo, { replace: true });
+  }
   const list = useListParams(FILTERS, { ordering: ROUTERS_DEFAULT_ORDERING });
   const debouncedSearch = useDebouncedValue(list.state.search);
   const params = useMemo<RouterListParams>(() => {
@@ -112,74 +114,63 @@ export default function RoutersPage() {
   ];
 
   return (
-    <div className="router-page space-y-6">
-      {/* Premium hero header */}
-      <div className="router-page-hero">
-        <div className="router-page-hero-inner">
-          <div className="router-page-hero-text">
-            <span className="router-page-hero-eyebrow">
-              <Wifi className="size-3" aria-hidden /> Network Infrastructure
-            </span>
-            <h1 className="router-page-hero-title">Router Fleet</h1>
-            <p className="router-page-hero-desc">
-              MikroTik hotspots registered as RADIUS clients — onboarding, VPN and provisioning in
-              one place.
-            </p>
-          </div>
-          <div className="router-page-hero-actions">
-            <Button
-              variant="secondary"
-              disabled={query.isFetching}
-              leadingIcon={
-                <RefreshCw
-                  className={query.isFetching ? 'animate-spin motion-reduce:animate-none' : ''}
-                />
-              }
-              aria-label="Refresh routers"
-              onClick={() => void query.refetch()}
-            >
-              {query.isFetching ? 'Refreshing...' : 'Refresh'}
-            </Button>
-            {canManage && (
-              <ButtonLink to="/routers/new" leadingIcon={<Plus className="size-4" aria-hidden />}>
-                Add router
-              </ButtonLink>
-            )}
-          </div>
-        </div>
-
-        {/* Stats strip */}
-        <div className="router-page-hero-strip">
-          <div className="router-page-hero-stat">
-            <Radio className="size-4" aria-hidden />
-            <span>
+    <div className="router-page rv-portal space-y-6">
+      {/* Compact portal-style header */}
+      <div className="rv-portal-header">
+        <div className="rv-portal-header-text">
+          <p className="rv-portal-eyebrow">Network Infrastructure</p>
+          <h1 className="rv-portal-title">Router Fleet</h1>
+          <p className="rv-portal-desc">
+            MikroTik hotspots registered as RADIUS clients — onboarding, VPN and provisioning in
+            one place.
+          </p>
+          <div className="rv-portal-header-meta">
+            <span role="status">
               {query.data
                 ? `${query.data.count} total router${query.data.count !== 1 ? 's' : ''}`
                 : 'Loading fleet...'}
             </span>
-          </div>
-          <div className="router-page-hero-divider" />
-          <div className="router-page-hero-stat">
-            <Cpu className="size-4" aria-hidden />
+            <span aria-hidden>·</span>
             <span>MikroTik · RADIUS NAS</span>
-          </div>
-          <div className="router-page-hero-divider" />
-          <div className="router-page-hero-links">
+            <span aria-hidden>·</span>
             <button
               type="button"
-              className="router-page-hero-link rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+              className="rounded-sm font-semibold text-brand-600 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600"
               aria-expanded={guideOpen}
               aria-controls="router-setup-guide"
               onClick={() => setGuideOpen((open) => !open)}
             >
-              <BookOpen className="size-3.5" aria-hidden /> Setup guide
+              Setup guide
             </button>
             {canManage && (
-              <Link to="/routers/operations" className="router-page-hero-link">
-                <ArrowRight className="size-3.5" aria-hidden /> Provisioning ops
+              <Link
+                to="/routers/operations"
+                className="rounded-sm font-semibold text-brand-600 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600"
+              >
+                Provisioning ops
               </Link>
             )}
           </div>
+        </div>
+        <div className="rv-portal-actions">
+          <Button
+            variant="secondary"
+            disabled={query.isFetching}
+            leadingIcon={
+              <RefreshCw
+                className={query.isFetching ? 'animate-spin motion-reduce:animate-none' : ''}
+              />
+            }
+            aria-label="Refresh routers"
+            onClick={() => void query.refetch()}
+          >
+            {query.isFetching ? 'Refreshing...' : 'Refresh'}
+          </Button>
+          {canManage && (
+            <ButtonLink to={addRouterTo} leadingIcon={<Plus className="size-4" aria-hidden />}>
+              Add router
+            </ButtonLink>
+          )}
         </div>
       </div>
 
@@ -191,13 +182,13 @@ export default function RoutersPage() {
       <NetworkCards section="routers" />
 
       {/* Router directory */}
-      <section aria-labelledby="router-directory-title" className="space-y-4">
-        <div className="router-directory-heading">
+      <section aria-labelledby="router-directory-title" className="rv-portal-card space-y-4">
+        <div className="rv-portal-card-head">
           <div>
-            <h2 id="router-directory-title" className="router-directory-title">
+            <h2 id="router-directory-title" className="rv-portal-card-title">
               Router directory
             </h2>
-            <p role="status" className="router-directory-count">
+            <p role="status" className="rv-portal-card-count">
               {query.isPlaceholderData
                 ? 'Updating results...'
                 : query.data
@@ -232,122 +223,136 @@ export default function RoutersPage() {
           live connection indicator.
         </p>
 
-        <FilterBar
-          inline
-          search={
-            <SearchInput
-              value={list.state.search}
-              onChange={list.setSearch}
-              placeholder="Search name, IP or location"
-              ariaLabel="Search routers"
-            />
-          }
-          filters={
-            <div className="flex items-center gap-2 [&>div]:w-44 [&>div]:shrink-0">
-              <Select
-                aria-label="Onboarding state"
-                size="sm"
-                value={list.state.filters.onboarding_state ?? ''}
-                onChange={(e) => list.setFilter('onboarding_state', e.target.value || undefined)}
-                options={ONBOARDING_FILTER_OPTIONS}
+        <div className="rv-portal-filter">
+          <FilterBar
+            inline
+            search={
+              <SearchInput
+                value={list.state.search}
+                onChange={list.setSearch}
+                placeholder="Search name, IP or location"
+                ariaLabel="Search routers"
               />
-              <Select
-                aria-label="Deployment"
-                size="sm"
-                value={list.state.filters.deployment_status ?? ''}
-                onChange={(e) => list.setFilter('deployment_status', e.target.value || undefined)}
-                options={[
-                  { value: '', label: 'Any deployment' },
-                  { value: 'not_deployed', label: 'Not deployed' },
-                  { value: 'deploying', label: 'Deploying' },
-                  { value: 'deployed', label: 'Deployed' },
-                  { value: 'failed', label: 'Failed' },
-                ]}
-              />
-              <Select
-                aria-label="Active"
-                size="sm"
-                value={list.state.filters.is_active ?? ''}
-                onChange={(e) => list.setFilter('is_active', e.target.value || undefined)}
-                options={[
-                  { value: '', label: 'Active and inactive' },
-                  { value: 'true', label: 'Active only' },
-                  { value: 'false', label: 'Inactive only' },
-                ]}
-              />
-            </div>
-          }
-          activeCount={list.activeFilterCount}
-          onClear={list.clearFilters}
-        />
+            }
+            filters={
+              <div className="flex items-center gap-2 [&>div]:w-44 [&>div]:shrink-0">
+                <Select
+                  aria-label="Onboarding state"
+                  size="sm"
+                  value={list.state.filters.onboarding_state ?? ''}
+                  onChange={(e) => list.setFilter('onboarding_state', e.target.value || undefined)}
+                  options={ONBOARDING_FILTER_OPTIONS}
+                />
+                <Select
+                  aria-label="Deployment"
+                  size="sm"
+                  value={list.state.filters.deployment_status ?? ''}
+                  onChange={(e) => list.setFilter('deployment_status', e.target.value || undefined)}
+                  options={[
+                    { value: '', label: 'Any deployment' },
+                    { value: 'not_deployed', label: 'Not deployed' },
+                    { value: 'deploying', label: 'Deploying' },
+                    { value: 'deployed', label: 'Deployed' },
+                    { value: 'failed', label: 'Failed' },
+                  ]}
+                />
+                <Select
+                  aria-label="Active"
+                  size="sm"
+                  value={list.state.filters.is_active ?? ''}
+                  onChange={(e) => list.setFilter('is_active', e.target.value || undefined)}
+                  options={[
+                    { value: '', label: 'Active and inactive' },
+                    { value: 'true', label: 'Active only' },
+                    { value: 'false', label: 'Inactive only' },
+                  ]}
+                />
+              </div>
+            }
+            activeCount={list.activeFilterCount}
+            onClear={list.clearFilters}
+          />
+        </div>
         {query.isError && query.data && (
           <Alert tone="warning" title="Routers could not be refreshed">
             Showing the last loaded records. Refresh again to check for changes.
           </Alert>
         )}
-        <DataTable
-          caption="Routers"
-          columns={columns}
-          rows={query.data?.results}
-          rowKey={(r) => r.id}
-          loading={query.isPending}
-          refreshing={query.isFetching && !query.isPending}
-          error={query.error}
-          onRetry={() => void query.refetch()}
-          ordering={list.state.ordering}
-          onOrderingChange={list.setOrdering}
-          onRowClick={(r) => navigate(`/routers/${r.id}`)}
-          rowActions={(r) => (
-            <ButtonLink
-              to={`/routers/${r.id}`}
-              variant="secondary"
-              size="sm"
-              aria-label={`Open ${r.name}`}
-              trailingIcon={<ArrowUpRight />}
-            >
-              Details
-            </ButtonLink>
-          )}
-          empty={
-            list.activeFilterCount > 0 ? (
-              <EmptyState
-                icon={<Radio className="h-6 w-6" aria-hidden />}
-                title="No routers match"
-                description="Try another state or search term."
-                action={
-                  <Button variant="secondary" onClick={list.clearFilters}>
-                    Clear filters
-                  </Button>
-                }
-              />
-            ) : (
-              <EmptyState
-                icon={<Radio className="h-6 w-6" aria-hidden />}
-                title="No routers yet"
-                description={
-                  canManage
-                    ? 'Register your first MikroTik to start onboarding it.'
-                    : 'Routers will appear here once a manager registers them.'
-                }
-                action={
-                  canManage ? <ButtonLink to="/routers/new">Add router</ButtonLink> : undefined
-                }
-              />
-            )
-          }
-        />
-        {query.data && query.data.count > 0 && (
-          <Pagination
-            count={query.data.count}
-            page={list.state.page}
-            totalPages={query.data.total_pages}
-            pageSize={list.state.page_size}
-            onPageChange={list.setPage}
-            onPageSizeChange={list.setPageSize}
-            itemLabel="routers"
+        <div className="rv-portal-table">
+          <DataTable
+            caption="Routers"
+            columns={columns}
+            rows={query.data?.results}
+            rowKey={(r) => r.id}
+            loading={query.isPending}
+            refreshing={query.isFetching && !query.isPending}
+            error={query.error}
+            onRetry={() => void query.refetch()}
+            ordering={list.state.ordering}
+            onOrderingChange={list.setOrdering}
+            onRowClick={(r) => navigate(`/routers/${r.id}`)}
+            rowActions={(r) => (
+              <ButtonLink
+                to={`/routers/${r.id}`}
+                variant="secondary"
+                size="sm"
+                aria-label={`Open ${r.name}`}
+                trailingIcon={<ArrowUpRight />}
+              >
+                Details
+              </ButtonLink>
+            )}
+            empty={
+              list.activeFilterCount > 0 ? (
+                <EmptyState
+                  icon={<Radio className="h-6 w-6" aria-hidden />}
+                  title="No routers match"
+                  description="Try another state or search term."
+                  action={
+                    <Button variant="secondary" onClick={list.clearFilters}>
+                      Clear filters
+                    </Button>
+                  }
+                />
+              ) : (
+                <EmptyState
+                  icon={<Radio className="h-6 w-6" aria-hidden />}
+                  title="No routers yet"
+                  description={
+                    canManage
+                      ? 'Register your first MikroTik to start onboarding it.'
+                      : 'Routers will appear here once a manager registers them.'
+                  }
+                  action={
+                    canManage ? <ButtonLink to={addRouterTo}>Add router</ButtonLink> : undefined
+                  }
+                />
+              )
+            }
           />
-        )}
+          {query.data && query.data.count > 0 && (
+            <div className="rv-portal-table-foot">
+              <Pagination
+                count={query.data.count}
+                page={list.state.page}
+                totalPages={query.data.total_pages}
+                pageSize={list.state.page_size}
+                onPageChange={list.setPage}
+                onPageSizeChange={list.setPageSize}
+                itemLabel="routers"
+              />
+            </div>
+          )}
+        </div>
       </section>
+
+      {canManage && (
+        <AddRouterDialog
+          key={isNewRoute ? `new-${location.search}` : 'closed'}
+          open={dialogOpen}
+          onClose={closeDialog}
+        />
+      )}
     </div>
   );
 }

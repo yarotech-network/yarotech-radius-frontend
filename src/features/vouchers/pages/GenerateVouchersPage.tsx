@@ -115,13 +115,14 @@ export default function GenerateVouchersPage() {
     const ids = result.vouchers.map((v) => v.id);
     const first = result.vouchers[0];
     return (
-      <>
+      <div className="space-y-6 rv-portal">
         <PageHeader
+          className="rv-portal-header"
           title="Vouchers generated"
           backTo="/vouchers"
           crumbs={[{ label: 'Vouchers', to: '/vouchers' }, { label: 'Generate' }]}
         />
-        <Card className="border-brand-100 bg-gradient-to-br from-brand-50 via-white to-sky-50">
+        <Card className="rv-portal-card">
           <div className="flex items-start gap-3">
             <CheckCircle2
               className="size-10 shrink-0 rounded-xl bg-success-100 p-2 text-success-600"
@@ -184,32 +185,28 @@ export default function GenerateVouchersPage() {
             )}
           </div>
         </Card>
-      </>
+      </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      {/* Premium Hero Header */}
-      <div className="router-page-hero">
-        <div className="router-page-hero-inner">
-          <div className="router-page-hero-text">
-            <span className="router-page-hero-eyebrow">
-              <Ticket className="size-3" aria-hidden /> Batch Generation
-            </span>
-            <h1 className="router-page-hero-title">Generate Vouchers</h1>
-            <p className="router-page-hero-desc">
-              Choose a plan, set your batch size and review the value before creating access codes.
-            </p>
-          </div>
-          <div className="router-page-hero-actions">
-            <Link
-              to="/vouchers"
-              className="inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-semibold text-white bg-white/10 hover:bg-white/20 border border-white/20 backdrop-blur-sm transition"
-            >
-              Back to Voucher Desk
-            </Link>
-          </div>
+    <div className="space-y-6 rv-portal">
+      {/* Compact portal-style header */}
+      <div className="rv-portal-header">
+        <div className="rv-portal-header-text">
+          <p className="rv-portal-eyebrow">Batch Generation</p>
+          <h1 className="rv-portal-title">Generate Vouchers</h1>
+          <p className="rv-portal-desc">
+            Choose a plan, set your batch size and review the value before creating access codes.
+          </p>
+        </div>
+        <div className="rv-portal-actions">
+          <Link
+            to="/vouchers"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface px-3.5 py-2 text-sm font-semibold text-ink-700 transition hover:bg-surface-muted"
+          >
+            Back to Voucher Desk
+          </Link>
         </div>
       </div>
       <form
@@ -218,7 +215,7 @@ export default function GenerateVouchersPage() {
         className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]"
       >
         <div className="flex min-w-0 flex-col gap-6">
-          <Card>
+          <Card className="rv-portal-card">
             <h2 className="text-lg font-semibold text-brand-950">1. Choose a plan</h2>
             <p className="mt-1 mb-5 text-sm text-ink-500">
               Compare duration, speed and data allowance. Only active plans are listed.
@@ -247,7 +244,7 @@ export default function GenerateVouchersPage() {
               )}
             />
           </Card>
-          <Card>
+          <Card className="rv-portal-card">
             <h2 className="text-lg font-semibold text-brand-950">2. Set up your batch</h2>
             <p className="mt-1 mb-5 text-sm text-ink-500">
               Choose a preset or enter 1 to 100 vouchers. Add a prefix to help identify this batch.
@@ -315,7 +312,7 @@ export default function GenerateVouchersPage() {
           className="min-w-0 xl:sticky xl:top-20 xl:self-start"
           aria-labelledby="batch-review-title"
         >
-          <Card className="border-brand-100 bg-gradient-to-br from-brand-50 via-white to-sky-50">
+          <Card className="rv-portal-card">
             <span className="mb-4 flex size-11 items-center justify-center rounded-xl bg-brand-600 text-white">
               <Ticket className="size-5" aria-hidden />
             </span>

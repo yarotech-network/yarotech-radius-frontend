@@ -116,8 +116,9 @@ function RouterDetail({
   }
 
   return (
-    <div className="router-page space-y-6">
+    <div className="router-page rv-portal space-y-6">
       <PageHeader
+        className="rv-portal-header"
         backTo="/routers"
         crumbs={[{ label: 'Routers', to: '/routers' }, { label: router.name }]}
         title={
@@ -207,7 +208,7 @@ function RouterDetail({
       )}
 
       {tab !== 'setup' && (
-        <Card className="router-device-overview">
+        <Card className="router-device-overview rv-portal-card">
           <div className="mb-5 flex items-start gap-3">
             <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-brand-600 text-white">
               <Radio className="size-5" aria-hidden />
@@ -282,7 +283,7 @@ function RouterDetail({
           className="mb-4"
         />
       </div>
-      <Card className="router-section-content">
+      <Card className="router-section-content rv-portal-card">
         {tab === 'setup' && router.registration && (
           <RouterSetupScript
             key={`${router.id}:${router.is_active}:${router.onboarding_state}:${router.registration.script_sha256}`}

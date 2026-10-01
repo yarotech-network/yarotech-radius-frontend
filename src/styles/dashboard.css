@@ -1369,6 +1369,51 @@ a.sidebar-identity:hover {
   background: #1c2230 !important;
 }
 
+/* Customer workspace navigation. */
+.customer-section-navigation {
+  min-width: 0;
+  padding: 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: 1rem;
+  background: var(--color-surface);
+}
+.customer-section-links {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+.customer-section-link {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  min-width: 0;
+  min-height: 72px;
+  padding: 0.85rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.75rem;
+  background: var(--color-surface-muted);
+  color: var(--color-ink-700);
+  text-decoration: none;
+  transition: background-color 150ms, border-color 150ms;
+}
+.customer-section-link:hover {
+  background: var(--color-brand-50);
+  border-color: var(--color-brand-200);
+  text-decoration: none;
+}
+.customer-section-link-active,
+.customer-section-link-active:hover {
+  background: var(--color-brand-50);
+  border-color: var(--color-brand-600);
+  color: var(--color-brand-950);
+}
+@media (max-width: 1100px) {
+  .customer-section-links { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 420px) {
+  .customer-section-link { gap: 0.5rem; padding: 0.7rem; }
+}
+
 /* Opt-in data links also work in dashboard drawers portaled outside the shell. */
 .dashboard-data-link,
 .dashboard-data-link:visited {

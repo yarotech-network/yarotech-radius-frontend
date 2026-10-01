@@ -112,7 +112,7 @@ describe('PlansPage', () => {
     renderPage(<PlansPage />, { role: 'owner', path: '/plans' });
     await userEvent.click(await screen.findByRole('button', { name: 'Create a plan' }));
     const dialog = await screen.findByRole('dialog');
-    await userEvent.click(within(dialog).getByText('Additional plan settings'));
+    await userEvent.click(within(dialog).getByText('Additional settings'));
     await userEvent.type(within(dialog).getByLabelText(/Plan name/), 'dup');
     await userEvent.type(within(dialog).getByLabelText(/Price/), '500');
     await userEvent.selectOptions(within(dialog).getByLabelText('Voucher code format'), 'numeric');
@@ -124,10 +124,9 @@ describe('PlansPage', () => {
     await userEvent.type(within(dialog).getByLabelText(/Plan name/), 'Night Owl');
     await userEvent.click(within(dialog).getByRole('checkbox', { name: /Public sales/ }));
     await userEvent.click(within(dialog).getByRole('checkbox', { name: /Agent sales/ }));
-    await userEvent.selectOptions(
-      within(dialog).getByRole('combobox', { name: /Duration/i }),
-      '0.5',
-    );
+    await userEvent.clear(within(dialog).getByLabelText(/Duration amount/));
+    await userEvent.type(within(dialog).getByLabelText(/Duration amount/), '0.5');
+    await userEvent.selectOptions(within(dialog).getByLabelText(/Duration unit/), 'hours');
     await userEvent.selectOptions(within(dialog).getByLabelText('Voucher code format'), 'numeric');
     await userEvent.click(within(dialog).getByRole('button', { name: 'Create plan' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
@@ -224,6 +223,7 @@ it('creates a plan with a device ceiling and edits it 1 -> 5 -> 2', async () => 
   renderPage(<PlansPage />, { role: 'owner', path: '/plans' });
   await userEvent.click(await screen.findByRole('button', { name: 'New plan' }));
   const dialog = await screen.findByRole('dialog');
+  await userEvent.click(within(dialog).getByText('Additional settings'));
   const select = within(dialog).getByLabelText('Maximum devices') as HTMLSelectElement;
   expect(select.value).toBe('1');
   expect(Array.from(select.options).map((o) => o.text)).toEqual([
@@ -263,12 +263,152 @@ it('edit populates the stored ceiling and persists a new value', async () => {
   await userEvent.click(within(table).getByRole('button', { name: 'Actions for Daily 1GB' }));
   await userEvent.click(await screen.findByRole('menuitem', { name: 'Edit' }));
   const dialog = await screen.findByRole('dialog');
+  await userEvent.click(within(dialog).getByText('Additional settings'));
   const select = within(dialog).getByLabelText('Maximum devices') as HTMLSelectElement;
   expect(select.value).toBe('5');
   await userEvent.selectOptions(select, '2');
   await userEvent.click(within(dialog).getByRole('button', { name: 'Save changes' }));
   await waitFor(() => expect(patched).toMatchObject({ max_devices: 2 }));
   expect(await screen.findByText('Plan updated')).toBeInTheDocument();
+});
+
+describe('PlanDialog behavior', () => {
+  it('creates a 3-day limited plan in a single-column form without a preview', async () => {
+    let posted: Record<string, unknown> | null = null;
+    server.use(
+      http.get(`${API}/plans/`, () => HttpResponse.json(paginated([]))),
+      http.post(`${API}/plans/`, async ({ request }) => {
+        posted = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json({ ...plans[0]!, id: 9 }, { status: 201 });
+      }),
+    );
+    renderPage(<PlansPage />, { role: 'owner', path: '/plans' });
+    await userEvent.click(await screen.findByRole('button', { name: 'New plan' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Create New Hotspot Plan' });
+    expect(within(dialog).queryByLabelText(/Data limit/)).not.toBeInTheDocument();
+    expect(within(dialog).queryByText('Plan summary')).not.toBeInTheDocument();
+    await userEvent.type(within(dialog).getByLabelText(/Plan name/), 'Weekend');
+    await userEvent.type(within(dialog).getByLabelText(/Price/), '750');
+    await userEvent.clear(within(dialog).getByLabelText(/Duration amount/));
+    await userEvent.type(within(dialog).getByLabelText(/Duration amount/), '3');
+    await userEvent.selectOptions(within(dialog).getByLabelText(/Duration unit/), 'days');
+    await userEvent.click(within(dialog).getByLabelText('Limited data'));
+    await userEvent.type(within(dialog).getByLabelText(/Data limit/), '1024');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Create plan' }));
+    await waitFor(() =>
+      expect(posted).toMatchObject({ duration_hours: 72, data_limit: 1024 }),
+    );
+    expect(await screen.findByText('Plan created')).toBeInTheDocument();
+  });
+
+  it('saves an existing fractional plan unchanged without altering its duration', async () => {
+    let patched: Record<string, unknown> | null = null;
+    const fractional = { ...plans[0]!, duration_hours: 0.333333, data_limit: 512 };
+    server.use(
+      http.get(`${API}/plans/`, () => HttpResponse.json(paginated([fractional]))),
+      http.patch(`${API}/plans/1/`, async ({ request }) => {
+        patched = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json(fractional);
+      }),
+    );
+    renderPage(<PlansPage />, { role: 'owner', path: '/plans' });
+    const table = await screen.findByRole('table', { name: 'Internet plans' });
+    await within(table).findByText('Daily 1GB');
+    await userEvent.click(within(table).getByRole('button', { name: 'Actions for Daily 1GB' }));
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'Edit' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Edit Daily 1GB' });
+    expect(within(dialog).getByLabelText(/Duration amount/)).toHaveValue(20);
+    expect(within(dialog).getByLabelText(/Duration unit/)).toHaveValue('minutes');
+    expect(within(dialog).getByLabelText('Limited data')).toBeChecked();
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Save changes' }));
+    await waitFor(() =>
+      expect(patched).toMatchObject({ duration_hours: 0.333333, data_limit: 512 }),
+    );
+    expect(await screen.findByText('Plan updated')).toBeInTheDocument();
+  });
+
+  it('confirms before discarding a changed plan', async () => {
+    const user = userEvent.setup({ delay: null });
+    server.use(http.get(`${API}/plans/`, () => HttpResponse.json(paginated([]))));
+    renderPage(<PlansPage />, { role: 'owner', path: '/plans' });
+    await user.click(await screen.findByRole('button', { name: 'New plan' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Create New Hotspot Plan' });
+    await user.type(within(dialog).getByLabelText(/Plan name/), 'Draft plan');
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    const confirm = await screen.findByRole('dialog', { name: 'Discard new plan?' });
+    await user.click(within(confirm).getByRole('button', { name: 'Keep editing' }));
+    expect(screen.getByRole('dialog', { name: 'Create New Hotspot Plan' })).toBeInTheDocument();
+    expect(within(dialog).getByLabelText(/Plan name/)).toHaveValue('Draft plan');
+    await user.click(
+      within(screen.getByRole('dialog', { name: 'Create New Hotspot Plan' })).getByRole('button', {
+        name: 'Cancel',
+      }),
+    );
+    const confirmAgain = await screen.findByRole('dialog', { name: 'Discard new plan?' });
+    await user.click(within(confirmAgain).getByRole('button', { name: 'Discard' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  });
+
+  it('blocks dismissal while saving', async () => {
+    const user = userEvent.setup({ delay: null });
+    let resolvePost!: (value: unknown) => void;
+    server.use(
+      http.get(`${API}/plans/`, () => HttpResponse.json(paginated([]))),
+      http.post(
+        `${API}/plans/`,
+        () =>
+          new Promise((resolve) => {
+            resolvePost = resolve as (value: unknown) => void;
+          }),
+      ),
+    );
+    renderPage(<PlansPage />, { role: 'owner', path: '/plans' });
+    await user.click(await screen.findByRole('button', { name: 'New plan' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Create New Hotspot Plan' });
+    await user.type(within(dialog).getByLabelText(/Plan name/), 'Saving plan');
+    await user.type(within(dialog).getByLabelText(/Price/), '500');
+    await user.click(within(dialog).getByRole('button', { name: 'Create plan' }));
+    await waitFor(() =>
+      expect(within(dialog).getByRole('button', { name: 'Create plan' })).toBeDisabled(),
+    );
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByRole('dialog', { name: 'Discard new plan?' })).not.toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'Create New Hotspot Plan' })).toBeInTheDocument();
+    resolvePost(HttpResponse.json({ ...plans[0]!, id: 9 }, { status: 201 }));
+    expect(await screen.findByText('Plan created')).toBeInTheDocument();
+  });
+
+  it('expands Additional settings and focuses a server field error there', async () => {
+    const user = userEvent.setup({ delay: null });
+    server.use(
+      http.get(`${API}/plans/`, () => HttpResponse.json(paginated([]))),
+      http.post(`${API}/plans/`, () =>
+        HttpResponse.json(
+          {
+            problem: {
+              code: 'validation_error',
+              message: 'Invalid input.',
+              fields: { voucher_prefix: ['Enter a shorter prefix.'] },
+            },
+          },
+          { status: 400 },
+        ),
+      ),
+    );
+    const { container } = renderPage(<PlansPage />, { role: 'owner', path: '/plans' });
+    await user.click(await screen.findByRole('button', { name: 'New plan' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Create New Hotspot Plan' });
+    await user.type(within(dialog).getByLabelText(/Plan name/), 'Prefixed');
+    await user.type(within(dialog).getByLabelText(/Price/), '500');
+    await user.click(within(dialog).getByRole('button', { name: 'Create plan' }));
+    expect(await within(dialog).findByText('Enter a shorter prefix.')).toBeInTheDocument();
+    await waitFor(() =>
+      expect(container.querySelector('details.plan-advanced')).toHaveAttribute('open'),
+    );
+    await waitFor(() =>
+      expect(within(dialog).getByLabelText(/Voucher prefix/)).toHaveFocus(),
+    );
+  });
 });
 
 beforeEach(() => {

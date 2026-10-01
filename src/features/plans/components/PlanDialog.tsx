@@ -1,4 +1,5 @@
-import { Dialog } from '@/components/ui';
+import { useState } from 'react';
+import { ConfirmDialog, Dialog } from '@/components/ui';
 import type { InternetPlan } from '@/types/api';
 import { PlanForm } from './PlanForm';
 import { Plus } from 'lucide-react';
@@ -15,27 +16,64 @@ export function PlanDialog({
   onClose: () => void;
   onSaved: (plan: InternetPlan) => void;
 }) {
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
+  const [dirty, setDirty] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  function requestClose() {
+    if (busy) return;
+    if (dirty) {
+      setConfirmDiscard(true);
+      return;
+    }
+    onClose();
+  }
+
   return (
-    <Dialog
-      open={open}
-      onClose={onClose}
-      size="xl"
-      className="service-plan-dialog"
-      title={
-        <span className="plan-dialog-title">
-          <span className="plan-dialog-icon">
-            <Plus aria-hidden />
+    <>
+      <Dialog
+        open={open}
+        onClose={requestClose}
+        size="lg"
+        dismissible={!busy}
+        className="service-plan-dialog"
+        title={
+          <span className="plan-dialog-title">
+            <span className="plan-dialog-icon">
+              <Plus aria-hidden />
+            </span>
+            {plan ? `Edit ${plan.name}` : 'Create New Hotspot Plan'}
           </span>
-          {plan ? `Edit ${plan.name}` : 'Create New Hotspot Plan'}
-        </span>
-      }
-      description={
-        plan
-          ? 'Changes apply to future access. Issued vouchers keep their saved duration, price, data and speed terms.'
-          : 'Configure access, pricing and bandwidth for your internet catalogue.'
-      }
-    >
-      {open && <PlanForm {...(plan ? { plan } : {})} onSaved={onSaved} onCancel={onClose} />}
-    </Dialog>
+        }
+        description={
+          plan
+            ? 'Changes apply to future access. Issued vouchers keep their saved duration, price, data and speed terms.'
+            : 'Configure access, pricing and bandwidth for your internet catalogue.'
+        }
+      >
+        {open && (
+          <PlanForm
+            {...(plan ? { plan } : {})}
+            onSaved={onSaved}
+            onCancel={requestClose}
+            onDirtyChange={setDirty}
+            onBusyChange={setBusy}
+          />
+        )}
+      </Dialog>
+      <ConfirmDialog
+        open={confirmDiscard}
+        onClose={() => setConfirmDiscard(false)}
+        tone="danger"
+        title={plan ? `Discard changes to ${plan.name}?` : 'Discard new plan?'}
+        description="Your entered details will be lost. This cannot be undone."
+        confirmLabel="Discard"
+        cancelLabel="Keep editing"
+        onConfirm={() => {
+          setConfirmDiscard(false);
+          onClose();
+        }}
+      />
+    </>
   );
 }

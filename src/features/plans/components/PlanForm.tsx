@@ -1,23 +1,14 @@
 import { planCodeFormatOptions } from '@/lib/voucherCodeFormats';
 import { useRouterOptions } from '@/features/routers/queries';
-import { useEffect, useMemo, useState } from 'react';
-import { Controller, useForm, useWatch } from 'react-hook-form';
+import { useEffect, useState } from 'react';
+import { Controller, useForm, useWatch, type FieldErrors } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button, Checkbox, FormField, Input, Select } from '@/components/ui';
 import { Alert } from '@/components/feedback';
 import { useFormSubmit } from '@/lib/forms/useFormSubmit';
 import { newIdempotencyKey } from '@/lib/utilities/idempotency';
-import { formatHours } from '@/lib/formatting/units';
-import { PlanPreview } from './PlanPreview';
+import { describeDuration, DURATION_UNITS, formToPlan, planFormSchema, planToForm, type PlanFormInput, type PlanFormOutput } from '../planSchema';
 import type { InternetPlan } from '@/types/api';
-import {
-  DURATION_PRESETS,
-  formToPlan,
-  planFormSchema,
-  planToForm,
-  type PlanFormInput,
-  type PlanFormOutput,
-} from '../planSchema';
 import { BandwidthPicker } from './BandwidthPicker';
 import { useCreatePlan, useUpdatePlan } from '../queries';
 
@@ -29,7 +20,9 @@ const FIELDS = [
   'bandwidth_profile',
   'name',
   'price',
-  'duration_hours',
+  'duration_value',
+  'duration_unit',
+  'data_mode',
   'rate_limit',
   'data_limit_mb',
   'voucher_prefix',
@@ -37,16 +30,42 @@ const FIELDS = [
   'is_active',
   'max_devices',
 ] as const;
-const ALIASES = { data_limit: 'data_limit_mb' };
+const ALIASES = { data_limit: 'data_limit_mb', duration_hours: 'duration_value' };
+
+/** Fields rendered inside the expandable Additional settings section. */
+const ADDITIONAL_FIELDS = [
+  'voucher_prefix',
+  'voucher_code_format',
+  'max_devices',
+  'plan_type',
+  'public_router',
+  'is_public',
+  'agent_enabled',
+] as const;
+
+/** Input ids used to move focus into Additional settings after a failed submit. */
+const ADDITIONAL_INPUT_IDS: Record<(typeof ADDITIONAL_FIELDS)[number], string> = {
+  voucher_prefix: 'plan-voucher-prefix',
+  voucher_code_format: 'plan-code-format',
+  max_devices: 'plan-max-devices',
+  plan_type: 'plan-service-type',
+  public_router: 'plan-assigned-router',
+  is_public: 'plan-public-sales',
+  agent_enabled: 'plan-agent-sales',
+};
 
 export function PlanForm({
   plan,
   onSaved,
   onCancel,
+  onDirtyChange,
+  onBusyChange,
 }: {
   plan?: InternetPlan;
   onSaved: (plan: InternetPlan) => void;
   onCancel: () => void;
+  onDirtyChange?: (dirty: boolean) => void;
+  onBusyChange?: (busy: boolean) => void;
 }) {
   const create = useCreatePlan();
   const update = useUpdatePlan();
@@ -64,70 +83,86 @@ export function PlanForm({
   const planType = useWatch({ control: form.control, name: 'plan_type' });
   const profileId = useWatch({ control: form.control, name: 'bandwidth_profile' });
   const [chooseProfile, setChooseProfile] = useState(!!plan?.bandwidth_profile);
-  const duration = useWatch({ control: form.control, name: 'duration_hours' });
-  const presetValue = useMemo(
-    () =>
-      DURATION_PRESETS.some((p) => p.hours === Number(duration)) ? String(duration) : 'custom',
-    [duration],
-  );
-  const [customDuration, setCustomDuration] = useState(presetValue === 'custom');
+  const dataMode = useWatch({ control: form.control, name: 'data_mode' });
+  const durationValue = useWatch({ control: form.control, name: 'duration_value' });
+  const durationUnit = useWatch({ control: form.control, name: 'duration_unit' });
 
   useEffect(() => {
     form.reset(planToForm(plan));
   }, [plan, form]);
 
-  const submit = form.handleSubmit(async (values) => {
-    resetErrors();
-    if (chooseProfile && !values.bandwidth_profile) {
-      form.setError('bandwidth_profile', {
-        message: 'Choose a profile, or switch to custom speed.',
-      });
-      return;
-    }
-    try {
-      const saved = plan
-        ? await update.mutateAsync({ id: plan.id, payload: formToPlan(values) })
-        : await create.mutateAsync({ payload: formToPlan(values), idempotencyKey });
-      onSaved(saved);
-    } catch (error) {
-      captureError(error);
-    }
-  });
+  const { isDirty, isSubmitting } = form.formState;
+  useEffect(() => {
+    onDirtyChange?.(isDirty);
+  }, [isDirty, onDirtyChange]);
+  useEffect(() => {
+    onBusyChange?.(isSubmitting);
+  }, [isSubmitting, onBusyChange]);
+
+  function focusAdditionalError(errors: FieldErrors<PlanFormInput>) {
+    const hit = ADDITIONAL_FIELDS.find((field) => errors[field]);
+    if (!hit) return;
+    const id = ADDITIONAL_INPUT_IDS[hit];
+    window.setTimeout(() => document.getElementById(id)?.focus(), 60);
+  }
+
+  const submit = form.handleSubmit(
+    async (values) => {
+      resetErrors();
+      if (chooseProfile && !values.bandwidth_profile) {
+        form.setError('bandwidth_profile', {
+          message: 'Choose a profile, or switch to custom speed.',
+        });
+        return;
+      }
+      try {
+        const saved = plan
+          ? await update.mutateAsync({ id: plan.id, payload: formToPlan(values) })
+          : await create.mutateAsync({ payload: formToPlan(values), idempotencyKey });
+        onSaved(saved);
+      } catch (error) {
+        captureError(error);
+        // Field errors on hidden Additional-settings inputs auto-expand that
+        // section (via hasAdditionalErrors); move focus there as well.
+        window.setTimeout(() => {
+          const hit = ADDITIONAL_FIELDS.find((field) => form.getFieldState(field).error);
+          if (hit) {
+            setAdvanced(true);
+            window.setTimeout(
+              () => document.getElementById(ADDITIONAL_INPUT_IDS[hit])?.focus(),
+              60,
+            );
+          }
+        }, 60);
+      }
+    },
+    (errors) => {
+      if (ADDITIONAL_FIELDS.some((field) => errors[field])) {
+        setAdvanced(true);
+        focusAdditionalError(errors);
+      }
+    },
+  );
 
   const [advanced, setAdvanced] = useState(plan?.plan_type === 'iot_mac');
   const busy = form.formState.isSubmitting;
-  const draft = useWatch({ control: form.control });
+  const hasAdditionalErrors = ADDITIONAL_FIELDS.some((field) => form.formState.errors[field]);
 
   return (
     <form onSubmit={(e) => void submit(e)} noValidate className="plan-editor">
       {message && <Alert tone="danger">{message}</Alert>}
-      <div className="plan-editor-layout">
-        <div className="plan-editor-fields">
+      <div className="plan-editor-fields">
           <fieldset className="min-w-0 space-y-4 rounded-xl border border-border p-4">
-            <legend className="px-2 text-sm font-semibold text-brand-950">Package details</legend>
-            <div className="plan-name-row">
-              <FormField label="Plan name" required error={form.formState.errors.name?.message}>
-                <Input
-                  autoFocus
-                  placeholder="e.g. 1 Day Unlimited"
-                  maxLength={100}
-                  {...form.register('name')}
-                />
-              </FormField>
-              <FormField
-                label="Voucher prefix"
-                optionalLabel
-                hint="Prepended to generated usernames (letters and digits, max 10)."
-                error={form.formState.errors.voucher_prefix?.message}
-              >
-                <Input
-                  placeholder="e.g. DAY"
-                  maxLength={10}
-                  className="font-mono uppercase"
-                  {...form.register('voucher_prefix')}
-                />
-              </FormField>
-            </div>
+            <legend className="px-2 text-sm font-semibold text-brand-950">Plan essentials</legend>
+            <FormField label="Plan name" required error={form.formState.errors.name?.message}>
+              <Input
+                autoFocus
+                id="plan-name"
+                placeholder="e.g. 1 Day Unlimited"
+                maxLength={100}
+                {...form.register('name')}
+              />
+            </FormField>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <FormField
                 label="Price"
@@ -136,79 +171,110 @@ export function PlanForm({
                 error={form.formState.errors.price?.message}
               >
                 <Input
+                  id="plan-price"
                   inputMode="decimal"
                   prefix="₦"
                   placeholder="500"
                   {...form.register('price')}
                 />
               </FormField>
-              <FormField
-                label="Duration"
-                required
-                error={form.formState.errors.duration_hours?.message}
-              >
-                {customDuration ? (
+              <div>
+                <span id="plan-duration-label" className="mb-1.5 block text-sm font-medium text-ink-700">
+                  Duration <span className="ml-0.5 text-danger-600" aria-hidden>*</span>
+                </span>
+                <div
+                  className="plan-duration-row"
+                  role="group"
+                  aria-labelledby="plan-duration-label"
+                >
                   <Input
+                    id="plan-duration-value"
                     type="number"
-                    min={0.000139}
+                    min={0}
                     step="any"
                     inputMode="decimal"
-                    placeholder="Hours"
-                    trailingSlot={<span className="text-xs text-ink-500">hours</span>}
-                    {...form.register('duration_hours')}
+                    placeholder="Amount"
+                    aria-label="Duration amount"
+                    {...form.register('duration_value')}
                   />
-                ) : (
                   <Select
-                    value={presetValue}
-                    onChange={(e) => {
-                      if (e.target.value === 'custom') {
-                        setCustomDuration(true);
-                        return;
-                      }
-                      form.setValue('duration_hours', Number(e.target.value), {
-                        shouldDirty: true,
-                        shouldValidate: true,
-                      });
-                    }}
-                    options={[
-                      ...DURATION_PRESETS.map((p) => ({ value: String(p.hours), label: p.label })),
-                      { value: 'custom', label: 'Custom…' },
-                    ]}
+                    id="plan-duration-unit"
+                    aria-label="Duration unit"
+                    {...form.register('duration_unit')}
+                    options={DURATION_UNITS.map((u) => ({ value: u.value, label: u.label }))}
                   />
+                </div>
+                {(form.formState.errors.duration_value || form.formState.errors.duration_unit) && (
+                  <p role="alert" className="mt-1.5 text-xs font-medium text-danger-600">
+                    {form.formState.errors.duration_value?.message ??
+                      form.formState.errors.duration_unit?.message}
+                  </p>
                 )}
-              </FormField>
+                {!form.formState.errors.duration_value && (
+                  <p className="mt-1.5 text-xs text-ink-500">
+                    {Number(durationValue) > 0
+                      ? `Lasts ${describeDuration(Number(durationValue), durationUnit ?? 'hours')} once activated.`
+                      : 'How long access lasts once activated.'}
+                  </p>
+                )}
+              </div>
             </div>
-            <FormField
-              label="Maximum devices"
-              hint="Maximum number of devices that can use one voucher at the same time."
-              error={form.formState.errors.max_devices?.message}
-            >
-              <Select
-                {...form.register('max_devices')}
-                options={Array.from({ length: 10 }, (_, i) => ({
-                  value: String(i + 1),
-                  label: `${i + 1} device${i ? 's' : ''}`,
-                }))}
-              />
-            </FormField>
-            {customDuration && (
-              <p className="-mt-3 text-xs text-ink-500">
-                {Number(duration) > 0
-                  ? `= ${formatHours(Number(duration))}`
-                  : 'Enter the number of hours the plan lasts once activated.'}{' '}
-                <button
-                  type="button"
-                  className="text-brand-600 hover:underline"
-                  onClick={() => setCustomDuration(false)}
-                >
-                  Use a preset
-                </button>
-              </p>
+            <fieldset>
+              <legend className="text-sm font-medium text-ink-700">
+                Data allowance <span className="ml-0.5 text-danger-600" aria-hidden>*</span>
+              </legend>
+              <div className="mt-2 flex flex-wrap gap-4" role="radiogroup" aria-label="Data allowance">
+                <label htmlFor="plan-data-unlimited" className="flex cursor-pointer items-center gap-2 text-sm">
+                  <input
+                    id="plan-data-unlimited"
+                    type="radio"
+                    value="unlimited"
+                    className="size-4 accent-brand-600"
+                    {...form.register('data_mode')}
+                  />
+                  Unlimited data
+                </label>
+                <label htmlFor="plan-data-limited" className="flex cursor-pointer items-center gap-2 text-sm">
+                  <input
+                    id="plan-data-limited"
+                    type="radio"
+                    value="limited"
+                    className="size-4 accent-brand-600"
+                    {...form.register('data_mode')}
+                  />
+                  Limited data
+                </label>
+              </div>
+              <p className="mt-1.5 text-xs text-ink-500">Choose whether this plan has a data cap.</p>
+              {form.formState.errors.data_mode && (
+                <p role="alert" className="mt-1 text-xs font-medium text-danger-600">
+                  {form.formState.errors.data_mode.message}
+                </p>
+              )}
+            </fieldset>
+            {dataMode === 'limited' && (
+              <FormField
+                label="Data limit"
+                required
+                hint="Only shown for limited plans. Enter whole megabytes, e.g. 1024 for 1 GB."
+                error={form.formState.errors.data_limit_mb?.message}
+              >
+                <Input
+                  id="plan-data-limit"
+                  type="number"
+                  min={1}
+                  step={1}
+                  inputMode="numeric"
+                  placeholder="e.g. 1024"
+                  trailingSlot={<span className="text-xs text-ink-500">MB</span>}
+                  {...form.register('data_limit_mb')}
+                />
+              </FormField>
             )}
           </fieldset>
           <fieldset className="min-w-0 space-y-4 rounded-xl border border-border p-4">
             <legend className="px-2 text-sm font-semibold text-brand-950">
-              MikroTik Rate Profile
+              Speed
             </legend>
             <div className="flex flex-wrap gap-2">
               <Button
@@ -250,63 +316,110 @@ export function PlanForm({
               </p>
             )}
 
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <FormField
-                label="Speed limit"
-                hint="Upload/download, e.g. 5M/10M. Applies to newly issued access; leave blank for no plan speed limit."
-                error={form.formState.errors.rate_limit?.message}
-              >
-                <Input
-                  placeholder="5M/10M"
-                  readOnly={chooseProfile && !!profileId}
-                  className="font-mono"
-                  {...form.register('rate_limit')}
-                />
-              </FormField>
-              <FormField
-                label="Data cap"
-                hint="0 = unlimited."
-                error={form.formState.errors.data_limit_mb?.message}
-              >
-                <Input
-                  type="number"
-                  min={0}
-                  step={1}
-                  inputMode="numeric"
-                  trailingSlot={<span className="text-xs text-ink-500">MB</span>}
-                  {...form.register('data_limit_mb')}
-                />
-              </FormField>
-            </div>
+            <FormField
+              label="Speed limit"
+              hint="Upload/download, e.g. 5M/10M. Applies to newly issued access; leave blank for no plan speed limit."
+              error={form.formState.errors.rate_limit?.message}
+            >
+              <Input
+                id="plan-rate-limit"
+                placeholder="5M/10M"
+                readOnly={chooseProfile && !!profileId}
+                className="font-mono"
+                {...form.register('rate_limit')}
+              />
+            </FormField>
           </fieldset>
           <Controller
             control={form.control}
-            name="is_public"
+            name="is_active"
             render={({ field }) => (
               <Checkbox
+                id="plan-active-status"
                 checked={field.value}
                 onChange={(e) => field.onChange(e.target.checked)}
-                label="Public sales"
-                description="Publish to the storefront for public hotspot checkout. IoT access remains device-managed."
+                label="Active"
+                description="Inactive plans cannot be sold or used to generate vouchers, but existing vouchers keep working."
               />
             )}
           />
           <details
             className="plan-advanced"
-            open={
-              advanced ||
-              Boolean(
-                form.formState.errors.public_router ||
-                form.formState.errors.plan_type ||
-                form.formState.errors.voucher_code_format,
-              )
-            }
+            open={advanced || hasAdditionalErrors}
             onToggle={(e) => setAdvanced(e.currentTarget.open)}
           >
-            <summary>Additional plan settings</summary>
+            <summary>Additional settings</summary>
             <div className="space-y-4 pt-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <FormField
+                  label="Voucher prefix"
+                  optionalLabel
+                  hint="Prepended to generated usernames (letters and digits, max 10)."
+                  error={form.formState.errors.voucher_prefix?.message}
+                >
+                  <Input
+                    id="plan-voucher-prefix"
+                    placeholder="e.g. DAY"
+                    maxLength={10}
+                    className="font-mono uppercase"
+                    {...form.register('voucher_prefix')}
+                  />
+                </FormField>
+                <FormField
+                  label="Voucher code format"
+                  hint="Applies to future vouchers. Existing codes stay unchanged."
+                  error={form.formState.errors.voucher_code_format?.message}
+                >
+                  <Select
+                    id="plan-code-format"
+                    {...form.register('voucher_code_format')}
+                    options={planCodeFormatOptions}
+                  />
+                </FormField>
+              </div>
+              <FormField
+                label="Maximum devices"
+                hint="Maximum number of devices that can use one voucher at the same time."
+                error={form.formState.errors.max_devices?.message}
+              >
+                <Select
+                  id="plan-max-devices"
+                  {...form.register('max_devices')}
+                  options={Array.from({ length: 10 }, (_, i) => ({
+                    value: String(i + 1),
+                    label: `${i + 1} device${i ? 's' : ''}`,
+                  }))}
+                />
+              </FormField>
+              <Controller
+                control={form.control}
+                name="is_public"
+                render={({ field }) => (
+                  <Checkbox
+                    id="plan-public-sales"
+                    checked={field.value}
+                    onChange={(e) => field.onChange(e.target.checked)}
+                    label="Public sales"
+                    description="Publish to the storefront for public hotspot checkout. IoT access remains device-managed."
+                  />
+                )}
+              />
+              <Controller
+                control={form.control}
+                name="agent_enabled"
+                render={({ field }) => (
+                  <Checkbox
+                    id="plan-agent-sales"
+                    checked={field.value}
+                    onChange={(e) => field.onChange(e.target.checked)}
+                    label="Agent sales"
+                    description="Allow agents to issue hotspot vouchers from this plan."
+                  />
+                )}
+              />
               <FormField label="Service type" error={form.formState.errors.plan_type?.message}>
                 <Select
+                  id="plan-service-type"
                   {...form.register('plan_type')}
                   options={[
                     { value: 'voucher', label: 'Hotspot voucher' },
@@ -327,44 +440,8 @@ export function PlanForm({
                   )}
                 />
               )}
-              <FormField
-                label="Voucher code format"
-                hint="Applies to future vouchers. Existing codes stay unchanged. Numbers or letters describe the random part after any prefix."
-                error={form.formState.errors.voucher_code_format?.message}
-              >
-                <Select {...form.register('voucher_code_format')} options={planCodeFormatOptions} />
-              </FormField>
-              {(['agent_enabled'] as const).map((name) => (
-                <Controller
-                  key={name}
-                  control={form.control}
-                  name={name}
-                  render={({ field }) => (
-                    <Checkbox
-                      checked={field.value}
-                      onChange={(e) => field.onChange(e.target.checked)}
-                      label="Agent sales"
-                      description="Allow agents to issue hotspot vouchers from this plan."
-                    />
-                  )}
-                />
-              ))}
-              <Controller
-                control={form.control}
-                name="is_active"
-                render={({ field }) => (
-                  <Checkbox
-                    checked={field.value}
-                    onChange={(e) => field.onChange(e.target.checked)}
-                    label="Active"
-                    description="Inactive plans cannot be sold or used to generate vouchers, but existing vouchers keep working."
-                  />
-                )}
-              />
             </div>
           </details>
-        </div>
-        <PlanPreview draft={draft} />
       </div>
       <div className="plan-editor-footer">
         <p>Changes apply to newly issued access.</p>
@@ -397,6 +474,7 @@ function PlanRouterField({
         hint="IoT access is restricted to this router; required when Public sales is selected."
       >
         <Select
+          id="plan-assigned-router"
           value={value ?? ''}
           onChange={(e) => onChange(e.target.value || null)}
           disabled={routers.isPending}

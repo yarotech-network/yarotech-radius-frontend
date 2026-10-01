@@ -41,6 +41,7 @@ const NoAccessPage = lazyRoute(lazy(() => import('@/features/auth/pages/NoAccess
 const DashboardPage = lazyRoute(lazy(() => import('@/features/dashboard/pages/DashboardPage')));
 const CustomersPage = lazyRoute(lazy(() => import('@/features/customers/AccessCustomersPage')));
 const CustomerDevicesPage = lazyRoute(lazy(() => import('@/features/customers/CustomersPage')));
+const ContactRecordsPage = lazyRoute(lazy(() => import('@/features/customers/ContactRecordsPage')));
 const SessionsPage = lazyRoute(lazy(() => import('@/features/sessions/pages/SessionsPage')));
 const BandwidthPage = lazyRoute(lazy(() => import('@/features/plans/pages/BandwidthPage')));
 const PPPoEPlansPage = lazyRoute(lazy(() => import('@/features/plans/pages/PPPoEPlansPage')));
@@ -53,7 +54,6 @@ const VoucherDetailPage = lazyRoute(
   lazy(() => import('@/features/vouchers/pages/VoucherDetailPage')),
 );
 const RoutersPage = lazyRoute(lazy(() => import('@/features/routers/pages/RoutersPage')));
-const NewRouterPage = lazyRoute(lazy(() => import('@/features/routers/pages/NewRouterPage')));
 const RouterOperationsPage = lazyRoute(
   lazy(() => import('@/features/routers/pages/RouterOperationsPage')),
 );
@@ -135,7 +135,11 @@ const workspaceRoutes: RouteObject[] = [
   },
   {
     element: <RequireCapability capability="customers.view" />,
-    children: [{ path: 'customers', Component: CustomersPage }, { path: 'customers/devices', Component: CustomerDevicesPage }],
+    children: [
+      { path: 'customers', Component: CustomersPage },
+      { path: 'customers/devices', Component: CustomerDevicesPage },
+      { path: 'customers/contacts', Component: ContactRecordsPage },
+    ],
   },
   {
     element: <RequireCapability capability="settings.profile" />,
@@ -184,7 +188,9 @@ const workspaceRoutes: RouteObject[] = [
   {
     element: <RequireCapability capability="routers.manage" />,
     children: [
-      { path: 'routers/new', Component: NewRouterPage },
+      // `/routers/new` renders the fleet with the Add Router popup open;
+      // closing returns to `/routers` with filters preserved.
+      { path: 'routers/new', Component: RoutersPage },
       { path: 'routers/operations', Component: RouterOperationsPage },
     ],
   },

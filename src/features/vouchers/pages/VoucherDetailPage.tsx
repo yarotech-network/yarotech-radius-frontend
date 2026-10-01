@@ -53,68 +53,68 @@ export default function VoucherDetailPage() {
       }
     >
       {(voucher) => (
-        <div className="space-y-6">
-          {/* Premium Hero Header */}
-          <div className="router-page-hero">
-            <div className="router-page-hero-inner">
-              <div className="router-page-hero-text">
-                <div className="mb-2 flex flex-wrap items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => navigate('/vouchers')}
-                    className="inline-flex items-center gap-1 text-xs font-semibold text-sky-200 hover:text-white transition"
-                  >
-                    <ArrowLeft className="size-3.5" /> Back to Vouchers
-                  </button>
-                  <span className="text-white/30">|</span>
-                  <StatusBadge status={voucher.status} />
-                </div>
-                <h1 className="router-page-hero-title font-mono tracking-wider break-all">
-                  {voucher.username}
-                </h1>
-                <p className="router-page-hero-desc">
-                  {voucher.plan_name} · {voucher.price_display} · {describeSource(voucher)}
-                </p>
+        <div className="space-y-6 rv-portal">
+          {/* Compact portal-style header */}
+          <div className="rv-portal-header">
+            <div className="rv-portal-header-text">
+              <div className="mb-2 flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => navigate('/vouchers')}
+                  className="inline-flex items-center gap-1 rounded-sm text-xs font-semibold text-brand-600 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600"
+                >
+                  <ArrowLeft className="size-3.5" aria-hidden /> Back to Vouchers
+                </button>
+                <span aria-hidden className="text-ink-300">
+                  |
+                </span>
+                <StatusBadge status={voucher.status} />
               </div>
-              <div className="router-page-hero-actions">
+              <h1 className="rv-portal-title font-mono tracking-wider break-all">
+                {voucher.username}
+              </h1>
+              <p className="rv-portal-desc">
+                {voucher.plan_name} · {voucher.price_display} · {describeSource(voucher)}
+              </p>
+            </div>
+            <div className="rv-portal-actions">
+              <Button
+                variant="secondary"
+                disabled={query.isFetching}
+                leadingIcon={<RefreshCw className={query.isFetching ? 'animate-spin motion-reduce:animate-none' : ''} />}
+                onClick={() => void query.refetch()}
+              >
+                {query.isFetching ? 'Refreshing...' : 'Refresh'}
+              </Button>
+              <CopyButton value={voucher.username} label="Copy username" />
+              {canPrint && (
                 <Button
                   variant="secondary"
-                  disabled={query.isFetching}
-                  leadingIcon={<RefreshCw className={query.isFetching ? 'animate-spin motion-reduce:animate-none' : ''} />}
-                  onClick={() => void query.refetch()}
+                  leadingIcon={<Printer className="size-4" aria-hidden />}
+                  loading={printer.printing}
+                  onClick={() => void printer.print([voucher.id])}
                 >
-                  {query.isFetching ? 'Refreshing...' : 'Refresh'}
+                  Print
                 </Button>
-                <CopyButton value={voucher.username} label="Copy username" />
-                {canPrint && (
-                  <Button
-                    variant="secondary"
-                    leadingIcon={<Printer className="size-4" aria-hidden />}
-                    loading={printer.printing}
-                    onClick={() => void printer.print([voucher.id])}
-                  >
-                    Print
-                  </Button>
-                )}
-                {canManage && isEditable(voucher) && (
-                  <Button
-                    variant="secondary"
-                    leadingIcon={<Pencil className="size-4" aria-hidden />}
-                    onClick={() => setEditing(true)}
-                  >
-                    Edit
-                  </Button>
-                )}
-                {canManage && canDisable(voucher) && (
-                  <Button
-                    variant="danger"
-                    leadingIcon={<Ban className="size-4" aria-hidden />}
-                    onClick={() => setConfirm('disable')}
-                  >
-                    Disable
-                  </Button>
-                )}
-              </div>
+              )}
+              {canManage && isEditable(voucher) && (
+                <Button
+                  variant="secondary"
+                  leadingIcon={<Pencil className="size-4" aria-hidden />}
+                  onClick={() => setEditing(true)}
+                >
+                  Edit
+                </Button>
+              )}
+              {canManage && canDisable(voucher) && (
+                <Button
+                  variant="danger"
+                  leadingIcon={<Ban className="size-4" aria-hidden />}
+                  onClick={() => setConfirm('disable')}
+                >
+                  Disable
+                </Button>
+              )}
             </div>
           </div>
 
@@ -126,7 +126,7 @@ export default function VoucherDetailPage() {
 
           <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
             <div className="min-w-0 space-y-6">
-              <Card padded={false} className="border-border/70">
+              <Card padded={false} className="rv-portal-card">
                 <CardHeader
                   title="Plan and usage limits"
                   description="The package and device allowance attached to this voucher."
@@ -147,7 +147,7 @@ export default function VoucherDetailPage() {
                 />
               </Card>
 
-              <Card padded={false} className="border-border/70">
+              <Card padded={false} className="rv-portal-card">
                 <CardHeader
                   title="Voucher lifecycle"
                   description="Recorded creation, activation and expiry dates."
@@ -188,7 +188,7 @@ export default function VoucherDetailPage() {
             </div>
 
             <div className="flex min-w-0 flex-col gap-4">
-              <Card className="border-brand-200 bg-gradient-to-br from-brand-50/70 via-surface to-sky-50/50 dark:from-brand-950/40 dark:via-surface dark:to-slate-900/40">
+              <Card className="rv-portal-card">
                 <span className="mb-4 flex size-11 items-center justify-center rounded-xl bg-brand-600 text-white shadow-md">
                   <Ticket className="size-5" aria-hidden />
                 </span>
@@ -223,7 +223,7 @@ export default function VoucherDetailPage() {
               )}
 
               {canManage && isEditable(voucher) && (
-                <Card className="border-danger-200 dark:border-danger-900/60">
+                <Card className="rv-portal-card border-danger-200 dark:border-danger-900/60">
                   <h2 className="text-sm font-semibold text-danger-700 dark:text-danger-400">Delete this voucher</h2>
                   <p className="mt-1 text-sm text-ink-500">
                     Unused vouchers that were never issued can be deleted outright.

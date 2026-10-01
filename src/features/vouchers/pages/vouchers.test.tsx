@@ -468,6 +468,42 @@ describe('GenerateVouchersPage device ceiling', () => {
   });
 });
 
+describe('Voucher portal styling', () => {
+  it('renders the desk inside the scoped portal wrapper with a compact header', async () => {
+    server.use(http.get(`${API}/vouchers/`, () => HttpResponse.json(paginated([voucher(1)]))));
+    const { container } = renderPage(<VouchersPage />, { role: 'manager', path: '/vouchers' });
+    await screen.findByRole('table', { name: 'Vouchers' });
+    expect(container.querySelector('.rv-portal')).not.toBeNull();
+    expect(container.querySelector('.rv-portal-header')).not.toBeNull();
+    expect(container.querySelector('.router-page-hero')).toBeNull();
+    expect(screen.getByRole('heading', { name: 'Voucher Desk' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Generate vouchers' })).toBeInTheDocument();
+  });
+
+  it('keeps the detail header and portal cards with printable actions', async () => {
+    server.use(http.get(`${API}/vouchers/7/`, () => HttpResponse.json(voucher(7))));
+    const { container } = renderPage(<VoucherDetailPage />, {
+      role: 'owner',
+      path: '/vouchers/:id',
+      route: '/vouchers/7',
+    });
+    await screen.findByRole('heading', { name: /WH10007/ });
+    expect(container.querySelector('.rv-portal .rv-portal-header')).not.toBeNull();
+    expect(screen.getByRole('button', { name: 'Refresh' })).toBeInTheDocument();
+  });
+
+  it('keeps the generation form inside portal cards with the plan picker intact', async () => {
+    const { container } = renderPage(<GenerateVouchersPage />, {
+      role: 'manager',
+      path: '/vouchers/generate',
+    });
+    await screen.findByRole('radio', { name: /Daily 1GB/ });
+    expect(container.querySelector('.rv-portal')).not.toBeNull();
+    expect(screen.getByRole('heading', { name: 'Generate Vouchers' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Generate 20 vouchers/ })).toBeInTheDocument();
+  });
+});
+
 describe('VouchersPage device column', () => {
   it('shows per-voucher device entitlement with singular/plural text', async () => {
     server.use(

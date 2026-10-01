@@ -1,4 +1,5 @@
 import { CustomerTabs } from './CustomerTabs';
+import { PageMetrics } from '@/features/dashboard/components/PageMetrics';
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router';
@@ -114,12 +115,13 @@ function ContactWorkspace({ scope, actorId }: { scope: number | null; actorId: n
           </div>
           <div className="router-page-hero-divider" />
           <div className="router-page-hero-links">
-            <Link to="/customers" className="router-page-hero-link">
+            <Link to="/customers/devices" className="router-page-hero-link">
               <Users className="size-3.5" aria-hidden /> Observed devices
             </Link>
           </div>
         </div>
       </div>
+      <PageMetrics section="customers" />
       <Card className="grid gap-4 p-4 lg:grid-cols-[minmax(0,1fr)_12rem_auto] lg:items-center">
         <div className="min-w-0 flex-1">
           <SearchInput

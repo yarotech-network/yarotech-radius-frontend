@@ -109,7 +109,7 @@ export const WORKSPACE_NAV: NavGroup[] = [
       },
       {
         key: 'storefront',
-        label: 'Storefront',
+        label: 'public page',
         to: '/storefront',
         icon: ShoppingBag,
         capabilities: ['settings.profile'],
@@ -218,7 +218,7 @@ export const PLATFORM_NAV: NavGroup[] = [
         to: '/platform/business-plans',
         icon: BadgeDollarSign,
       },
-      { key: 'staff', label: 'Staff', to: '/platform/staff', icon: Users },
+      { key: 'staff', label: 'create user', to: '/platform/staff', icon: Users },
       { key: 'audit', label: 'Audit log', to: '/platform/audit', icon: ClipboardList },
       { key: 'whatsapp', label: 'WhatsApp', to: '/platform/whatsapp', icon: MessageCircle },
     ],

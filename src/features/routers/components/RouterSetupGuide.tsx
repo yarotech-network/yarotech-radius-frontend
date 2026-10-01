@@ -1,6 +1,8 @@
-import { Link } from 'react-router';
+import { Link, useLocation } from 'react-router';
 
 export function RouterSetupGuide({ canManage }: { canManage: boolean }) {
+  const location = useLocation();
+  const addRouterTo = `/routers/new${location.search}`;
   return (
     <section
       aria-labelledby="router-setup-guide-title"
@@ -69,7 +71,7 @@ export function RouterSetupGuide({ canManage }: { canManage: boolean }) {
           </ul>
           {canManage ? (
             <Link
-              to="/routers/new"
+              to={addRouterTo}
               className="dashboard-data-link mt-4 inline-flex rounded-md px-1 py-1 font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600"
             >
               Add router

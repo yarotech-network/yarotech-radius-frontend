@@ -47,7 +47,7 @@ export function PageMetrics({
   const s = query.data;
   const counts =
     section === 'customers'
-      ? ([['Registered customers', s?.total_customers]] as const)
+      ? ([['Contact records', s?.total_customers]] as const)
       : ([
           ['Total plans', s?.total_plans],
           ['Active plans', s?.active_plans],
@@ -69,10 +69,7 @@ export function PageMetrics({
       )}
       {section === 'customers' && (
         <p className="text-sm text-ink-500">
-          Contact records, not purchases or connected devices.{' '}
-          <Link className="dashboard-data-link" to="/customers/contacts">
-            View contact records
-          </Link>
+          Saved customer profiles, separate from purchases and connected devices.
         </p>
       )}
       {query.isError && (

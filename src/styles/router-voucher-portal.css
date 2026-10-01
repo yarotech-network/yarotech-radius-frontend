@@ -1,0 +1,286 @@
+/**
+ * Portal-style treatment for tenant Router and Voucher pages only.
+ *
+ * Every selector is scoped under `.rv-portal`, a wrapper applied solely by:
+ * RoutersPage, RouterDetailPage, RouterOperationsPage, VouchersPage,
+ * VoucherDetailPage and GenerateVouchersPage. Platform-admin, other tenant,
+ * and public pages never receive this class, so their appearance is unchanged.
+ *
+ * Visual model: yarotech-radius-portal/static/css/yarotech.css
+ * (page-header, yaro-card, yaro-stat, filter-panel, yaro-table-wrap, badges).
+ * Surfaces, borders and text reuse the frontend theme tokens, so light and
+ * dark themes keep readable contrast without hard-coded colors.
+ */
+
+/* Page rhythm inside the portal wrapper. */
+.rv-portal {
+  min-width: 0;
+}
+
+/* Compact header card: replaces the large gradient heroes. */
+.rv-portal-header {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1.15rem;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 0.875rem;
+  box-shadow: 0 1px 2px rgb(15 23 42 / 0.04);
+}
+
+@media (min-width: 48rem) {
+  .rv-portal-header {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+}
+
+.rv-portal-header-text {
+  min-width: 0;
+  max-width: 48rem;
+}
+
+.rv-portal-eyebrow {
+  margin: 0 0 0.3rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-ink-500);
+}
+
+.rv-portal-title {
+  margin: 0;
+  font-size: clamp(1.35rem, 2vw, 1.7rem);
+  font-weight: 750;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  color: var(--color-ink-900);
+  overflow-wrap: anywhere;
+}
+
+.rv-portal-desc {
+  margin: 0.35rem 0 0;
+  max-width: 48rem;
+  font-size: 0.875rem;
+  line-height: 1.55;
+  color: var(--color-ink-500);
+}
+
+.rv-portal-header-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  margin-top: 0.75rem;
+  font-size: 0.78rem;
+  color: var(--color-ink-500);
+}
+
+.rv-portal-header-meta a {
+  border-radius: 0.375rem;
+  font-weight: 600;
+  color: var(--color-brand-600);
+  text-decoration: none;
+}
+
+.rv-portal-header-meta a:hover {
+  text-decoration: underline;
+}
+
+.rv-portal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  flex-shrink: 0;
+}
+
+/* Generic portal card used for directories, overviews and tab content. */
+.rv-portal-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 0.875rem;
+  box-shadow: 0 1px 2px rgb(15 23 42 / 0.04);
+  padding: 1.15rem;
+}
+
+.rv-portal-card-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding-bottom: 0.85rem;
+  border-bottom: 1px solid var(--color-border);
+  margin-bottom: 1rem;
+}
+
+.rv-portal-card-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--color-ink-900);
+}
+
+.rv-portal-card-count {
+  margin: 0.25rem 0 0;
+  font-size: 0.78rem;
+  color: var(--color-ink-500);
+}
+
+/* Filter panel inside portal cards. */
+.rv-portal-filter {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 0.875rem;
+  padding: 1rem 1.15rem;
+}
+
+.rv-portal-filter + .rv-portal-filter,
+.rv-portal-filter + .rv-portal-table {
+  margin-top: 1rem;
+}
+
+/* Table treatment: card shell, uppercase headings, tighter rows. */
+.rv-portal-table {
+  overflow: hidden;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 0.875rem;
+}
+
+.rv-portal-table table {
+  width: 100%;
+  margin: 0;
+}
+
+.rv-portal-table thead th {
+  padding: 0.72rem 1rem;
+  background: var(--color-surface-muted);
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-ink-500);
+  font-size: 0.68rem;
+  font-weight: 750;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.rv-portal-table tbody td {
+  padding: 0.85rem 1rem;
+  vertical-align: middle;
+  font-size: 0.83rem;
+}
+
+.rv-portal-table-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  border-top: 1px solid var(--color-border);
+}
+
+@media (max-width: 47.999rem) {
+  .rv-portal-table thead th,
+  .rv-portal-table tbody td {
+    padding: 0.75rem;
+  }
+}
+
+/* Metric cards rendered by shared Stat/NetworkCards/BusinessCards components.
+ * Only grid children are given the restrained hover lift, so large directory
+ * and detail cards are unaffected. */
+.rv-portal .grid > .rounded-card {
+  border-radius: 0.875rem;
+  box-shadow: 0 1px 2px rgb(15 23 42 / 0.04);
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease,
+    border-color 0.18s ease;
+}
+
+.rv-portal .grid > .rounded-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--color-border-strong);
+  box-shadow: 0 10px 30px rgb(15 23 42 / 0.06);
+}
+
+/* Compact icon tile for header stats kept in the fleet header meta. */
+.rv-portal-meta-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 0.625rem;
+  background: var(--color-surface-muted);
+  border: 1px solid var(--color-border);
+  color: var(--color-brand-600);
+  vertical-align: -0.4rem;
+}
+
+.rv-portal-meta-icon svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+/* Add Router popup alignment. The dialog lives inside `.rv-portal`, and its
+ * workflow, validation, routing and close behavior are unchanged. */
+.rv-portal .rv-add-dialog {
+  border-radius: 1rem;
+}
+
+.rv-add-review {
+  border: 1px solid var(--color-border);
+  border-radius: 0.875rem;
+  background: var(--color-surface-muted);
+  padding: 1rem;
+}
+
+.rv-add-steps {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+/* Status badges keep their existing tones and labels; ensure the table
+ * context never flattens them. */
+.rv-portal-table tbody td .rounded-full {
+  text-transform: capitalize;
+}
+
+/* Visible keyboard focus inside portal pages. */
+.rv-portal :is(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--color-brand-600);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rv-portal .grid > .rounded-card,
+  .rv-portal .grid > .rounded-card:hover {
+    transform: none;
+    transition: none;
+  }
+}
+
+@media (max-width: 47.999rem) {
+  .rv-portal-header {
+    padding: 1rem;
+  }
+
+  .rv-portal-card {
+    padding: 1rem;
+  }
+
+  .rv-portal-actions,
+  .rv-portal-actions :is(a, button) {
+    width: 100%;
+  }
+}

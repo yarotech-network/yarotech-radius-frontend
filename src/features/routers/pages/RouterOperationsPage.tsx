@@ -38,8 +38,9 @@ export default function RouterOperationsPage() {
   const live = query.data?.results.some(isOperationOpen) ?? false;
 
   return (
-    <div className="router-page space-y-6">
+    <div className="router-page rv-portal space-y-6">
       <PageHeader
+        className="rv-portal-header"
         title="Provisioning operations"
         actions={
           <Button
@@ -80,20 +81,22 @@ export default function RouterOperationsPage() {
           <p>Review the outcome and recorded attempts.</p>
         </div>
       </div>
-      <section aria-labelledby="operation-history-title" className="space-y-4">
-        <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h2 id="operation-history-title" className="text-lg font-semibold text-brand-950">
-            Operation history
-          </h2>
-          <p role="status" className="text-sm text-ink-500">
-            {query.isPlaceholderData
-              ? 'Updating results...'
-              : query.data
-                ? `${query.data!.count} operations in this view`
-                : query.isError
-                  ? 'Operation count unavailable'
-                  : 'Loading operations...'}
-          </p>
+      <section aria-labelledby="operation-history-title" className="rv-portal-card space-y-4">
+        <div className="rv-portal-card-head">
+          <div>
+            <h2 id="operation-history-title" className="rv-portal-card-title">
+              Operation history
+            </h2>
+            <p role="status" className="rv-portal-card-count">
+              {query.isPlaceholderData
+                ? 'Updating results...'
+                : query.data
+                  ? `${query.data!.count} operations in this view`
+                  : query.isError
+                    ? 'Operation count unavailable'
+                    : 'Loading operations...'}
+            </p>
+          </div>
         </div>
         <div className="router-status-filters" role="group" aria-label="Quick operation filters">
           {STATUS_OPTIONS.map((option) => (
@@ -107,39 +110,41 @@ export default function RouterOperationsPage() {
             </button>
           ))}
         </div>
-        <FilterBar
-          inline
-          activeCount={list.activeFilterCount}
-          onClear={list.clearFilters}
-          filters={
-            <div className="flex items-center gap-2 [&>div]:w-44 [&>div]:shrink-0">
-              <Select
-                aria-label="Router"
-                size="sm"
-                value={filters.router ?? ''}
-                onChange={(e) => list.setFilter('router', e.target.value || undefined)}
-                options={[
-                  { value: '', label: 'All routers' },
-                  ...(routers.data ?? []).map((r) => ({ value: r.id, label: r.name })),
-                ]}
-              />
-              <Select
-                aria-label="Status"
-                size="sm"
-                value={filters.status ?? ''}
-                onChange={(e) => list.setFilter('status', e.target.value || undefined)}
-                options={STATUS_OPTIONS}
-              />
-              <Select
-                aria-label="Action"
-                size="sm"
-                value={filters.action ?? ''}
-                onChange={(e) => list.setFilter('action', e.target.value || undefined)}
-                options={ACTION_OPTIONS}
-              />
-            </div>
-          }
-        />
+        <div className="rv-portal-filter">
+          <FilterBar
+            inline
+            activeCount={list.activeFilterCount}
+            onClear={list.clearFilters}
+            filters={
+              <div className="flex items-center gap-2 [&>div]:w-44 [&>div]:shrink-0">
+                <Select
+                  aria-label="Router"
+                  size="sm"
+                  value={filters.router ?? ''}
+                  onChange={(e) => list.setFilter('router', e.target.value || undefined)}
+                  options={[
+                    { value: '', label: 'All routers' },
+                    ...(routers.data ?? []).map((r) => ({ value: r.id, label: r.name })),
+                  ]}
+                />
+                <Select
+                  aria-label="Status"
+                  size="sm"
+                  value={filters.status ?? ''}
+                  onChange={(e) => list.setFilter('status', e.target.value || undefined)}
+                  options={STATUS_OPTIONS}
+                />
+                <Select
+                  aria-label="Action"
+                  size="sm"
+                  value={filters.action ?? ''}
+                  onChange={(e) => list.setFilter('action', e.target.value || undefined)}
+                  options={ACTION_OPTIONS}
+                />
+              </div>
+            }
+          />
+        </div>
         {routers.isError && (
           <Alert
             tone="warning"
@@ -163,7 +168,7 @@ export default function RouterOperationsPage() {
             Showing the last loaded records. Their status may have changed; refresh again to check.
           </Alert>
         )}
-        <Card padded={false}>
+        <Card padded={false} className="rv-portal-table">
           {query.isPending ? (
             <div className="flex flex-col gap-3 p-4">
               {Array.from({ length: 6 }).map((_, i) => (
@@ -196,7 +201,7 @@ export default function RouterOperationsPage() {
                   />
                 ))}
               </ul>
-              <div className="border-t border-border px-4 py-3">
+              <div className="rv-portal-table-foot">
                 <Pagination
                   count={query.data!.count}
                   page={query.data!.current_page}

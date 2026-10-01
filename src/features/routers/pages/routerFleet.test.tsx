@@ -33,6 +33,14 @@ describe('Router fleet controls', () => {
     renderPage(<RouterAllowance />, { role: 'platform_admin' });
     expect(screen.queryByRole('region', { name: 'Router allowance' })).not.toBeInTheDocument();
   });
+  it('scopes the fleet to the portal wrapper without changing filter behavior', async () => {
+    server.use(http.get(`${API}/routers/`, () => HttpResponse.json(paginated([]))));
+    const { container } = renderPage(<RoutersPage />, { path: '/routers' });
+    await screen.findByText('No routers yet');
+    expect(container.querySelector('.rv-portal .rv-portal-table')).not.toBeNull();
+    expect(container.querySelector('.router-page-hero')).toBeNull();
+  });
+
   it('quick filters retain search and deployment while resetting pagination', async () => {
     const seen: URL[] = [];
     server.use(

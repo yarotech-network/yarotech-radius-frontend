@@ -34,7 +34,7 @@ const routeChunks: Record<string, () => Promise<unknown>> = {
   '/devices': () => import('@/features/devices/pages/DevicesPage'),
   '/audit': () => import('@/features/audit/pages/AuditPage'),
   '/settings': () => import('@/features/settings/pages/SettingsLayout'),
-  '/routers/new': () => import('@/features/routers/pages/NewRouterPage'),
+  '/routers/new': () => import('@/features/routers/pages/RoutersPage'),
   '/routers/operations': () => import('@/features/routers/pages/RouterOperationsPage'),
   '/vouchers/generate': () => import('@/features/vouchers/pages/GenerateVouchersPage'),
   '/payments/recovery': () => import('@/features/payments/pages/RecoveryPage'),

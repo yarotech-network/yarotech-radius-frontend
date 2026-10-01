@@ -27,6 +27,7 @@ import { SidebarNav } from './SidebarNav';
 import { UserMenu } from './UserMenu';
 import { SidebarAccount } from './SidebarAccount';
 import '@/styles/dashboard.css';
+import '@/styles/router-voucher-portal.css';
 import '@/styles/tenant-sidebar.css';
 
 export interface AppShellProps {
