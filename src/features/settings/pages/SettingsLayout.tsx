@@ -1,10 +1,10 @@
 import { NavLink, Outlet } from 'react-router';
-import { Building2, CreditCard, Layers, Settings, ShieldCheck, User } from 'lucide-react';
+import { Building2, CreditCard, Layers, Settings, ShieldCheck, User, type LucideIcon } from 'lucide-react';
 import { usePrincipal } from '@/app/auth/useAuth';
 import { cn } from '@/lib/utilities/cn';
 import { can, canAny, type Capability, workspaceName } from '@/services/auth/principal';
 
-const TABS: { to: string; label: string; caps: Capability[]; icon: any }[] = [
+const TABS: { to: string; label: string; caps: Capability[]; icon: LucideIcon }[] = [
   { to: '/settings/general', label: 'General & Profile', caps: ['settings.profile', 'team.view'], icon: Building2 },
   { to: '/settings/billing', label: 'Billing & Payouts', caps: ['settings.billing'], icon: CreditCard },
   { to: '/settings/subscription', label: 'Subscription Plan', caps: ['subscription.view'], icon: Layers },

@@ -21,15 +21,19 @@ function LogoForm({ tenantId }: { tenantId: number }) {
   const query = useQuery({ queryKey: key, queryFn: () => http.get<Logo>(path), retry: false });
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
+  const previewUrl = useRef<string | null>(null);
   const [error, setError] = useState('');
   const input = useRef<HTMLInputElement>(null);
   const lock = useRef(false);
-  useEffect(() => {
-    if (!file) { setPreview(null); return; }
-    const url = URL.createObjectURL(file);
-    setPreview(url);
-    return () => URL.revokeObjectURL(url);
-  }, [file]);
+  useEffect(() => () => {
+    if (previewUrl.current) URL.revokeObjectURL(previewUrl.current);
+  }, []);
+  function clearPreview() {
+    if (previewUrl.current) URL.revokeObjectURL(previewUrl.current);
+    previewUrl.current = null;
+    setPreview(null);
+    setFile(null);
+  }
   const mutation = useMutation({
     mutationFn: async (upload: File | null) => {
       if (!upload) { await http.delete(path); return { logo_url: null }; }
@@ -39,7 +43,7 @@ function LogoForm({ tenantId }: { tenantId: number }) {
     onSuccess: (data) => {
       client.setQueryData(key, data);
       void client.invalidateQueries({ queryKey: ['storefront', 'tenant'] });
-      setFile(null);
+      clearPreview();
       if (input.current) input.current.value = '';
     },
   });
@@ -61,13 +65,16 @@ function LogoForm({ tenantId }: { tenantId: number }) {
           <span>Choose logo</span>
           <input ref={input} type="file" accept="image/png,image/jpeg,image/webp" disabled={mutation.isPending}
             className="block w-full text-sm" onChange={(event) => {
-              mutation.reset(); setError(''); setFile(null);
+              mutation.reset(); setError(''); clearPreview();
               const selected = event.target.files?.[0];
               if (!selected) return;
               if (selected.size > 2 * 1024 * 1024 || !['image/png', 'image/jpeg', 'image/webp'].includes(selected.type)) {
                 setError('Choose a PNG, JPEG or WebP file no larger than 2 MB.');
                 event.target.value = ''; return;
               }
+              const url = URL.createObjectURL(selected);
+              previewUrl.current = url;
+              setPreview(url);
               setFile(selected);
             }} />
         </label>
