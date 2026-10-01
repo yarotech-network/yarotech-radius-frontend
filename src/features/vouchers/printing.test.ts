@@ -21,6 +21,7 @@ describe('parsePrintHtml', () => {
       password: 'pw<1000>',
       plan: 'Daily 1GB',
       duration: '24 hours',
+      status: 'unused',
     });
   });
   it('returns null when the page has no credentials', () => {
@@ -38,5 +39,54 @@ describe('buildPrintSheet', () => {
     expect(html).toContain('a&lt;b');
     expect(html).toContain('p&quot;q');
     expect(html.match(/<article class="card">/g)).toHaveLength(1);
+  });
+
+  it('shows a branded header, credential box, plan details and connection help', () => {
+    const html = buildPrintSheet(
+      [{ id: 1, username: 'WH10001', password: 'secret-1', plan: 'Daily 1GB', duration: '24 hours' }],
+      { tenantName: 'Wuse Hotspot', footnote: 'Ask the front desk for help.' },
+    );
+    expect(html).toContain('<header class="brand">Wuse Hotspot</header>');
+    expect(html).toContain('Username');
+    expect(html).toContain('Password');
+    expect(html).toContain('WH10001');
+    expect(html).toContain('secret-1');
+    expect(html).toContain('Daily 1GB · 24 hours');
+    expect(html).toContain('Ask the front desk for help.');
+  });
+
+  it('falls back to a generic connection instruction without a footnote', () => {
+    const html = buildPrintSheet(
+      [{ id: 1, username: 'WH10001', password: 'secret-1', plan: '', duration: '' }],
+      { tenantName: 'Wuse Hotspot' },
+    );
+    expect(html).toContain('Connect to the hotspot');
+    expect(html).not.toContain('<p class="meta">');
+  });
+
+  it('renders long codes in full with wrapping instead of clipping', () => {
+    const long = `VERYLONGVOUCHERCODE${'X'.repeat(60)}`;
+    const html = buildPrintSheet(
+      [{ id: 1, username: long, password: 'pw', plan: 'Daily', duration: '' }],
+      { tenantName: 'Tenant' },
+    );
+    expect(html).toContain(long);
+    expect(html).toMatch(/overflow-wrap:\s*anywhere/);
+    expect(html).toMatch(/word-break:\s*break-word/);
+  });
+
+  it('adds status labels only for the labelled-print option', () => {
+    const rows = [{ id: 1, username: 'WH10001', password: 'pw', plan: 'Daily', duration: '', status: 'sold' }];
+    expect(buildPrintSheet(rows, { tenantName: 'Tenant' })).not.toContain('Status: sold');
+    expect(buildPrintSheet(rows, { tenantName: 'Tenant', showStatusLabels: true })).toContain('Status: sold');
+  });
+
+  it('keeps print output black on white', () => {
+    const html = buildPrintSheet(
+      [{ id: 1, username: 'WH10001', password: 'pw', plan: 'Daily', duration: '' }],
+      { tenantName: 'Tenant' },
+    );
+    expect(html).toContain('background: #fff');
+    expect(html).toContain('color: #000');
   });
 });

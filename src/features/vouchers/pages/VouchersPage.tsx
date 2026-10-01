@@ -1,31 +1,35 @@
-import { PageMetrics } from '@/features/dashboard/components/PageMetrics';
-import { useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router';
-import { Check, Copy, Plus, Printer, RefreshCw, Ticket, X } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router';
+import { Check, Copy, Plus, Printer, Ticket, X, Trash2 } from 'lucide-react';
 import { StatusBadge } from '@/components/layout';
 import {
   DataTable,
-  FilterBar,
   Pagination,
   SearchInput,
   useListParams,
   type Column,
 } from '@/components/data';
-import { Button, Card, Checkbox, ConfirmDialog, Select } from '@/components/ui';
+import { Button, Checkbox, ConfirmDialog, Dialog, Input } from '@/components/ui';
 import { Alert, EmptyState, useToast } from '@/components/feedback';
 import { useDebouncedValue } from '@/lib/utilities/useDebouncedValue';
 import { formatDateTime } from '@/lib/formatting/dates';
 import { can } from '@/services/auth/principal';
 import { usePrincipal } from '@/app/auth/useAuth';
-import { usePlanOptions } from '@/features/plans/queries';
 import type { Voucher, VoucherListParams, VoucherStatus } from '@/types/api';
 import { VoucherActions } from '../components/VoucherActions';
 import { VoucherStatusFilter, type VoucherStatusTab } from '../components/VoucherStatusFilter';
 import { usePrintVouchers } from '../hooks/usePrintVouchers';
-import { VOUCHERS_DEFAULT_ORDERING, useDisableVoucher, useVouchers } from '../queries';
-import { describeSource } from '../voucherRules';
+import { VOUCHERS_DEFAULT_ORDERING, useDisableVoucher, useVouchers, useVoucherSummary, voucherKeys } from '../queries';
+import { vouchersApi } from '../api';
+import { ManualCodeDialog } from '../components/ManualCodeDialog';
+import GenerateVouchersPage from './GenerateVouchersPage';
+import { newIdempotencyKey } from '@/lib/utilities/idempotency';
+import { downloadBlob } from '@/lib/utilities/download';
+import { errorMessage } from '@/services/api/errors';
+import { useQueryClient } from '@tanstack/react-query';
+import type { VoucherRemovalPreview } from '@/types/api';
 
-const FILTERS = ['status', 'plan', 'source'] as const;
+const FILTERS = ['status', 'created_from_day', 'created_to_day'] as const;
 const STATUSES: readonly VoucherStatus[] = [
   'unused',
   'sold',
@@ -41,7 +45,17 @@ export default function VouchersPage() {
   const toast = useToast();
   const canGenerate = can(principal, 'vouchers.generate');
   const canPrint = can(principal, 'vouchers.print');
+  const canManage = can(principal, 'vouchers.manage');
+  const client = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
   const list = useListParams(FILTERS, { ordering: VOUCHERS_DEFAULT_ORDERING });
+  useEffect(() => {
+    if (!searchParams.has('plan') && !searchParams.has('online')) return;
+    const next = new URLSearchParams(searchParams);
+    next.delete('plan');
+    next.delete('online');
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
   const debouncedSearch = useDebouncedValue(list.state.search);
   const params = useMemo<VoucherListParams>(() => {
     const p: VoucherListParams = { page: list.state.page, page_size: list.state.page_size };
@@ -50,16 +64,48 @@ export default function VouchersPage() {
     const status = list.state.filters.status;
     if (status && (STATUSES as readonly string[]).includes(status))
       p.status = status as VoucherStatus;
-    if (list.state.filters.plan) p.plan = Number(list.state.filters.plan);
+    if (list.state.filters.created_from_day) p.created_from_day = list.state.filters.created_from_day;
+    if (list.state.filters.created_to_day) p.created_to_day = list.state.filters.created_to_day;
     return p;
   }, [list.state, debouncedSearch]);
   const query = useVouchers(params);
-  const plans = usePlanOptions(false);
+  const summary = useVoucherSummary();
   const disable = useDisableVoucher();
   const printer = usePrintVouchers();
   const [selected, setSelected] = useState<Set<number>>(() => new Set());
   const [pendingDisable, setPendingDisable] = useState<Voucher | null>(null);
   const [copiedId, setCopiedId] = useState<number | null>(null);
+  const [generateOpen, setGenerateOpen] = useState(false);
+  const [manualOpen, setManualOpen] = useState(false);
+  const [pendingStatus, setPendingStatus] = useState<{ voucher: Voucher; action: 'mark-sold' | 'enable' | 'mark-expired' } | null>(null);
+  const [removal, setRemoval] = useState<VoucherRemovalPreview | null>(null);
+  const [removalError, setRemovalError] = useState('');
+  const [actionBusy, setActionBusy] = useState(false);
+
+  const refresh = async () => {
+    await client.invalidateQueries({ queryKey: voucherKeys.all });
+  };
+  const prepareRemoval = async (ids: number[]) => {
+    setRemovalError('');
+    try {
+      setRemoval(await vouchersApi.removalPreview(ids));
+    } catch (error) {
+      setRemovalError(errorMessage(error));
+    }
+  };
+  const download = async (voucher: Voucher, kind: 'pdf' | 'image') => {
+    if (actionBusy) return;
+    setActionBusy(true);
+    try {
+      await vouchersApi.authorizePrint([voucher.id]);
+      const blob = kind === 'pdf' ? await vouchersApi.pdf(voucher.id) : await vouchersApi.image(voucher.id);
+      downloadBlob(blob, `voucher-${voucher.id}.${kind === 'pdf' ? 'pdf' : 'png'}`);
+    } catch (error) {
+      toast.error('Download unavailable', errorMessage(error));
+    } finally {
+      setActionBusy(false);
+    }
+  };
 
   const copyCode = (voucher: Voucher) => {
     const textToCopy = voucher.access_code || voucher.username;
@@ -76,7 +122,12 @@ export default function VouchersPage() {
   );
 
   const allSelected = pageIds.length > 0 && pageIds.every((id) => selected.has(id));
-  const toggleAll = () => setSelected(allSelected ? new Set() : new Set(pageIds));
+  const toggleAll = () => setSelected((previous) => {
+    const next = new Set(previous);
+    if (allSelected) pageIds.forEach((id) => next.delete(id));
+    else pageIds.forEach((id) => next.add(id));
+    return next;
+  });
   const toggleOne = (id: number) =>
     setSelected((prev) => {
       const next = new Set(prev);
@@ -92,47 +143,20 @@ export default function VouchersPage() {
     : 'all';
 
   const columns: Column<Voucher>[] = [
-    ...(canPrint
-      ? [
-          {
-            key: 'select',
-            width: '2.5rem',
-            header: (
-              <Checkbox
-                aria-label="Select all vouchers on this page"
-                checked={allSelected}
-                onChange={toggleAll}
-              />
-            ),
-            cell: (v: Voucher) => (
-              <Checkbox
-                aria-label={`Select ${v.username}`}
-                checked={visibleSelected.has(v.id)}
-                onChange={() => toggleOne(v.id)}
-                onClick={(e) => e.stopPropagation()}
-              />
-            ),
-            mobileHidden: true,
-          } satisfies Column<Voucher>,
-        ]
-      : []),
     {
       key: 'username',
-      header: 'Voucher Code',
+      header: <span className="inline-flex items-center gap-2">
+        {(canPrint || canManage) && <Checkbox aria-label="Select all vouchers on this page"
+          checked={allSelected} onChange={toggleAll} />}
+        Voucher
+      </span>,
       primary: true,
       cell: (v) => (
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            {canPrint && (
-              <span className="md:hidden">
-                <Checkbox
-                  aria-label={`Select ${v.username}`}
-                  checked={visibleSelected.has(v.id)}
-                  onChange={() => toggleOne(v.id)}
-                  onClick={(e) => e.stopPropagation()}
-                />
-              </span>
-            )}
+            {(canPrint || canManage) && <Checkbox aria-label={`Select ${v.username}`}
+              checked={visibleSelected.has(v.id)} onChange={() => toggleOne(v.id)}
+              onClick={(e) => e.stopPropagation()} />}
             <Link
               to={`/vouchers/${v.id}`}
               onClick={(e) => e.stopPropagation()}
@@ -156,26 +180,18 @@ export default function VouchersPage() {
               )}
             </button>
           </div>
-          <div className="mt-0.5 text-xs text-ink-500">{describeSource(v)}</div>
         </div>
       ),
     },
     {
       key: 'plan',
-      header: 'Plan & Price',
-      cell: (v) => (
-        <div className="min-w-0 space-y-0.5">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="font-semibold text-ink-900">{v.plan_name}</span>
-            {v.price_display && (
-              <span className="rounded bg-brand-50 px-1.5 py-0.5 text-xs font-semibold text-brand-700 dark:bg-brand-950/60 dark:text-brand-300">
-                {v.price_display}
-              </span>
-            )}
-          </div>
-          {v.plan_duration && <p className="text-xs text-ink-500">{v.plan_duration}</p>}
-        </div>
-      ),
+      header: 'Plan',
+      cell: (v) => <span className="font-semibold text-ink-900">{v.plan_name}</span>,
+    },
+    {
+      key: 'price',
+      header: 'Price',
+      cell: (v) => <span className="tabular-nums text-ink-700">{v.price_display || 'Unavailable'}</span>,
     },
     {
       key: 'status',
@@ -185,18 +201,12 @@ export default function VouchersPage() {
     },
     {
       key: 'devices',
-      header: 'Devices',
-      hideBelow: 'md',
-      cell: (v) => (
-        <span className="text-xs text-ink-600">
-          {v.device_limit} device{v.device_limit === 1 ? '' : 's'}
-        </span>
-      ),
+      header: 'devices',
+      cell: (v) => <span className="font-semibold text-ink-900">{v.device_limit} device{v.device_limit !== 1 ? 's' : ''}</span>,
     },
     {
       key: 'expires',
       header: 'Expires',
-      hideBelow: 'lg',
       sortField: 'expires_at',
       cell: (v) =>
         v.expires_at ? (
@@ -212,7 +222,6 @@ export default function VouchersPage() {
     {
       key: 'created',
       header: 'Created',
-      hideBelow: 'md',
       sortField: 'created_at',
       cell: (v) => (
         <span className="text-xs text-ink-600" title={formatDateTime(v.created_at)}>
@@ -224,80 +233,98 @@ export default function VouchersPage() {
 
   return (
     <div className="space-y-6 rv-portal">
-      {/* Compact portal-style header */}
       <div className="rv-portal-header">
         <div className="rv-portal-header-text">
-          <p className="rv-portal-eyebrow">Access Control &amp; Sales</p>
-          <h1 className="rv-portal-title">Voucher Desk</h1>
+          <h1 className="rv-portal-title">Voucher Inventory</h1>
           <p className="rv-portal-desc">
-            Every access code issued for your hotspot — generated by staff, sold by agents or
-            bought online.
+            Search, manage and export your hotspot access vouchers.
           </p>
-          <div className="rv-portal-header-meta">
-            <span role="status">
-              {query.data
-                ? `${query.data.count} total voucher${query.data.count !== 1 ? 's' : ''}`
-                : 'Loading vouchers...'}
-            </span>
-            <span aria-hidden>·</span>
-            <span>RADIUS Authentication &amp; Sales</span>
-            <span aria-hidden>·</span>
-            <Link
-              to="/plans"
-              className="rounded-sm font-semibold text-brand-600 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600"
-            >
-              Service plans
-            </Link>
-          </div>
         </div>
         <div className="rv-portal-actions">
-          <Button
-            variant="secondary"
-            disabled={query.isFetching}
-            leadingIcon={
-              <RefreshCw
-                className={query.isFetching ? 'animate-spin motion-reduce:animate-none' : ''}
-              />
-            }
-            onClick={() => void query.refetch()}
-          >
-            {query.isFetching ? 'Refreshing...' : 'Refresh'}
-          </Button>
           {canGenerate && (
             <Button
               leadingIcon={<Plus className="size-4" aria-hidden />}
-              onClick={() => navigate('/vouchers/generate')}
+              onClick={() => setGenerateOpen(true)}
             >
-              Generate vouchers
+              Generate Voucher
             </Button>
           )}
+          {canManage && <Button variant="secondary" onClick={() => setManualOpen(true)}>Manual Voucher</Button>}
         </div>
       </div>
 
-      {/* Intro Banner */}
-      <PageMetrics section="vouchers" />
+      {/* Filter panel */}
+      <section aria-labelledby="voucher-filters-title" className="rv-portal-card">
+        <div className="rv-portal-card-head">
+          <h2 id="voucher-filters-title" className="rv-portal-card-title">
+            Filters
+          </h2>
+          <p className="rv-portal-card-count">
+            {list.activeFilterCount > 0
+              ? `${list.activeFilterCount} active`
+              : 'Showing all records'}
+          </p>
+        </div>
+        <div className="rv-voucher-filter-row">
+          <div className="rv-voucher-filter-field">
+            <label className="rv-voucher-filter-label" htmlFor="voucher-search">Search</label>
+            <SearchInput
+              id="voucher-search"
+              value={list.state.search}
+              onChange={list.setSearch}
+              placeholder="Search by username, access code or agent"
+              ariaLabel="Search vouchers"
+            />
+          </div>
+          <div className="rv-voucher-filter-field">
+            <label className="rv-voucher-filter-label" htmlFor="voucher-created-from">Created from</label>
+            <Input id="voucher-created-from" type="date" value={list.state.filters.created_from_day ?? ''} onChange={(event) => list.setFilter('created_from_day', event.target.value || undefined)} />
+          </div>
+          <div className="rv-voucher-filter-field">
+            <label className="rv-voucher-filter-label" htmlFor="voucher-created-to">Created to</label>
+            <Input id="voucher-created-to" type="date" value={list.state.filters.created_to_day ?? ''} onChange={(event) => list.setFilter('created_to_day', event.target.value || undefined)} />
+          </div>
+          {list.activeFilterCount > 0 && <Button variant="secondary" onClick={list.clearFilters}>Clear filters</Button>}
+        </div>
+      </section>
 
-      {/* Directory card */}
-      <Card className="rv-portal-card space-y-5">
+      <section aria-label="Workspace-wide voucher counts" className="grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-5">
+        {(['available', 'sold', 'online', 'used', 'expired'] as const).map((key) => (
+          <div key={key} className="rv-portal-card p-3">
+            <p className="text-xs capitalize text-ink-500">{key}</p>
+            <p className="text-xl font-semibold text-ink-900" aria-live="polite">{summary.isPending ? '…' : summary.data?.[key] ?? 'Unavailable'}</p>
+          </div>
+        ))}
+      </section>
+      {summary.isError && <Alert tone="warning" title="Voucher summary unavailable"
+        actions={<Button size="sm" variant="secondary" onClick={() => void summary.refetch()}>Retry summary</Button>}>
+        {summary.data ? 'Showing the last successful counts.' : 'The voucher list can still be used.'}
+      </Alert>}
+
+      {/* Records card */}
+      <section aria-labelledby="voucher-records-title" className="rv-portal-card space-y-4">
         <div className="rv-portal-card-head">
           <div>
-            <h2 id="voucher-directory-title" className="rv-portal-card-title">
-              Voucher Directory
+            <h2 id="voucher-records-title" className="rv-portal-card-title">
+              Voucher records
             </h2>
             <p className="mt-0.5 text-xs text-ink-500">
               Sold includes successful purchases; Used means ever used. Both include codes later
               expired or disabled. Expired is based on the deadline; Disabled takes precedence.
             </p>
           </div>
-          <p role="status" className="rv-portal-card-count">
-            {query.isPlaceholderData
-              ? 'Updating results...'
-              : query.data
-                ? `${query.data.count} ${list.activeFilterCount ? 'matching' : 'total'} vouchers`
-                : query.isError
-                  ? 'Voucher count unavailable'
-                  : 'Loading vouchers...'}
-          </p>
+          <div className="text-right">
+            <p role="status" className="rv-portal-card-count">
+              {query.isPlaceholderData
+                ? 'Updating results...'
+                : query.data
+                  ? `${query.data.count} ${list.activeFilterCount ? 'matching' : 'total'} vouchers`
+                  : query.isError
+                    ? 'Voucher count unavailable'
+                    : 'Loading vouchers...'}
+            </p>
+            {list.state.ordering === VOUCHERS_DEFAULT_ORDERING && <p className="mt-0.5 text-xs text-ink-500">Most recent first</p>}
+          </div>
         </div>
 
         {/* Status Filter Tabs */}
@@ -308,86 +335,46 @@ export default function VouchersPage() {
           />
         </div>
 
-        {/* Search & Filter Toolbar */}
-        <div className="rv-portal-filter">
-          <FilterBar
-            search={
-              <SearchInput
-                value={list.state.search}
-                onChange={list.setSearch}
-                placeholder="Search by username, access code or agent"
-                ariaLabel="Search vouchers"
-              />
-            }
-            filters={
-              <Select
-                aria-label="Plan"
+        {/* Selection bar */}
+        {(canPrint || canManage) && <div className="rv-voucher-selectbar">
+          <span role="status" className="rv-voucher-selectbar-count">
+            {selected.size} selected across pages
+          </span>
+          {selected.size > 0 && (
+            <div className="flex flex-wrap items-center gap-2 rounded-lg bg-brand-50 p-1.5 dark:bg-brand-950/60">
+              {canPrint && <Button
                 size="sm"
-                value={list.state.filters.plan ?? ''}
-                onChange={(e) => list.setFilter('plan', e.target.value || undefined)}
-                options={[
-                  { value: '', label: 'All plans' },
-                  ...(plans.data ?? []).map((p) => ({ value: String(p.id), label: p.name })),
-                ]}
-              />
-            }
-            actions={
-              visibleSelected.size > 0 ? (
-                <div
-                  className="flex flex-wrap items-center gap-2 rounded-lg bg-brand-50 p-1.5 dark:bg-brand-950/60"
-                  role="status"
-                >
-                  <span className="px-2 text-xs font-semibold text-brand-700 dark:text-brand-300">
-                    {visibleSelected.size} selected
-                  </span>
-                  <Button
-                    size="sm"
-                    leadingIcon={<Printer className="h-4 w-4" aria-hidden />}
-                    loading={printer.printing}
-                    onClick={() => void printer.print([...visibleSelected])}
-                  >
-                    {printer.progress
-                      ? `Preparing ${printer.progress.done}/${printer.progress.total}`
-                      : 'Print selected'}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    aria-label="Clear selection"
-                    onClick={() => setSelected(new Set())}
-                  >
-                    <X className="h-4 w-4" aria-hidden />
-                  </Button>
-                </div>
-              ) : undefined
-            }
-            activeCount={list.activeFilterCount}
-            onClear={list.clearFilters}
-          />
-        </div>
-
-        {plans.isError && (
-          <Alert
-            tone="warning"
-            title="Plan filters could not be loaded"
-            actions={
+                leadingIcon={<Printer className="h-4 w-4" aria-hidden />}
+                loading={printer.printing}
+                onClick={() => void printer.print([...selected])}
+              >
+                {printer.progress
+                  ? `Preparing ${printer.progress.done}/${printer.progress.total}`
+                  : 'Print selected'}
+              </Button>}
+              {canPrint && <Button size="sm" variant="secondary" loading={printer.printing}
+                onClick={() => void printer.print([...selected], { showStatusLabels: true })}>
+                Print with status
+              </Button>}
+              {canManage && selected.size <= 100 && <Button size="sm" variant="danger" onClick={() => void prepareRemoval([...selected])} leadingIcon={<Trash2 className="h-4 w-4" aria-hidden />}>Remove selected</Button>}
+              {selected.size > 100 && <span className="text-sm text-danger-700">Select at most 100 to remove.</span>}
               <Button
                 size="sm"
-                variant="secondary"
-                disabled={plans.isFetching}
-                onClick={() => void plans.refetch()}
+                variant="ghost"
+                aria-label="Clear selection"
+                onClick={() => setSelected(new Set())}
               >
-                Retry plan filters
+                <X className="h-4 w-4" aria-hidden />
               </Button>
-            }
-          >
-            You can still search vouchers and filter by status.
-          </Alert>
-        )}
+            </div>
+          )}
+        </div>}
+        {removalError && <Alert tone="danger">{removalError}</Alert>}
 
         {query.isError && query.data && (
-          <Alert tone="warning" title="Vouchers could not be refreshed">
-            Showing the last loaded results. Refresh again to check for changes.
+          <Alert tone="warning" title="Vouchers could not be refreshed"
+            actions={<Button size="sm" variant="secondary" onClick={() => void query.refetch()}>Retry</Button>}>
+            Showing the last loaded results.
           </Alert>
         )}
 
@@ -396,6 +383,7 @@ export default function VouchersPage() {
           <DataTable
             caption="Vouchers"
             columns={columns}
+            rowActionsHeader="Actions"
             rows={query.data?.results}
             rowKey={(v) => v.id}
             loading={query.isPending}
@@ -410,7 +398,7 @@ export default function VouchersPage() {
               <EmptyState
                 icon={<Ticket className="h-6 w-6" aria-hidden />}
                 title="No vouchers match"
-                description="Try another status, plan or search term."
+                description="Try another status, creation date or search term."
                 action={
                   <Button variant="secondary" onClick={list.clearFilters}>
                     Clear filters
@@ -442,6 +430,12 @@ export default function VouchersPage() {
                 handlers={{
                   onPrint: (voucher) => void printer.print([voucher.id]),
                   onDisable: setPendingDisable,
+                  onMarkSold: (voucher) => setPendingStatus({ voucher, action: 'mark-sold' }),
+                  onEnable: (voucher) => setPendingStatus({ voucher, action: 'enable' }),
+                  onMarkExpired: (voucher) => setPendingStatus({ voucher, action: 'mark-expired' }),
+                  onPdf: (voucher) => void download(voucher, 'pdf'),
+                  onImage: (voucher) => void download(voucher, 'image'),
+                  onDelete: (voucher) => void prepareRemoval([voucher.id]),
                   onEdit: (voucher) => navigate(`/vouchers/${voucher.id}?edit=1`),
                 }}
               />
@@ -463,14 +457,14 @@ export default function VouchersPage() {
             />
           </div>
         )}
-      </Card>
+      </section>
 
       <ConfirmDialog
         open={pendingDisable !== null}
         onClose={() => setPendingDisable(null)}
         tone="danger"
         title={`Disable ${pendingDisable?.username ?? 'voucher'}?`}
-        description="The code stops working immediately and cannot be re-enabled. Any active session is not cut off until it reconnects."
+        description="The code stops working for new logins. Eligible unused vouchers may be enabled again. Any active session is not cut off until it reconnects."
         confirmLabel="Disable voucher"
         onConfirm={async () => {
           if (!pendingDisable) return;
@@ -478,6 +472,31 @@ export default function VouchersPage() {
           toast.success('Voucher disabled', pendingDisable.username);
         }}
       />
+      <ConfirmDialog open={pendingStatus !== null} onClose={() => setPendingStatus(null)}
+        title={`${pendingStatus?.action.replaceAll('-', ' ')} ${pendingStatus?.voucher.username ?? 'voucher'}?`}
+        description="This changes future voucher access. Existing active sessions are not disconnected."
+        onConfirm={async () => {
+          if (!pendingStatus) return;
+          await vouchersApi.changeStatus(pendingStatus.voucher.id, pendingStatus.action);
+          await refresh();
+          toast.success('Voucher updated');
+        }} />
+      <ConfirmDialog open={removal !== null} onClose={() => setRemoval(null)} tone="danger"
+        title={`Remove ${removal?.selected ?? 0} vouchers?`}
+        description={`${removal?.potentially_deleted ?? 0} may be permanently deleted. ${removal?.preserved ?? 0} with history will be retained and hidden. New access is revoked; existing active sessions are not disconnected.`}
+        confirmLabel="Remove vouchers" typeToConfirm="REMOVE"
+        onConfirm={async () => {
+          if (!removal) return;
+          const result = await vouchersApi.removeSelected(removal.token, newIdempotencyKey('remove'));
+          setSelected(new Set());
+          await refresh();
+          toast.success(`${result.deleted + result.preserved} vouchers removed`);
+        }} />
+      <Dialog open={generateOpen} onClose={() => setGenerateOpen(false)} title="Generate Vouchers"
+        description="Create a batch of hotspot access codes." size="xl">
+        <GenerateVouchersPage embedded onDone={() => setGenerateOpen(false)} />
+      </Dialog>
+      <ManualCodeDialog open={manualOpen} onClose={() => setManualOpen(false)} />
     </div>
   );
 }

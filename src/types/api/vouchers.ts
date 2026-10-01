@@ -78,6 +78,34 @@ export interface Voucher {
   expires_at: IsoDateTime | null;
   activated_at: IsoDateTime | null;
   created_at: IsoDateTime;
+  first_used_at?: IsoDateTime | null;
+  last_used_at?: IsoDateTime | null;
+  connection_status?: 'online' | 'unknown';
+  last_session_at?: IsoDateTime | null;
+  device_mac?: string | null;
+  nas_ip?: string | null;
+  bytes_in?: number | null;
+  bytes_out?: number | null;
+}
+
+export interface VoucherSummary {
+  observed_at: IsoDateTime;
+  total: number;
+  available: number;
+  unused: number;
+  sold: number;
+  online: number;
+  used: number;
+  expired: number;
+  disabled: number;
+}
+
+export interface VoucherRemovalPreview {
+  token: string;
+  selected: number;
+  preserved: number;
+  potentially_deleted: number;
+  active_sessions_disconnected: false;
 }
 
 export interface VoucherListParams extends PageParams {
@@ -86,6 +114,9 @@ export interface VoucherListParams extends PageParams {
   plan?: number;
   created_after?: string;
   created_before?: string;
+  created_from_day?: string;
+  created_to_day?: string;
+  online?: boolean;
 }
 
 export interface VoucherGenerateRequest {

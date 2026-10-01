@@ -14,7 +14,7 @@ import {
 } from '@/components/ui';
 import { Alert, QueryBoundary, useToast } from '@/components/feedback';
 import { formatDateTime } from '@/lib/formatting/dates';
-import { formatHours } from '@/lib/formatting/units';
+import { formatBytes, formatHours } from '@/lib/formatting/units';
 import { can } from '@/services/auth/principal';
 import { usePrincipal } from '@/app/auth/useAuth';
 import { ManualVoucherForm } from '../components/ManualVoucherForm';
@@ -44,7 +44,7 @@ export default function VoucherDetailPage() {
       query={query}
       errorTitle="Voucher not found"
       skeleton={
-        <div className="space-y-6">
+        <div className="space-y-6 rv-portal" aria-label="Loading voucher details">
           <Skeleton className="h-32 w-full rounded-2xl" />
           <Card>
             <Skeleton className="h-40 w-full" />
@@ -182,6 +182,28 @@ export default function VoucherDetailPage() {
                           ? 'Starts counting at first login'
                           : '—',
                     },
+                  ]}
+                />
+              </Card>
+
+              <Card padded={false} className="rv-portal-card">
+                <CardHeader
+                  title="Connection and usage"
+                  description="Usage history and the latest RADIUS accounting observation. Unknown does not mean offline."
+                  className="px-5 pt-5"
+                />
+                <DescriptionList
+                  className="px-5 pb-5"
+                  columns={2}
+                  items={[
+                    { label: 'First used', value: voucher.first_used_at ? formatDateTime(voucher.first_used_at) : 'Not recorded' },
+                    { label: 'Last used', value: voucher.last_used_at ? formatDateTime(voucher.last_used_at) : 'Not recorded' },
+                    { label: 'Connection', value: voucher.connection_status === 'online' ? 'Online' : 'Unknown' },
+                    { label: 'Last session update', value: voucher.last_session_at ? formatDateTime(voucher.last_session_at) : 'Unavailable' },
+                    { label: 'Device MAC', value: voucher.device_mac || 'Unavailable' },
+                    { label: 'Router IP', value: voucher.nas_ip || 'Unavailable' },
+                    { label: 'Latest session download', value: voucher.bytes_out == null ? 'Unavailable' : formatBytes(voucher.bytes_out) },
+                    { label: 'Latest session upload', value: voucher.bytes_in == null ? 'Unavailable' : formatBytes(voucher.bytes_in) },
                   ]}
                 />
               </Card>

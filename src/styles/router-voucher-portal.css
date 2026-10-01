@@ -250,6 +250,43 @@
   font-weight: 600;
 }
 
+/* Voucher records: persistent selection bar between the status tabs and the table. */
+.rv-voucher-filter-row {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) repeat(2, minmax(0, 1fr)) auto;
+  align-items: end;
+  gap: 0.75rem;
+}
+
+.rv-voucher-filter-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  min-width: 0;
+}
+
+.rv-voucher-filter-label {
+  color: var(--color-ink-700);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.rv-voucher-selectbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  padding: 0.65rem 0;
+  border-top: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.rv-voucher-selectbar-count {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--color-ink-500);
+}
+
 /* Status badges keep their existing tones and labels; ensure the table
  * context never flattens them. */
 .rv-portal-table tbody td .rounded-full {
@@ -271,6 +308,9 @@
 }
 
 @media (max-width: 47.999rem) {
+  .rv-voucher-filter-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
   .rv-portal-header {
     padding: 1rem;
   }

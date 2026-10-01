@@ -32,7 +32,7 @@ interface BatchResult {
   replayed: boolean;
 }
 
-export default function GenerateVouchersPage() {
+export default function GenerateVouchersPage({ embedded = false, onDone }: { embedded?: boolean; onDone?: () => void }) {
   const principal = usePrincipal();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -116,12 +116,12 @@ export default function GenerateVouchersPage() {
     const first = result.vouchers[0];
     return (
       <div className="space-y-6 rv-portal">
-        <PageHeader
+        {!embedded && <PageHeader
           className="rv-portal-header"
           title="Vouchers generated"
           backTo="/vouchers"
           crumbs={[{ label: 'Vouchers', to: '/vouchers' }, { label: 'Generate' }]}
-        />
+        />}
         <Card className="rv-portal-card">
           <div className="flex items-start gap-3">
             <CheckCircle2
@@ -146,21 +146,49 @@ export default function GenerateVouchersPage() {
               ? 'Print the batch now, or later from the voucher list — each print pulls the credentials fresh from the server.'
               : 'Ask a manager to print the credentials for you.'}
           </Alert>
-          <ul
-            className="mt-4 grid max-h-80 grid-cols-1 gap-2 overflow-y-auto rounded-card border border-border bg-white p-3 font-mono text-sm sm:grid-cols-2 lg:grid-cols-4"
-            aria-label="Generated usernames"
-          >
-            {result.vouchers.map((v) => (
-              <li key={v.id} className="min-w-0">
-                <Link
-                  to={`/vouchers/${v.id}`}
-                  className="block rounded-lg border border-brand-100 bg-brand-50/50 p-3 break-all text-brand-700 hover:bg-brand-100 hover:underline"
-                >
-                  {v.username}
-                </Link>
-              </li>
-            ))}
-          </ul>
+          <div className="rv-portal-table mt-4">
+            <table>
+              <caption className="sr-only">Generated vouchers</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Voucher code</th>
+                  <th scope="col">Plan</th>
+                  <th scope="col">
+                    <span className="sr-only">Actions</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {result.vouchers.map((v) => (
+                  <tr key={v.id}>
+                    <td>
+                      <Link
+                        to={`/vouchers/${v.id}`}
+                        className="font-mono text-sm font-bold tracking-wider break-all text-brand-700 hover:underline"
+                      >
+                        {v.username}
+                      </Link>
+                    </td>
+                    <td>
+                      <span className="font-semibold text-ink-900">{v.plan_name}</span>
+                      <span className="mt-0.5 block text-xs text-ink-500">
+                        {v.device_limit} device{v.device_limit === 1 ? '' : 's'}
+                      </span>
+                    </td>
+                    <td className="text-right">
+                      <Link
+                        to={`/vouchers/${v.id}`}
+                        aria-label={`View ${v.username}`}
+                        className="text-sm font-semibold text-brand-700 hover:underline"
+                      >
+                        View
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
           <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
             <Button
               variant="secondary"
@@ -169,7 +197,7 @@ export default function GenerateVouchersPage() {
             >
               Generate another batch
             </Button>
-            <Button variant="secondary" onClick={() => navigate('/vouchers?status=unused')}>
+            <Button variant="secondary" onClick={() => embedded ? onDone?.() : navigate('/vouchers?status=unused')}>
               View in list
             </Button>
             {canPrint && (
@@ -191,8 +219,8 @@ export default function GenerateVouchersPage() {
 
   return (
     <div className="space-y-6 rv-portal">
-      {/* Compact portal-style header */}
-      <div className="rv-portal-header">
+      {/* The same form serves the inventory dialog and bookmarked route. */}
+      {!embedded && <div className="rv-portal-header">
         <div className="rv-portal-header-text">
           <p className="rv-portal-eyebrow">Batch Generation</p>
           <h1 className="rv-portal-title">Generate Vouchers</h1>
@@ -208,11 +236,11 @@ export default function GenerateVouchersPage() {
             Back to Voucher Desk
           </Link>
         </div>
-      </div>
+      </div>}
       <form
         onSubmit={(e) => void submit(e)}
         noValidate
-        className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]"
+        className={embedded ? 'grid grid-cols-1 gap-5' : 'grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]'}
       >
         <div className="flex min-w-0 flex-col gap-6">
           <Card className="rv-portal-card">
@@ -305,11 +333,24 @@ export default function GenerateVouchersPage() {
                 />
               </FormField>
             </div>
+            <Button
+              type="submit"
+              block
+              className="mt-5"
+              loading={form.formState.isSubmitting}
+              disabled={plans.isPending || (plans.data?.length ?? 0) === 0}
+            >
+              Generate {validQuantity ? quantity : ''} vouchers
+            </Button>
+            <p className="mt-2 text-xs text-ink-500">
+              Once generation is confirmed, review the returned codes and print their credentials.
+              Retries of the same request reuse the existing batch protection.
+            </p>
           </Card>
           {message && <Alert tone="danger">{message}</Alert>}
         </div>
         <aside
-          className="min-w-0 xl:sticky xl:top-20 xl:self-start"
+          className={embedded ? 'min-w-0' : 'min-w-0 xl:sticky xl:top-20 xl:self-start'}
           aria-labelledby="batch-review-title"
         >
           <Card className="rv-portal-card">
@@ -355,19 +396,7 @@ export default function GenerateVouchersPage() {
             )}
             <p className="mt-3 text-xs leading-relaxed text-ink-500">
               Face value is the combined selling price of this batch, not a payment collected.
-            </p>
-            <Button
-              type="submit"
-              block
-              className="mt-4"
-              loading={form.formState.isSubmitting}
-              disabled={plans.isPending || (plans.data?.length ?? 0) === 0}
-            >
-              Generate {validQuantity ? quantity : ''} vouchers
-            </Button>
-            <p className="mt-2 text-xs text-ink-500">
-              Once generation is confirmed, review the returned codes and print their credentials.
-              Retries of the same request reuse the existing batch protection.
+              Use the Generate button in the batch form to create these vouchers.
             </p>
           </Card>
         </aside>

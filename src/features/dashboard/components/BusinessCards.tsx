@@ -87,7 +87,7 @@ export function BusinessCards({
           </div>
         </Section>
       )}
-      {section !== 'payments' && (
+      {section !== 'payments' && section !== 'vouchers' && (
         <Section
           title="Voucher usage"
           description="Usage figures can overlap: a sold voucher may also be used or expired."

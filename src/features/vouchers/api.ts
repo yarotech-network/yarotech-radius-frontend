@@ -7,6 +7,8 @@ import type {
   VoucherGenerateRequest,
   VoucherListParams,
   VoucherManualWrite,
+  VoucherSummary,
+  VoucherRemovalPreview,
 } from '@/types/api';
 
 export const vouchersApi = {
@@ -18,6 +20,22 @@ export const vouchersApi = {
   },
   list(params: VoucherListParams) {
     return http.get<Paginated<Voucher>>('/vouchers/', { ...params });
+  },
+  summary() {
+    return http.get<VoucherSummary>('/vouchers/summary/');
+  },
+  manualCode(payload: { code: string; plan_id: number; device_limit: number }, idempotencyKey: string) {
+    return http.post<Voucher>('/vouchers/manual-code/', payload, { idempotencyKey });
+  },
+  changeStatus(id: number, operation: 'mark-sold' | 'enable' | 'mark-expired') {
+    return http.post<Voucher>(`/vouchers/${id}/${operation}/`);
+  },
+  removalPreview(ids: number[]) {
+    return http.post<VoucherRemovalPreview>('/vouchers/removal-preview/', { voucher_ids: ids });
+  },
+  removeSelected(token: string, idempotencyKey: string) {
+    return http.post<{ deleted: number; preserved: number; active_sessions_disconnected: false }>(
+      '/vouchers/remove-selected/', { token }, { idempotencyKey });
   },
   get(id: number) {
     return http.get<Voucher>(`/vouchers/${id}/`);
@@ -51,5 +69,8 @@ export const vouchersApi = {
   /** May answer 503 when the PDF renderer is not installed on the server. */
   pdf(id: number) {
     return http.blob(`/vouchers/${id}/pdf/`);
+  },
+  image(id: number) {
+    return http.blob(`/vouchers/${id}/image/`);
   },
 };

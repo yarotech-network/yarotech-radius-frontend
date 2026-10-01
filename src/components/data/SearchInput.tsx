@@ -8,12 +8,14 @@ export function SearchInput({
   value,
   onChange,
   placeholder = 'Search…',
+  id,
   className,
   ariaLabel = 'Search',
 }: {
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
+  id?: string;
   className?: string;
   ariaLabel?: string;
 }) {
@@ -35,6 +37,7 @@ export function SearchInput({
   return (
     <Input
       type="search"
+      id={id}
       inputMode="search"
       aria-label={ariaLabel}
       placeholder={placeholder}

@@ -34,6 +34,7 @@ export interface DataTableProps<T> {
   onOrderingChange?: (ordering: string | undefined) => void;
   onRowClick?: (row: T) => void;
   rowActions?: (row: T) => ReactNode;
+  rowActionsHeader?: ReactNode;
   skeletonRows?: number;
   /** Below `md` render each row as a card instead of a horizontally scrolling table. */
   mobileCards?: boolean;
@@ -71,6 +72,7 @@ export function DataTable<T>({
   onOrderingChange,
   onRowClick,
   rowActions,
+  rowActionsHeader,
   skeletonRows = 6,
   mobileCards = true,
   caption,
@@ -138,7 +140,7 @@ export function DataTable<T>({
           })}
           {rowActions && (
             <th scope="col" className={cn(cellPad, 'w-12')}>
-              <span className="sr-only">Actions</span>
+              {rowActionsHeader ?? <span className="sr-only">Actions</span>}
             </th>
           )}
         </tr>

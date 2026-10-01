@@ -6,6 +6,7 @@ export interface PrintedCredential {
   password: string;
   plan: string;
   duration: string;
+  status?: string;
 }
 
 /**
@@ -30,6 +31,7 @@ export function parsePrintHtml(id: number, html: string): PrintedCredential | nu
     password: fields.password,
     plan: fields.plan ?? '',
     duration: fields.duration ?? '',
+    status: fields.status ?? '',
   };
 }
 
@@ -73,34 +75,41 @@ function escapeHtml(value: string) {
   );
 }
 
-/** Print sheet: 2 columns of credential cards sized for A4/Letter, plain black on white. */
+/** Print sheet: 2 columns of branded credential cards for A4/Letter, black on white. */
 export function buildPrintSheet(
   credentials: readonly PrintedCredential[],
-  options: { tenantName: string; footnote?: string },
+  options: { tenantName: string; footnote?: string; showStatusLabels?: boolean },
 ) {
   const cards = credentials
-    .map(
-      (c) => `
+    .map((c) => {
+      const planBits = [c.plan, c.duration].map((part) => part.trim()).filter(Boolean);
+      return `
       <article class="card">
-        <header>${escapeHtml(options.tenantName)}</header>
-        <div class="row"><span>Plan</span><strong>${escapeHtml(c.plan)}${c.duration ? ` · ${escapeHtml(c.duration)}` : ''}</strong></div>
-        <div class="row"><span>Username</span><code>${escapeHtml(c.username)}</code></div>
-        <div class="row"><span>Password</span><code>${escapeHtml(c.password)}</code></div>
-        ${options.footnote ? `<footer>${escapeHtml(options.footnote)}</footer>` : ''}
-      </article>`,
-    )
+        <header class="brand">${escapeHtml(options.tenantName)}</header>
+        <div class="creds">
+          <div class="cred"><span class="k">Username</span><strong class="v">${escapeHtml(c.username)}</strong></div>
+          <div class="cred"><span class="k">Password</span><strong class="v">${escapeHtml(c.password)}</strong></div>
+        </div>
+        ${planBits.length > 0 ? `<p class="meta">${planBits.map((part) => escapeHtml(part)).join(' · ')}</p>` : ''}
+        ${options.showStatusLabels && c.status ? `<p class="meta">Status: ${escapeHtml(c.status)}</p>` : ''}
+        <p class="howto">${options.footnote ? escapeHtml(options.footnote) : 'Connect to the hotspot Wi-Fi and enter these details on the login page.'}</p>
+      </article>`;
+    })
     .join('');
   return `<!doctype html><html><head><meta charset="utf-8"><title>Vouchers — ${escapeHtml(options.tenantName)}</title>
 <style>
   @page { margin: 12mm; }
   * { box-sizing: border-box; }
-  body { font: 11pt/1.35 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: #000; margin: 0; }
+  body { font: 11pt/1.35 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: #000; background: #fff; margin: 0; }
   .sheet { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6mm; }
-  .card { border: 1px dashed #000; padding: 5mm; break-inside: avoid; }
-  header { font-weight: 700; font-size: 12pt; margin-bottom: 3mm; }
-  .row { display: flex; justify-content: space-between; gap: 4mm; padding: 1mm 0; }
-  .row span { color: #444; }
-  code { font: 700 13pt/1.2 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: 0.04em; }
-  footer { margin-top: 3mm; font-size: 8.5pt; color: #444; }
+  .card { border: 1pt solid #000; border-radius: 4mm; padding: 5mm; break-inside: avoid; background: #fff; }
+  .brand { font-weight: 800; font-size: 15pt; letter-spacing: 0.02em; text-align: center; color: #0b3a82; border-bottom: 1pt solid #0b3a82; padding-bottom: 3mm; margin: 0 0 4mm; overflow-wrap: anywhere; }
+  .creds { border: 1pt solid #9db4d8; border-radius: 3mm; background: #f4f8ff; padding: 3mm 4mm; }
+  .cred { padding: 1.5mm 0; }
+  .cred + .cred { border-top: 1pt dashed #9db4d8; margin-top: 1.5mm; padding-top: 3mm; }
+  .k { display: block; font-size: 8pt; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #444; }
+  .v { display: block; font: 700 16pt/1.25 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: 0.04em; color: #000; overflow-wrap: anywhere; word-break: break-word; }
+  .meta { margin: 3mm 0 0; font-size: 9.5pt; color: #000; text-align: center; overflow-wrap: anywhere; }
+  .howto { margin: 2.5mm 0 0; font-size: 8.5pt; color: #333; text-align: center; }
 </style></head><body><main class="sheet">${cards}</main></body></html>`;
 }

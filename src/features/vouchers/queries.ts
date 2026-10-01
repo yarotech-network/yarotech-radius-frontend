@@ -9,7 +9,12 @@ export const voucherKeys = {
   lists: () => [...voucherKeys.all, 'list'] as const,
   list: (params: VoucherListParams) => [...voucherKeys.lists(), params] as const,
   detail: (id: number) => [...voucherKeys.all, 'detail', id] as const,
+  summary: () => [...voucherKeys.all, 'summary'] as const,
 };
+
+export function useVoucherSummary() {
+  return useQuery({ queryKey: voucherKeys.summary(), queryFn: vouchersApi.summary, staleTime: 30_000 });
+}
 
 /** Initial `/vouchers` list params (ordering matches VouchersPage). */
 export const VOUCHERS_DEFAULT_ORDERING = '-created_at';

@@ -18,7 +18,7 @@ export function usePrintVouchers() {
   const abortRef = useRef<AbortController | null>(null);
 
   const print = useCallback(
-    async (ids: readonly number[]) => {
+    async (ids: readonly number[], options?: { showStatusLabels?: boolean }) => {
       if (ids.length === 0) return;
       abortRef.current?.abort();
       const controller = new AbortController();
@@ -40,6 +40,7 @@ export function usePrintVouchers() {
           buildPrintSheet(ok, {
             tenantName: workspaceName(principal) ?? 'Wi-Fi voucher',
             footnote: 'Connect to the hotspot and enter these details on the login page.',
+            showStatusLabels: options?.showStatusLabels ?? false,
           }),
         );
         if (failed.length)
