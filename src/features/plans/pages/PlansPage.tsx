@@ -10,7 +10,6 @@ import {
   RefreshCw,
   Ticket,
   Trash2,
-  Zap,
 } from 'lucide-react';
 import { BooleanBadge } from '@/components/layout/StatusBadge';
 import {
@@ -30,7 +29,6 @@ import { errorMessage } from '@/services/api/errors';
 import { can } from '@/services/auth/principal';
 import { usePrincipal } from '@/app/auth/useAuth';
 import type { InternetPlan, PlanListParams } from '@/types/api';
-import { ServicePlansNav } from '../components/ServicePlansNav';
 import { PlanDialog } from '../components/PlanDialog';
 import { PlanSummary } from '../components/PlanSummary';
 import { PLANS_DEFAULT_ORDERING, useDeletePlan, usePlans, useUpdatePlan } from '../queries';
@@ -84,11 +82,6 @@ export default function PlansPage() {
             />
           </div>
           <PlanSummary plan={plan} className="mt-1" />
-          <p className="mt-1 text-xs text-ink-500">
-            {plan.bandwidth_profile_name
-              ? `Profile: ${plan.bandwidth_profile_name}`
-              : 'Custom speed'}
-          </p>
         </div>
       ),
     },
@@ -177,16 +170,9 @@ export default function PlansPage() {
             <Banknote className="size-4" aria-hidden />
             <span>Pricing in NGN (₦)</span>
           </div>
-          <div className="router-page-hero-divider" />
-          <div className="router-page-hero-links">
-            <Link to="/plans/bandwidth" className="router-page-hero-link">
-              <Zap className="size-3.5" aria-hidden /> Bandwidth profiles
-            </Link>
-          </div>
         </div>
       </div>
 
-      <ServicePlansNav />
       <PageMetrics section="plans" />
 
       <section aria-labelledby="plan-catalogue-title" className="space-y-4">

@@ -1,10 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import {
   describeDuration,
+  formatRateLimit,
   formToPlan,
   fromDurationHours,
+  kbpsToSpeedFields,
+  parseSimpleRateLimit,
   planFormSchema,
   planToForm,
+  speedToKbps,
   toDurationHours,
 } from './planSchema';
 
@@ -45,20 +49,72 @@ describe('duration value/unit conversion', () => {
   });
 });
 
+describe('speed value/unit conversion', () => {
+  it('converts decimal units to whole Kbps', () => {
+    expect(speedToKbps('5', 'Mbps')).toBe(5000);
+    expect(speedToKbps('10', 'Mbps')).toBe(10000);
+    expect(speedToKbps('2.5', 'Mbps')).toBe(2500);
+    expect(speedToKbps('1', 'Gbps')).toBe(1000000);
+    expect(speedToKbps('1.5', 'Gbps')).toBe(1500000);
+    expect(speedToKbps('512', 'Kbps')).toBe(512);
+  });
+
+  it('rejects fractional Kbps results and out-of-range speeds', () => {
+    expect(() => speedToKbps('0.0001', 'Mbps')).toThrow();
+    expect(() => speedToKbps('0', 'Kbps')).toThrow();
+    expect(() => speedToKbps('11', 'Gbps')).toThrow();
+    expect(() => speedToKbps('fast', 'Mbps')).toThrow();
+    expect(speedToKbps('10', 'Gbps')).toBe(10000000);
+    expect(speedToKbps('1', 'Kbps')).toBe(1);
+  });
+
+  it('presents Kbps in the best unit for editing', () => {
+    expect(kbpsToSpeedFields(5000)).toEqual({ value: '5', unit: 'Mbps' });
+    expect(kbpsToSpeedFields(10000)).toEqual({ value: '10', unit: 'Mbps' });
+    expect(kbpsToSpeedFields(2500)).toEqual({ value: '2.5', unit: 'Mbps' });
+    expect(kbpsToSpeedFields(512)).toEqual({ value: '512', unit: 'Kbps' });
+    expect(kbpsToSpeedFields(10000000)).toEqual({ value: '10', unit: 'Gbps' });
+  });
+
+  it('builds RouterOS upload/download strings', () => {
+    expect(formatRateLimit(5000, 10000)).toBe('5000k/10000k');
+  });
+
+  it('parses simple stored expressions and leaves complex ones alone', () => {
+    expect(parseSimpleRateLimit('5M/10M')).toEqual({ uploadKbps: 5000, downloadKbps: 10000 });
+    expect(parseSimpleRateLimit('2500k/10000k')).toEqual({
+      uploadKbps: 2500,
+      downloadKbps: 10000,
+    });
+    expect(parseSimpleRateLimit('2.5M/10M')).toEqual({ uploadKbps: 2500, downloadKbps: 10000 });
+    expect(parseSimpleRateLimit('')).toBeNull();
+    expect(parseSimpleRateLimit('  ')).toBeNull();
+    // No plan speed limit on one side, fractional Kbps, and bursting expressions stay custom.
+    expect(parseSimpleRateLimit('5M/')).toBeNull();
+    expect(parseSimpleRateLimit('0.0001M/10M')).toBeNull();
+    expect(parseSimpleRateLimit('5M/10M 1M/2M')).toBeNull();
+    expect(parseSimpleRateLimit('fast')).toBeNull();
+  });
+});
+
 describe('plan form schema', () => {
-  it('converts naira input to kobo and limited MB to data_limit', () => {
+  it('converts naira input to kobo, speeds to a rate string and limited MB to data_limit', () => {
     const parsed = planFormSchema.parse({
       name: ' Daily ',
       price: '1,500.50',
       duration_value: '24',
       duration_unit: 'hours',
       data_mode: 'limited',
-      rate_limit: '5M/10M',
+      upload_value: '5',
+      upload_unit: 'Mbps',
+      download_value: '10',
+      download_unit: 'Mbps',
       data_limit_mb: '1024',
       voucher_prefix: 'DAY',
       is_active: true,
     });
     expect(formToPlan(parsed)).toEqual({
+      bandwidth_profile: null,
       name: 'Daily',
       plan_type: 'voucher',
       is_public: true,
@@ -66,7 +122,7 @@ describe('plan form schema', () => {
       public_router: null,
       price: 150050,
       duration_hours: 24,
-      rate_limit: '5M/10M',
+      rate_limit: '5000k/10000k',
       data_limit: 1024,
       voucher_prefix: 'DAY',
       voucher_code_format: 'legacy',
@@ -84,10 +140,11 @@ describe('plan form schema', () => {
       duration_unit: 'days',
       data_mode: 'unlimited',
       data_limit_mb: 0,
-      rate_limit: '',
+      upload_value: '',
+      download_value: '',
       is_active: true,
     });
-    expect(formToPlan(unlimited)).toMatchObject({ data_limit: 0 });
+    expect(formToPlan(unlimited)).toMatchObject({ data_limit: 0, rate_limit: '' });
 
     const missing = planFormSchema.safeParse({
       ...planToForm(),
@@ -97,13 +154,65 @@ describe('plan form schema', () => {
       duration_unit: 'days',
       data_mode: 'limited',
       data_limit_mb: 0,
-      rate_limit: '',
+      upload_value: '',
+      download_value: '',
       is_active: true,
     });
     expect(missing.success).toBe(false);
     if (!missing.success) {
       expect(missing.error.issues.map((i) => i.path[0])).toContain('data_limit_mb');
     }
+  });
+
+  it('accepts blank speeds for no limit but rejects only one side blank', () => {
+    const blank = planFormSchema.parse({
+      ...planToForm(),
+      name: 'No limit',
+      price: '10',
+      duration_value: 1,
+      duration_unit: 'days',
+      upload_value: '',
+      download_value: '',
+      is_active: true,
+    });
+    expect(formToPlan(blank)).toMatchObject({ rate_limit: '' });
+
+    const half = planFormSchema.safeParse({
+      ...planToForm(),
+      name: 'Half limit',
+      price: '10',
+      duration_value: 1,
+      duration_unit: 'days',
+      upload_value: '5',
+      upload_unit: 'Mbps',
+      download_value: '',
+      is_active: true,
+    });
+    expect(half.success).toBe(false);
+    if (!half.success) {
+      expect(half.error.issues.map((i) => i.path[0])).toContain('download_value');
+    }
+  });
+
+  it('rejects bad speeds, negative data caps and long prefixes', () => {
+    const res = planFormSchema.safeParse({
+      name: 'x',
+      price: '10',
+      duration_value: 1,
+      duration_unit: 'hours',
+      upload_value: 'fast',
+      upload_unit: 'Mbps',
+      download_value: '10',
+      download_unit: 'Mbps',
+      data_limit_mb: -1,
+      voucher_prefix: 'TOOLONGPREFIX',
+      is_active: true,
+    });
+    expect(res.success).toBe(false);
+    const paths = res.success ? [] : res.error.issues.map((i) => i.path[0]);
+    expect(paths).toEqual(
+      expect.arrayContaining(['upload_value', 'data_limit_mb', 'voucher_prefix']),
+    );
   });
 
   it('accepts minute and day durations within the backend range', () => {
@@ -118,7 +227,8 @@ describe('plan form schema', () => {
         price: '10',
         duration_value,
         duration_unit,
-        rate_limit: '',
+        upload_value: '',
+        download_value: '',
         is_active: true,
       });
       expect(formToPlan(parsed)).toMatchObject({ duration_hours });
@@ -130,7 +240,8 @@ describe('plan form schema', () => {
         price: '10',
         duration_value: 0.0001,
         duration_unit: 'hours',
-        rate_limit: '',
+        upload_value: '',
+        download_value: '',
         is_active: true,
       }).success,
     ).toBe(false);
@@ -142,7 +253,8 @@ describe('plan form schema', () => {
       price: '10',
       duration_value: 24,
       duration_unit: 'hours',
-      rate_limit: '',
+      upload_value: '',
+      download_value: '',
       data_limit_mb: 0,
       voucher_prefix: '',
       is_active: true,
@@ -156,7 +268,8 @@ describe('plan form schema', () => {
           price: '10',
           duration_value: 24,
           duration_unit: 'hours',
-          rate_limit: '',
+          upload_value: '',
+          download_value: '',
           data_limit_mb: 0,
           voucher_prefix: '',
           is_active: true,
@@ -170,31 +283,14 @@ describe('plan form schema', () => {
         price: '10',
         duration_value: 24,
         duration_unit: 'hours',
-        rate_limit: '',
+        upload_value: '',
+        download_value: '',
         data_limit_mb: 0,
         voucher_prefix: '',
         is_active: true,
         max_devices: 10,
       }).success,
     ).toBe(true);
-  });
-
-  it('rejects bad rate limits, negative data caps and long prefixes', () => {
-    const res = planFormSchema.safeParse({
-      name: 'x',
-      price: '10',
-      duration_value: 1,
-      duration_unit: 'hours',
-      rate_limit: 'fast',
-      data_limit_mb: -1,
-      voucher_prefix: 'TOOLONGPREFIX',
-      is_active: true,
-    });
-    expect(res.success).toBe(false);
-    const paths = res.success ? [] : res.error.issues.map((i) => i.path[0]);
-    expect(paths).toEqual(
-      expect.arrayContaining(['rate_limit', 'data_limit_mb', 'voucher_prefix']),
-    );
   });
 
   it('round-trips an existing plan into form values without altering stored settings', () => {
@@ -217,11 +313,18 @@ describe('plan form schema', () => {
       duration_value: 7,
       duration_unit: 'days',
       data_mode: 'unlimited',
+      upload_value: '10',
+      upload_unit: 'Mbps',
+      download_value: '20',
+      download_unit: 'Mbps',
+      custom_rate_limit: '',
       is_active: false,
       max_devices: 5,
     });
     expect(formToPlan(planFormSchema.parse({ ...form }))).toMatchObject({
+      bandwidth_profile: null,
       duration_hours: 168,
+      rate_limit: '10000k/20000k',
       data_limit: 0,
       max_devices: 5,
     });
@@ -246,23 +349,74 @@ describe('plan form schema', () => {
       duration_unit: 'minutes',
       data_mode: 'limited',
       data_limit_mb: 512,
+      upload_value: '5',
+      download_value: '5',
     });
     expect(formToPlan(planFormSchema.parse({ ...form }))).toMatchObject({
       duration_hours: 0.333333,
+      rate_limit: '5000k/5000k',
       data_limit: 512,
+    });
+  });
+
+  it('keeps a complex stored expression verbatim until explicitly replaced', () => {
+    const form = planToForm({
+      id: 3,
+      name: 'Burst',
+      price: 10000,
+      price_display: '₦100',
+      duration_hours: 24,
+      rate_limit: '5M/10M 1M/2M',
+      data_limit: 0,
+      voucher_prefix: '',
+      is_active: true,
+      max_devices: 1,
+      created_at: '2026-01-01T00:00:00Z',
+    });
+    expect(form).toMatchObject({
+      upload_value: '',
+      download_value: '',
+      custom_rate_limit: '5M/10M 1M/2M',
+    });
+    expect(formToPlan(planFormSchema.parse({ ...form }))).toMatchObject({
+      bandwidth_profile: null,
+      rate_limit: '5M/10M 1M/2M',
+    });
+  });
+
+  it('detaches a linked bandwidth profile on save', () => {
+    const form = planToForm({
+      id: 4,
+      name: 'Linked',
+      price: 10000,
+      price_display: '₦100',
+      duration_hours: 24,
+      rate_limit: '5M/10M',
+      bandwidth_profile: 7,
+      data_limit: 0,
+      voucher_prefix: '',
+      is_active: true,
+      max_devices: 1,
+      created_at: '2026-01-01T00:00:00Z',
+    });
+    expect(form.bandwidth_profile).toBeNull();
+    expect(formToPlan(planFormSchema.parse({ ...form }))).toMatchObject({
+      bandwidth_profile: null,
+      rate_limit: '5000k/10000k',
     });
   });
 });
 
 describe('compatible plan terms', () => {
-  it('preserves fractional duration, private sales flags and an empty rate', () => {
+  it('preserves fractional duration, private sales flags and blank speeds', () => {
     const parsed = planFormSchema.parse({
       ...planToForm(),
       name: 'Short private plan',
       price: '10',
       duration_value: '20',
       duration_unit: 'minutes',
-      rate_limit: '',
+      upload_value: '',
+      download_value: '',
       is_public: false,
       agent_enabled: false,
     });

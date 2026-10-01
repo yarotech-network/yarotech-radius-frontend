@@ -94,12 +94,10 @@ describe('Bandwidth profiles', () => {
       await screen.findByText('This profile is used by plans. Deactivate it instead.'),
     ).toBeVisible();
   });
-  it('selects a profile in the existing plan form and preserves NGN conversion', async () => {
+  it('sets Hotspot speeds directly with no profile link and preserves NGN conversion', async () => {
     let body: Record<string, unknown> | undefined;
     server.use(
       http.get(`${API}/plans/`, () => HttpResponse.json(paginated([]))),
-      http.get(endpoint, () => HttpResponse.json(paginated([profile]))),
-      http.get(`${endpoint}4/`, () => HttpResponse.json(profile)),
       http.post(`${API}/plans/`, async ({ request }) => {
         body = (await request.json()) as Record<string, unknown>;
         return HttpResponse.json({ id: 1, ...body });
@@ -109,14 +107,14 @@ describe('Bandwidth profiles', () => {
     const user = userEvent.setup();
     await user.click(screen.getByRole('button', { name: 'New plan' }));
     const form = within(screen.getByRole('dialog', { name: 'Create New Hotspot Plan' }));
+    expect(form.queryByRole('button', { name: 'Use bandwidth profile' })).not.toBeInTheDocument();
+    expect(form.queryByLabelText('Bandwidth profile')).not.toBeInTheDocument();
     await user.type(form.getByLabelText(/Plan name/), 'Daily');
     await user.type(form.getByLabelText(/^Price/), '50.50');
-    await user.click(form.getByRole('button', { name: 'Use bandwidth profile' }));
-    await screen.findByRole('option', { name: /Home standard/ });
-    await user.selectOptions(form.getByLabelText('Bandwidth profile'), '4');
-    expect(form.getByLabelText(/Speed limit/)).toHaveValue('2500k/10000k');
+    await user.clear(form.getByLabelText('Upload speed amount'));
+    await user.type(form.getByLabelText('Upload speed amount'), '2.5');
     await user.click(form.getByRole('button', { name: 'Create plan' }));
-    await waitFor(() => expect(body?.bandwidth_profile).toBe(4));
+    await waitFor(() => expect(body?.bandwidth_profile).toBeNull());
     expect(body?.price).toBe(5050);
     expect(body?.rate_limit).toBe('2500k/10000k');
   });

@@ -7,9 +7,9 @@ import { Button, Checkbox, FormField, Input, Select } from '@/components/ui';
 import { Alert } from '@/components/feedback';
 import { useFormSubmit } from '@/lib/forms/useFormSubmit';
 import { newIdempotencyKey } from '@/lib/utilities/idempotency';
-import { describeDuration, DURATION_UNITS, formToPlan, planFormSchema, planToForm, type PlanFormInput, type PlanFormOutput } from '../planSchema';
+import { isApiError } from '@/services/api/errors';
+import { describeDuration, DURATION_UNITS, formToPlan, planFormSchema, planToForm, SPEED_UNITS, type PlanFormInput, type PlanFormOutput } from '../planSchema';
 import type { InternetPlan } from '@/types/api';
-import { BandwidthPicker } from './BandwidthPicker';
 import { useCreatePlan, useUpdatePlan } from '../queries';
 
 const FIELDS = [
@@ -17,20 +17,26 @@ const FIELDS = [
   'public_router',
   'is_public',
   'agent_enabled',
-  'bandwidth_profile',
   'name',
   'price',
   'duration_value',
   'duration_unit',
   'data_mode',
-  'rate_limit',
+  'upload_value',
+  'upload_unit',
+  'download_value',
+  'download_unit',
   'data_limit_mb',
   'voucher_prefix',
   'voucher_code_format',
   'is_active',
   'max_devices',
 ] as const;
-const ALIASES = { data_limit: 'data_limit_mb', duration_hours: 'duration_value' };
+const ALIASES = {
+  data_limit: 'data_limit_mb',
+  duration_hours: 'duration_value',
+  rate_limit: 'upload_value',
+};
 
 /** Fields rendered inside the expandable Additional settings section. */
 const ADDITIONAL_FIELDS = [
@@ -81,11 +87,11 @@ export function PlanForm({
     captureError,
   } = useFormSubmit(form.setError, FIELDS, ALIASES);
   const planType = useWatch({ control: form.control, name: 'plan_type' });
-  const profileId = useWatch({ control: form.control, name: 'bandwidth_profile' });
-  const [chooseProfile, setChooseProfile] = useState(!!plan?.bandwidth_profile);
   const dataMode = useWatch({ control: form.control, name: 'data_mode' });
   const durationValue = useWatch({ control: form.control, name: 'duration_value' });
   const durationUnit = useWatch({ control: form.control, name: 'duration_unit' });
+  const customRate = useWatch({ control: form.control, name: 'custom_rate_limit' });
+  const [rateServerError, setRateServerError] = useState<string | null>(null);
 
   useEffect(() => {
     form.reset(planToForm(plan));
@@ -109,12 +115,7 @@ export function PlanForm({
   const submit = form.handleSubmit(
     async (values) => {
       resetErrors();
-      if (chooseProfile && !values.bandwidth_profile) {
-        form.setError('bandwidth_profile', {
-          message: 'Choose a profile, or switch to custom speed.',
-        });
-        return;
-      }
+      setRateServerError(null);
       try {
         const saved = plan
           ? await update.mutateAsync({ id: plan.id, payload: formToPlan(values) })
@@ -122,6 +123,13 @@ export function PlanForm({
         onSaved(saved);
       } catch (error) {
         captureError(error);
+        // A backend rate_limit error lands on the upload input via aliases in
+        // split mode; in custom mode that input is hidden, so surface it here.
+        const rateLimitError =
+          isApiError(error) && error.fields['rate_limit']?.join(' ');
+        if (rateLimitError && (form.getValues('custom_rate_limit') ?? '').trim()) {
+          setRateServerError(rateLimitError);
+        }
         // Field errors on hidden Additional-settings inputs auto-expand that
         // section (via hasAdditionalErrors); move focus there as well.
         window.setTimeout(() => {
@@ -276,59 +284,102 @@ export function PlanForm({
             <legend className="px-2 text-sm font-semibold text-brand-950">
               Speed
             </legend>
-            <div className="flex flex-wrap gap-2">
-              <Button
-                type="button"
-                size="sm"
-                variant={chooseProfile ? 'primary' : 'secondary'}
-                onClick={() => setChooseProfile(true)}
-              >
-                Use bandwidth profile
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant={!chooseProfile ? 'primary' : 'secondary'}
-                onClick={() => {
-                  setChooseProfile(false);
-                  form.setValue('bandwidth_profile', null, { shouldDirty: true });
-                }}
-              >
-                Use custom speed
-              </Button>
-            </div>
-            {chooseProfile && (
-              <BandwidthPicker
-                value={profileId}
-                onChange={(profile) => {
-                  form.setValue('bandwidth_profile', profile?.id ?? null, { shouldDirty: true });
-                  if (profile)
-                    form.setValue('rate_limit', profile.rate_limit, {
-                      shouldDirty: true,
-                      shouldValidate: true,
-                    });
-                }}
-              />
+            <p className="text-xs text-ink-500">
+              Speeds are measured from the customer&apos;s perspective: upload leaves the
+              customer device, download arrives at it. Applies to newly issued access.
+            </p>
+            {customRate?.trim() ? (
+              <div className="space-y-3">
+                <Alert tone="warning" title="Custom speed expression">
+                  This plan uses <code className="font-mono">{customRate.trim()}</code>, which
+                  these fields cannot represent. It stays unchanged until you replace it below.
+                </Alert>
+                {rateServerError && (
+                  <p role="alert" className="text-xs font-medium text-danger-600">
+                    {rateServerError}
+                  </p>
+                )}
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => {
+                    form.setValue('custom_rate_limit', '', { shouldDirty: true });
+                    setRateServerError(null);
+                    window.setTimeout(
+                      () => document.getElementById('plan-upload-speed')?.focus(),
+                      60,
+                    );
+                  }}
+                >
+                  Enter upload and download speeds
+                </Button>
+              </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div>
+                    <label
+                      htmlFor="plan-upload-speed"
+                      className="mb-1.5 block text-sm font-medium text-ink-700"
+                    >
+                      Upload speed
+                    </label>
+                    <div className="plan-speed-row">
+                      <Input
+                        id="plan-upload-speed"
+                        inputMode="decimal"
+                        placeholder="5"
+                        aria-label="Upload speed amount"
+                        {...form.register('upload_value')}
+                      />
+                      <Select
+                        id="plan-upload-unit"
+                        aria-label="Upload speed unit"
+                        {...form.register('upload_unit')}
+                        options={SPEED_UNITS.map((u) => ({ value: u.value, label: u.label }))}
+                      />
+                    </div>
+                    {form.formState.errors.upload_value && (
+                      <p role="alert" className="mt-1.5 text-xs font-medium text-danger-600">
+                        {form.formState.errors.upload_value.message}
+                      </p>
+                    )}
+                  </div>
+                  <div>
+                    <label
+                      htmlFor="plan-download-speed"
+                      className="mb-1.5 block text-sm font-medium text-ink-700"
+                    >
+                      Download speed
+                    </label>
+                    <div className="plan-speed-row">
+                      <Input
+                        id="plan-download-speed"
+                        inputMode="decimal"
+                        placeholder="10"
+                        aria-label="Download speed amount"
+                        {...form.register('download_value')}
+                      />
+                      <Select
+                        id="plan-download-unit"
+                        aria-label="Download speed unit"
+                        {...form.register('download_unit')}
+                        options={SPEED_UNITS.map((u) => ({ value: u.value, label: u.label }))}
+                      />
+                    </div>
+                    {form.formState.errors.download_value && (
+                      <p role="alert" className="mt-1.5 text-xs font-medium text-danger-600">
+                        {form.formState.errors.download_value.message}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <p className="text-xs text-ink-500">
+                  Leave both blank for no plan speed limit.
+                </p>
+              </>
             )}
-            {form.formState.errors.bandwidth_profile && (
-              <p role="alert" className="text-sm text-danger-700">
-                {form.formState.errors.bandwidth_profile.message}
-              </p>
-            )}
-
-            <FormField
-              label="Speed limit"
-              hint="Upload/download, e.g. 5M/10M. Applies to newly issued access; leave blank for no plan speed limit."
-              error={form.formState.errors.rate_limit?.message}
-            >
-              <Input
-                id="plan-rate-limit"
-                placeholder="5M/10M"
-                readOnly={chooseProfile && !!profileId}
-                className="font-mono"
-                {...form.register('rate_limit')}
-              />
-            </FormField>
           </fieldset>
           <Controller
             control={form.control}

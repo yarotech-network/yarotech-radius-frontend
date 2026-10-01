@@ -125,7 +125,8 @@ dialog:has(.service-plan-dialog)::backdrop {
   flex-direction: column;
   gap: 22px;
 }
-.plan-duration-row {
+.plan-duration-row,
+.plan-speed-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 7.5rem;
   gap: 8px;
@@ -226,7 +227,8 @@ dialog:has(.service-plan-dialog)::backdrop {
   }
 }
 @media (max-width: 450px) {
-  .plan-duration-row {
+  .plan-duration-row,
+  .plan-speed-row {
     grid-template-columns: 1fr;
   }
 }

@@ -7,6 +7,7 @@ import { API, paginated } from '@/test/fixtures';
 import { renderPage } from '@/test/renderPage';
 import type { InternetPlan } from '@/types/api';
 import PlansPage from './PlansPage';
+import PPPoEPlansPage from './PPPoEPlansPage';
 
 const plans: InternetPlan[] = [
   {
@@ -137,7 +138,8 @@ describe('PlansPage', () => {
       duration_hours: 0.5,
       is_public: false,
       agent_enabled: false,
-      rate_limit: '5M/10M',
+      rate_limit: '5000k/10000k',
+      bandwidth_profile: null,
       data_limit: 0,
       is_active: true,
     });
@@ -408,6 +410,235 @@ describe('PlanDialog behavior', () => {
     await waitFor(() =>
       expect(within(dialog).getByLabelText(/Voucher prefix/)).toHaveFocus(),
     );
+  });
+});
+
+describe('PlanDialog speeds', () => {
+  it('creates a plan with converted upload/download speeds and no profile link', async () => {
+    let posted: Record<string, unknown> | null = null;
+    server.use(
+      http.get(`${API}/plans/`, () => HttpResponse.json(paginated([]))),
+      http.post(`${API}/plans/`, async ({ request }) => {
+        posted = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json({ ...plans[0]!, id: 9 }, { status: 201 });
+      }),
+    );
+    renderPage(<PlansPage />, { role: 'owner', path: '/plans' });
+    await userEvent.click(await screen.findByRole('button', { name: 'New plan' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Create New Hotspot Plan' });
+    expect(within(dialog).queryByRole('button', { name: 'Use bandwidth profile' })).not.toBeInTheDocument();
+    expect(within(dialog).queryByLabelText('Bandwidth profile')).not.toBeInTheDocument();
+    expect(within(dialog).getByLabelText('Upload speed amount')).toHaveValue('5');
+    expect(within(dialog).getByLabelText('Download speed amount')).toHaveValue('10');
+    await userEvent.type(within(dialog).getByLabelText(/Plan name/), 'Speedy');
+    await userEvent.type(within(dialog).getByLabelText(/Price/), '500');
+    await userEvent.clear(within(dialog).getByLabelText('Upload speed amount'));
+    await userEvent.type(within(dialog).getByLabelText('Upload speed amount'), '1');
+    await userEvent.selectOptions(within(dialog).getByLabelText('Upload speed unit'), 'Gbps');
+    await userEvent.clear(within(dialog).getByLabelText('Download speed amount'));
+    await userEvent.type(within(dialog).getByLabelText('Download speed amount'), '2.5');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Create plan' }));
+    await waitFor(() =>
+      expect(posted).toMatchObject({
+        rate_limit: '1000000k/2500k',
+        bandwidth_profile: null,
+      }),
+    );
+    expect(await screen.findByText('Plan created')).toBeInTheDocument();
+  });
+
+  it('edits a profile-linked plan and detaches the profile on save', async () => {
+    let patched: Record<string, unknown> | null = null;
+    const linked = { ...plans[0]!, bandwidth_profile: 7, bandwidth_profile_name: 'Gold' };
+    server.use(
+      http.get(`${API}/plans/`, () => HttpResponse.json(paginated([linked]))),
+      http.patch(`${API}/plans/1/`, async ({ request }) => {
+        patched = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json(linked);
+      }),
+    );
+    renderPage(<PlansPage />, { role: 'owner', path: '/plans' });
+    const table = await screen.findByRole('table', { name: 'Internet plans' });
+    await within(table).findByText('Daily 1GB');
+    await userEvent.click(within(table).getByRole('button', { name: 'Actions for Daily 1GB' }));
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'Edit' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Edit Daily 1GB' });
+    expect(within(dialog).getByLabelText('Upload speed amount')).toHaveValue('5');
+    expect(within(dialog).getByLabelText('Download speed amount')).toHaveValue('10');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Save changes' }));
+    await waitFor(() =>
+      expect(patched).toMatchObject({ bandwidth_profile: null, rate_limit: '5000k/10000k' }),
+    );
+    expect(await screen.findByText('Plan updated')).toBeInTheDocument();
+  });
+
+  it('preserves a complex stored expression until explicitly replaced', async () => {
+    let patched: Record<string, unknown> | null = null;
+    const complex = { ...plans[0]!, rate_limit: '5M/10M 1M/2M' };
+    server.use(
+      http.get(`${API}/plans/`, () => HttpResponse.json(paginated([complex]))),
+      http.patch(`${API}/plans/1/`, async ({ request }) => {
+        patched = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json(complex);
+      }),
+    );
+    renderPage(<PlansPage />, { role: 'owner', path: '/plans' });
+    const table = await screen.findByRole('table', { name: 'Internet plans' });
+    await within(table).findByText('Daily 1GB');
+    await userEvent.click(within(table).getByRole('button', { name: 'Actions for Daily 1GB' }));
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'Edit' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Edit Daily 1GB' });
+    expect(await within(dialog).findByText(/cannot represent/)).toBeInTheDocument();
+    expect(within(dialog).queryByLabelText('Upload speed amount')).not.toBeInTheDocument();
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Save changes' }));
+    await waitFor(() =>
+      expect(patched).toMatchObject({ rate_limit: '5M/10M 1M/2M', bandwidth_profile: null }),
+    );
+    expect(await screen.findByText('Plan updated')).toBeInTheDocument();
+  });
+
+  it('replaces a complex expression with upload/download values on request', async () => {
+    let patched: Record<string, unknown> | null = null;
+    const complex = { ...plans[0]!, rate_limit: '5M/10M 1M/2M' };
+    server.use(
+      http.get(`${API}/plans/`, () => HttpResponse.json(paginated([complex]))),
+      http.patch(`${API}/plans/1/`, async ({ request }) => {
+        patched = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json(complex);
+      }),
+    );
+    renderPage(<PlansPage />, { role: 'owner', path: '/plans' });
+    const table = await screen.findByRole('table', { name: 'Internet plans' });
+    await within(table).findByText('Daily 1GB');
+    await userEvent.click(within(table).getByRole('button', { name: 'Actions for Daily 1GB' }));
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'Edit' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Edit Daily 1GB' });
+    await userEvent.click(
+      await within(dialog).findByRole('button', { name: 'Enter upload and download speeds' }),
+    );
+    await userEvent.type(await within(dialog).findByLabelText('Upload speed amount'), '5');
+    await userEvent.type(within(dialog).getByLabelText('Download speed amount'), '10');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Save changes' }));
+    await waitFor(() => expect(patched).toMatchObject({ rate_limit: '5000k/10000k' }));
+    expect(await screen.findByText('Plan updated')).toBeInTheDocument();
+  });
+
+  it('keeps an unchanged decimal-unit plan at its effective speeds', async () => {
+    let patched: Record<string, unknown> | null = null;
+    const decimal = { ...plans[0]!, rate_limit: '2500k/10000k' };
+    server.use(
+      http.get(`${API}/plans/`, () => HttpResponse.json(paginated([decimal]))),
+      http.patch(`${API}/plans/1/`, async ({ request }) => {
+        patched = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json(decimal);
+      }),
+    );
+    renderPage(<PlansPage />, { role: 'owner', path: '/plans' });
+    const table = await screen.findByRole('table', { name: 'Internet plans' });
+    await within(table).findByText('Daily 1GB');
+    await userEvent.click(within(table).getByRole('button', { name: 'Actions for Daily 1GB' }));
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'Edit' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Edit Daily 1GB' });
+    expect(within(dialog).getByLabelText('Upload speed amount')).toHaveValue('2.5');
+    expect(within(dialog).getByLabelText('Upload speed unit')).toHaveValue('Mbps');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Save changes' }));
+    await waitFor(() => expect(patched).toMatchObject({ rate_limit: '2500k/10000k' }));
+    expect(await screen.findByText('Plan updated')).toBeInTheDocument();
+  });
+
+  it('allows blank speeds for no limit but rejects only one side blank', async () => {
+    let posted: Record<string, unknown> | null = null;
+    server.use(
+      http.get(`${API}/plans/`, () => HttpResponse.json(paginated([]))),
+      http.post(`${API}/plans/`, async ({ request }) => {
+        posted = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json({ ...plans[0]!, id: 9 }, { status: 201 });
+      }),
+    );
+    renderPage(<PlansPage />, { role: 'owner', path: '/plans' });
+    await userEvent.click(await screen.findByRole('button', { name: 'New plan' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Create New Hotspot Plan' });
+    await userEvent.type(within(dialog).getByLabelText(/Plan name/), 'No limit');
+    await userEvent.type(within(dialog).getByLabelText(/Price/), '100');
+    await userEvent.clear(within(dialog).getByLabelText('Upload speed amount'));
+    await userEvent.clear(within(dialog).getByLabelText('Download speed amount'));
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Create plan' }));
+    await waitFor(() => expect(posted).toMatchObject({ rate_limit: '' }));
+    expect(await screen.findByText('Plan created')).toBeInTheDocument();
+  });
+
+  it('rejects a one-sided blank and an over-limit speed', async () => {
+    const user = userEvent.setup({ delay: null });
+    server.use(http.get(`${API}/plans/`, () => HttpResponse.json(paginated([]))));
+    renderPage(<PlansPage />, { role: 'owner', path: '/plans' });
+    await user.click(await screen.findByRole('button', { name: 'New plan' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Create New Hotspot Plan' });
+    await user.clear(within(dialog).getByLabelText('Download speed amount'));
+    await user.click(within(dialog).getByRole('button', { name: 'Create plan' }));
+    expect(
+      await within(dialog).findByText(/Enter both upload and download speeds/),
+    ).toBeInTheDocument();
+    await user.clear(within(dialog).getByLabelText('Upload speed amount'));
+    await user.type(within(dialog).getByLabelText('Upload speed amount'), '11');
+    await user.selectOptions(within(dialog).getByLabelText('Upload speed unit'), 'Gbps');
+    await user.type(within(dialog).getByLabelText('Download speed amount'), '10');
+    await user.click(within(dialog).getByRole('button', { name: 'Create plan' }));
+    expect(await within(dialog).findByText(/1 Kbps to 10 Gbps/)).toBeInTheDocument();
+  });
+
+  it('maps a backend rate_limit error onto the upload control', async () => {
+    const user = userEvent.setup({ delay: null });
+    server.use(
+      http.get(`${API}/plans/`, () => HttpResponse.json(paginated([]))),
+      http.post(`${API}/plans/`, () =>
+        HttpResponse.json(
+          {
+            problem: {
+              code: 'validation_error',
+              message: 'Invalid input.',
+              fields: { rate_limit: ['Speed must match the selected profile.'] },
+            },
+          },
+          { status: 400 },
+        ),
+      ),
+    );
+    renderPage(<PlansPage />, { role: 'owner', path: '/plans' });
+    await user.click(await screen.findByRole('button', { name: 'New plan' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Create New Hotspot Plan' });
+    await user.type(within(dialog).getByLabelText(/Plan name/), 'Speedy');
+    await user.type(within(dialog).getByLabelText(/Price/), '500');
+    await user.click(within(dialog).getByRole('button', { name: 'Create plan' }));
+    expect(
+      await within(dialog).findByText('Speed must match the selected profile.'),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'Create New Hotspot Plan' })).toBeInTheDocument();
+  });
+});
+
+describe('PPPoE plans navigation', () => {
+  it('keeps both section tabs and the bandwidth route available', async () => {
+    server.use(http.get(`${API}/pppoe-plans/`, () => HttpResponse.json(paginated([]))));
+    renderPage(<PPPoEPlansPage />, { role: 'owner', path: '/plans/pppoe' });
+    await screen.findByRole('heading', { name: 'PPPoE Plans' });
+    expect(screen.getByRole('link', { name: 'Hotspot plans' })).toHaveAttribute('href', '/plans');
+    expect(screen.getByRole('link', { name: 'Bandwidth control' })).toHaveAttribute(
+      'href',
+      '/plans/bandwidth',
+    );
+  });
+});
+
+describe('Hotspot plans navigation', () => {
+  it('shows no Bandwidth Control tab, profiles link, or profile labels', async () => {
+    server.use(http.get(`${API}/plans/`, () => HttpResponse.json(paginated(plans))));
+    renderPage(<PlansPage />, { role: 'owner', path: '/plans' });
+    const table = await screen.findByRole('table', { name: 'Internet plans' });
+    await within(table).findByText('Daily 1GB');
+    expect(screen.queryByRole('link', { name: 'Bandwidth profiles' })).not.toBeInTheDocument();
+    expect(screen.queryByText('Bandwidth control')).not.toBeInTheDocument();
+    expect(screen.queryByText('Custom speed')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Profile:/)).not.toBeInTheDocument();
   });
 });
 
