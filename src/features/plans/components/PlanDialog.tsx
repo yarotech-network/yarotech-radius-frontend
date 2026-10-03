@@ -36,6 +36,7 @@ export function PlanDialog({
         onClose={requestClose}
         size="lg"
         dismissible={!busy}
+        closeOnBackdropClick={false}
         className="service-plan-dialog"
         title={
           <span className="plan-dialog-title">

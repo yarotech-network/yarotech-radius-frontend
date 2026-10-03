@@ -1,6 +1,6 @@
 import { http, HttpResponse } from 'msw';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { server } from '@/test/server';
 import { API, paginated } from '@/test/fixtures';
@@ -35,6 +35,11 @@ const plans: InternetPlan[] = [
     created_at: '2026-09-02T10:00:00Z',
   },
 ];
+
+async function nextPlanStep(dialog: HTMLElement) {
+  await userEvent.click(within(dialog).getByRole('button', { name: 'Next' }));
+  await waitFor(() => expect(within(dialog).getByText('Step 2 of 2: Access and availability')).toBeInTheDocument());
+}
 
 describe('PlansPage', () => {
   it('shows a skeleton, then the plan list with filters reflected in the query string', async () => {
@@ -113,21 +118,25 @@ describe('PlansPage', () => {
     renderPage(<PlansPage />, { role: 'owner', path: '/plans' });
     await userEvent.click(await screen.findByRole('button', { name: 'Create a plan' }));
     const dialog = await screen.findByRole('dialog');
-    await userEvent.click(within(dialog).getByText('Additional settings'));
     await userEvent.type(within(dialog).getByLabelText(/Plan name/), 'dup');
     await userEvent.type(within(dialog).getByLabelText(/Price/), '500');
+    await nextPlanStep(dialog);
+    await userEvent.click(within(dialog).getByText('Additional settings'));
     await userEvent.selectOptions(within(dialog).getByLabelText('Voucher code format'), 'numeric');
     await userEvent.click(within(dialog).getByRole('button', { name: 'Create plan' }));
     expect(
       await within(dialog).findByText('Plan with this name already exists.'),
     ).toBeInTheDocument();
+    // A server error on a first-step field returns to that step.
     await userEvent.clear(within(dialog).getByLabelText(/Plan name/));
     await userEvent.type(within(dialog).getByLabelText(/Plan name/), 'Night Owl');
-    await userEvent.click(within(dialog).getByRole('checkbox', { name: /Public sales/ }));
-    await userEvent.click(within(dialog).getByRole('checkbox', { name: /Agent sales/ }));
     await userEvent.clear(within(dialog).getByLabelText(/Duration amount/));
     await userEvent.type(within(dialog).getByLabelText(/Duration amount/), '0.5');
     await userEvent.selectOptions(within(dialog).getByLabelText(/Duration unit/), 'hours');
+    await nextPlanStep(dialog);
+    await userEvent.click(within(dialog).getByRole('checkbox', { name: /Public sales/ }));
+    await userEvent.click(within(dialog).getByRole('checkbox', { name: /Agent sales/ }));
+    await userEvent.click(within(dialog).getByText('Additional settings'));
     await userEvent.selectOptions(within(dialog).getByLabelText('Voucher code format'), 'numeric');
     await userEvent.click(within(dialog).getByRole('button', { name: 'Create plan' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
@@ -225,7 +234,9 @@ it('creates a plan with a device ceiling and edits it 1 -> 5 -> 2', async () => 
   renderPage(<PlansPage />, { role: 'owner', path: '/plans' });
   await userEvent.click(await screen.findByRole('button', { name: 'New plan' }));
   const dialog = await screen.findByRole('dialog');
-  await userEvent.click(within(dialog).getByText('Additional settings'));
+  await userEvent.type(within(dialog).getByLabelText(/Plan name/), 'Family');
+  await userEvent.type(within(dialog).getByLabelText(/Price/), '1000');
+  await nextPlanStep(dialog);
   const select = within(dialog).getByLabelText('Maximum devices') as HTMLSelectElement;
   expect(select.value).toBe('1');
   expect(Array.from(select.options).map((o) => o.text)).toEqual([
@@ -240,8 +251,6 @@ it('creates a plan with a device ceiling and edits it 1 -> 5 -> 2', async () => 
     '9 devices',
     '10 devices',
   ]);
-  await userEvent.type(within(dialog).getByLabelText(/Plan name/), 'Family');
-  await userEvent.type(within(dialog).getByLabelText(/Price/), '1000');
   await userEvent.selectOptions(select, '5');
   await userEvent.click(within(dialog).getByRole('button', { name: 'Create plan' }));
   await waitFor(() => expect(posted).toMatchObject({ name: 'Family', max_devices: 5 }));
@@ -252,11 +261,11 @@ it('edit populates the stored ceiling and persists a new value', async () => {
   let patched: Record<string, unknown> | null = null;
   server.use(
     http.get(`${API}/plans/`, () =>
-      HttpResponse.json(paginated([{ ...plans[0]!, max_devices: 5 }])),
+      HttpResponse.json(paginated([{ ...plans[0]!, max_devices: 1, configured_max_devices: 5 }])),
     ),
     http.patch(`${API}/plans/1/`, async ({ request }) => {
       patched = (await request.json()) as Record<string, unknown>;
-      return HttpResponse.json({ ...plans[0]!, max_devices: patched.max_devices ?? 5 });
+      return HttpResponse.json({ ...plans[0]!, max_devices: 1, configured_max_devices: patched.max_devices ?? 5 });
     }),
   );
   renderPage(<PlansPage />, { role: 'owner', path: '/plans' });
@@ -265,13 +274,59 @@ it('edit populates the stored ceiling and persists a new value', async () => {
   await userEvent.click(within(table).getByRole('button', { name: 'Actions for Daily 1GB' }));
   await userEvent.click(await screen.findByRole('menuitem', { name: 'Edit' }));
   const dialog = await screen.findByRole('dialog');
-  await userEvent.click(within(dialog).getByText('Additional settings'));
+  await nextPlanStep(dialog);
   const select = within(dialog).getByLabelText('Maximum devices') as HTMLSelectElement;
   expect(select.value).toBe('5');
+  expect(within(dialog).getByText(/Platform policy currently limits new vouchers to 1/)).toBeInTheDocument();
   await userEvent.selectOptions(select, '2');
   await userEvent.click(within(dialog).getByRole('button', { name: 'Save changes' }));
   await waitFor(() => expect(patched).toMatchObject({ max_devices: 2 }));
   expect(await screen.findByText('Plan updated')).toBeInTheDocument();
+});
+
+it('keeps step two open when choosing the maximum-device option or pressing Enter', async () => {
+  let patched = 0;
+  server.use(
+    http.get(`${API}/plans/`, () => HttpResponse.json(paginated([{ ...plans[0]!, max_devices: 1 }]))),
+    http.patch(`${API}/plans/1/`, () => { patched += 1; return HttpResponse.json(plans[0]!); }),
+  );
+  renderPage(<PlansPage />, { role: 'owner', path: '/plans' });
+  const table = await screen.findByRole('table', { name: 'Internet plans' });
+  await within(table).findByText('Daily 1GB');
+  await userEvent.click(within(table).getByRole('button', { name: 'Actions for Daily 1GB' }));
+  await userEvent.click(await screen.findByRole('menuitem', { name: 'Edit' }));
+  const dialog = await screen.findByRole('dialog', { name: 'Edit Daily 1GB' });
+  await nextPlanStep(dialog);
+  const select = within(dialog).getByLabelText('Maximum devices');
+  await userEvent.selectOptions(select, '5');
+  fireEvent.click(dialog);
+  select.focus();
+  await userEvent.keyboard('{Enter}');
+  expect(select).toHaveValue('5');
+  expect(screen.getByRole('dialog', { name: 'Edit Daily 1GB' })).toBeInTheDocument();
+  expect(patched).toBe(0);
+  await userEvent.click(within(dialog).getByRole('button', { name: 'Save changes' }));
+  await waitFor(() => expect(patched).toBe(1));
+});
+
+it('requires Next before saving and keeps the first step editable', async () => {
+  let posts = 0;
+  server.use(
+    http.get(`${API}/plans/`, () => HttpResponse.json(paginated([]))),
+    http.post(`${API}/plans/`, () => { posts += 1; return HttpResponse.json({ ...plans[0]!, id: 9 }, { status: 201 }); }),
+  );
+  renderPage(<PlansPage />, { role: 'owner', path: '/plans' });
+  await userEvent.click(await screen.findByRole('button', { name: 'New plan' }));
+  const dialog = await screen.findByRole('dialog');
+  await userEvent.click(within(dialog).getByRole('button', { name: 'Next' }));
+  expect(await within(dialog).findByText('Give the plan a name')).toBeInTheDocument();
+  expect(posts).toBe(0);
+  await userEvent.type(within(dialog).getByLabelText(/Plan name/), 'Two step');
+  await userEvent.type(within(dialog).getByLabelText(/Price/), '200');
+  await nextPlanStep(dialog);
+  await userEvent.click(within(dialog).getByRole('button', { name: 'Back' }));
+  expect(within(dialog).getByLabelText(/Plan name/)).toHaveValue('Two step');
+  expect(posts).toBe(0);
 });
 
 describe('PlanDialog behavior', () => {
@@ -296,6 +351,7 @@ describe('PlanDialog behavior', () => {
     await userEvent.selectOptions(within(dialog).getByLabelText(/Duration unit/), 'days');
     await userEvent.click(within(dialog).getByLabelText('Limited data'));
     await userEvent.type(within(dialog).getByLabelText(/Data limit/), '1024');
+    await nextPlanStep(dialog);
     await userEvent.click(within(dialog).getByRole('button', { name: 'Create plan' }));
     await waitFor(() =>
       expect(posted).toMatchObject({ duration_hours: 72, data_limit: 1024 }),
@@ -322,6 +378,7 @@ describe('PlanDialog behavior', () => {
     expect(within(dialog).getByLabelText(/Duration amount/)).toHaveValue(20);
     expect(within(dialog).getByLabelText(/Duration unit/)).toHaveValue('minutes');
     expect(within(dialog).getByLabelText('Limited data')).toBeChecked();
+    await nextPlanStep(dialog);
     await userEvent.click(within(dialog).getByRole('button', { name: 'Save changes' }));
     await waitFor(() =>
       expect(patched).toMatchObject({ duration_hours: 0.333333, data_limit: 512 }),
@@ -369,11 +426,12 @@ describe('PlanDialog behavior', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Create New Hotspot Plan' });
     await user.type(within(dialog).getByLabelText(/Plan name/), 'Saving plan');
     await user.type(within(dialog).getByLabelText(/Price/), '500');
+    await nextPlanStep(dialog);
     await user.click(within(dialog).getByRole('button', { name: 'Create plan' }));
     await waitFor(() =>
       expect(within(dialog).getByRole('button', { name: 'Create plan' })).toBeDisabled(),
     );
-    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    expect(within(dialog).getByRole('button', { name: 'Back' })).toBeDisabled();
     expect(screen.queryByRole('dialog', { name: 'Discard new plan?' })).not.toBeInTheDocument();
     expect(screen.getByRole('dialog', { name: 'Create New Hotspot Plan' })).toBeInTheDocument();
     resolvePost(HttpResponse.json({ ...plans[0]!, id: 9 }, { status: 201 }));
@@ -402,6 +460,7 @@ describe('PlanDialog behavior', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Create New Hotspot Plan' });
     await user.type(within(dialog).getByLabelText(/Plan name/), 'Prefixed');
     await user.type(within(dialog).getByLabelText(/Price/), '500');
+    await nextPlanStep(dialog);
     await user.click(within(dialog).getByRole('button', { name: 'Create plan' }));
     expect(await within(dialog).findByText('Enter a shorter prefix.')).toBeInTheDocument();
     await waitFor(() =>
@@ -428,10 +487,11 @@ describe('PlanDialog speeds', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Create New Hotspot Plan' });
     expect(within(dialog).queryByRole('button', { name: 'Use bandwidth profile' })).not.toBeInTheDocument();
     expect(within(dialog).queryByLabelText('Bandwidth profile')).not.toBeInTheDocument();
-    expect(within(dialog).getByLabelText('Upload speed amount')).toHaveValue('5');
-    expect(within(dialog).getByLabelText('Download speed amount')).toHaveValue('10');
     await userEvent.type(within(dialog).getByLabelText(/Plan name/), 'Speedy');
     await userEvent.type(within(dialog).getByLabelText(/Price/), '500');
+    await nextPlanStep(dialog);
+    expect(within(dialog).getByLabelText('Upload speed amount')).toHaveValue('5');
+    expect(within(dialog).getByLabelText('Download speed amount')).toHaveValue('10');
     await userEvent.clear(within(dialog).getByLabelText('Upload speed amount'));
     await userEvent.type(within(dialog).getByLabelText('Upload speed amount'), '1');
     await userEvent.selectOptions(within(dialog).getByLabelText('Upload speed unit'), 'Gbps');
@@ -463,6 +523,7 @@ describe('PlanDialog speeds', () => {
     await userEvent.click(within(table).getByRole('button', { name: 'Actions for Daily 1GB' }));
     await userEvent.click(await screen.findByRole('menuitem', { name: 'Edit' }));
     const dialog = await screen.findByRole('dialog', { name: 'Edit Daily 1GB' });
+    await nextPlanStep(dialog);
     expect(within(dialog).getByLabelText('Upload speed amount')).toHaveValue('5');
     expect(within(dialog).getByLabelText('Download speed amount')).toHaveValue('10');
     await userEvent.click(within(dialog).getByRole('button', { name: 'Save changes' }));
@@ -488,6 +549,7 @@ describe('PlanDialog speeds', () => {
     await userEvent.click(within(table).getByRole('button', { name: 'Actions for Daily 1GB' }));
     await userEvent.click(await screen.findByRole('menuitem', { name: 'Edit' }));
     const dialog = await screen.findByRole('dialog', { name: 'Edit Daily 1GB' });
+    await nextPlanStep(dialog);
     expect(await within(dialog).findByText(/cannot represent/)).toBeInTheDocument();
     expect(within(dialog).queryByLabelText('Upload speed amount')).not.toBeInTheDocument();
     await userEvent.click(within(dialog).getByRole('button', { name: 'Save changes' }));
@@ -513,6 +575,7 @@ describe('PlanDialog speeds', () => {
     await userEvent.click(within(table).getByRole('button', { name: 'Actions for Daily 1GB' }));
     await userEvent.click(await screen.findByRole('menuitem', { name: 'Edit' }));
     const dialog = await screen.findByRole('dialog', { name: 'Edit Daily 1GB' });
+    await nextPlanStep(dialog);
     await userEvent.click(
       await within(dialog).findByRole('button', { name: 'Enter upload and download speeds' }),
     );
@@ -539,6 +602,7 @@ describe('PlanDialog speeds', () => {
     await userEvent.click(within(table).getByRole('button', { name: 'Actions for Daily 1GB' }));
     await userEvent.click(await screen.findByRole('menuitem', { name: 'Edit' }));
     const dialog = await screen.findByRole('dialog', { name: 'Edit Daily 1GB' });
+    await nextPlanStep(dialog);
     expect(within(dialog).getByLabelText('Upload speed amount')).toHaveValue('2.5');
     expect(within(dialog).getByLabelText('Upload speed unit')).toHaveValue('Mbps');
     await userEvent.click(within(dialog).getByRole('button', { name: 'Save changes' }));
@@ -560,6 +624,7 @@ describe('PlanDialog speeds', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Create New Hotspot Plan' });
     await userEvent.type(within(dialog).getByLabelText(/Plan name/), 'No limit');
     await userEvent.type(within(dialog).getByLabelText(/Price/), '100');
+    await nextPlanStep(dialog);
     await userEvent.clear(within(dialog).getByLabelText('Upload speed amount'));
     await userEvent.clear(within(dialog).getByLabelText('Download speed amount'));
     await userEvent.click(within(dialog).getByRole('button', { name: 'Create plan' }));
@@ -573,6 +638,9 @@ describe('PlanDialog speeds', () => {
     renderPage(<PlansPage />, { role: 'owner', path: '/plans' });
     await user.click(await screen.findByRole('button', { name: 'New plan' }));
     const dialog = await screen.findByRole('dialog', { name: 'Create New Hotspot Plan' });
+    await user.type(within(dialog).getByLabelText(/Plan name/), 'Speed check');
+    await user.type(within(dialog).getByLabelText(/Price/), '100');
+    await nextPlanStep(dialog);
     await user.clear(within(dialog).getByLabelText('Download speed amount'));
     await user.click(within(dialog).getByRole('button', { name: 'Create plan' }));
     expect(
@@ -608,6 +676,7 @@ describe('PlanDialog speeds', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Create New Hotspot Plan' });
     await user.type(within(dialog).getByLabelText(/Plan name/), 'Speedy');
     await user.type(within(dialog).getByLabelText(/Price/), '500');
+    await nextPlanStep(dialog);
     await user.click(within(dialog).getByRole('button', { name: 'Create plan' }));
     expect(
       await within(dialog).findByText('Speed must match the selected profile.'),

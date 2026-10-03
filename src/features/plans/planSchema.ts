@@ -250,7 +250,7 @@ export function planToForm(plan?: InternetPlan): PlanFormInput {
     voucher_prefix: plan?.voucher_prefix ?? '',
     voucher_code_format: plan?.voucher_code_format ?? 'legacy',
     is_active: plan?.is_active ?? true,
-    max_devices: plan?.max_devices ?? 1,
+    max_devices: plan?.configured_max_devices ?? plan?.max_devices ?? 1,
   };
 }
 

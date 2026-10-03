@@ -125,6 +125,29 @@ dialog:has(.service-plan-dialog)::backdrop {
   flex-direction: column;
   gap: 22px;
 }
+.plan-editor-progress {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 20px 30px 0;
+  font-size: 12px;
+  font-weight: 600;
+}
+.plan-editor-progress li {
+  border-radius: 999px;
+  background: var(--color-surface-muted);
+  color: var(--color-ink-600);
+  padding: 6px 12px;
+}
+.plan-editor-progress .plan-editor-current-step {
+  background: var(--color-brand-600);
+  color: white;
+}
+.plan-editor-step-label {
+  padding: 8px 30px 0;
+  color: var(--color-ink-600);
+  font-size: 12px;
+}
 .plan-duration-row,
 .plan-speed-row {
   display: grid;
@@ -211,6 +234,12 @@ dialog:has(.service-plan-dialog)::backdrop {
   }
   .plan-editor-fields {
     padding: 20px 20px 0;
+  }
+  .plan-editor-progress {
+    padding: 20px 20px 0;
+  }
+  .plan-editor-step-label {
+    padding: 8px 20px 0;
   }
   .service-plan-dialog > header {
     padding: 20px;

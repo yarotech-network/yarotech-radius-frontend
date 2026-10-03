@@ -15,6 +15,8 @@ export interface DialogProps {
   size?: 'sm' | 'md' | 'lg' | 'xl';
   /** Prevent closing while a mutation is running. */
   dismissible?: boolean;
+  /** Useful for forms with native selects whose option clicks can reach the dialog backdrop. */
+  closeOnBackdropClick?: boolean;
   className?: string;
 }
 
@@ -44,6 +46,7 @@ export function Dialog({
   variant = 'dialog',
   size = 'md',
   dismissible = true,
+  closeOnBackdropClick = true,
   className,
 }: DialogProps) {
   const ref = useRef<HTMLDialogElement>(null);
@@ -94,7 +97,7 @@ export function Dialog({
       aria-labelledby={titleId}
       aria-describedby={description ? descId : undefined}
       onClick={(event) => {
-        if (dismissible && event.target === event.currentTarget) onClose();
+        if (dismissible && closeOnBackdropClick && event.target === event.currentTarget) onClose();
       }}
       className={cn(
         'bg-transparent p-0 backdrop:bg-brand-950/40 backdrop:backdrop-blur-[1px] open:flex',

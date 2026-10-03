@@ -3,6 +3,8 @@ import type { IsoDateTime, Kobo, PageParams, PaymentDisplayStatus, Reconciliatio
 
 export interface InternetPlan {
   max_devices?: number;
+  /** Saved plan setting; max_devices is the current effective issuance limit. */
+  configured_max_devices?: number;
   archived_at?: IsoDateTime | null;
   duration_seconds?: number;
   bandwidth_profile?: number | null;

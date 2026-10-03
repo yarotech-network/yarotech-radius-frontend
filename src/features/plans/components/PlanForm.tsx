@@ -1,6 +1,6 @@
 import { planCodeFormatOptions } from '@/lib/voucherCodeFormats';
 import { useRouterOptions } from '@/features/routers/queries';
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { Controller, useForm, useWatch, type FieldErrors } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button, Checkbox, FormField, Input, Select } from '@/components/ui';
@@ -37,12 +37,20 @@ const ALIASES = {
   duration_hours: 'duration_value',
   rate_limit: 'upload_value',
 };
+const STEP_ONE_FIELDS = ['name', 'price', 'duration_value', 'duration_unit', 'data_mode', 'data_limit_mb'] as const;
+const STEP_ONE_INPUT_IDS: Record<(typeof STEP_ONE_FIELDS)[number], string> = {
+  name: 'plan-name',
+  price: 'plan-price',
+  duration_value: 'plan-duration-value',
+  duration_unit: 'plan-duration-unit',
+  data_mode: 'plan-data-unlimited',
+  data_limit_mb: 'plan-data-limit',
+};
 
 /** Fields rendered inside the expandable Additional settings section. */
 const ADDITIONAL_FIELDS = [
   'voucher_prefix',
   'voucher_code_format',
-  'max_devices',
   'plan_type',
   'public_router',
   'is_public',
@@ -53,7 +61,6 @@ const ADDITIONAL_FIELDS = [
 const ADDITIONAL_INPUT_IDS: Record<(typeof ADDITIONAL_FIELDS)[number], string> = {
   voucher_prefix: 'plan-voucher-prefix',
   voucher_code_format: 'plan-code-format',
-  max_devices: 'plan-max-devices',
   plan_type: 'plan-service-type',
   public_router: 'plan-assigned-router',
   is_public: 'plan-public-sales',
@@ -92,6 +99,22 @@ export function PlanForm({
   const durationUnit = useWatch({ control: form.control, name: 'duration_unit' });
   const customRate = useWatch({ control: form.control, name: 'custom_rate_limit' });
   const [rateServerError, setRateServerError] = useState<string | null>(null);
+  const [step, setStep] = useState<0 | 1>(0);
+  const stepHeadingId = useId();
+
+  function showStep(next: 0 | 1) {
+    setStep(next);
+    window.setTimeout(() => document.getElementById(stepHeadingId)?.focus(), 0);
+  }
+
+  async function goNext() {
+    if (await form.trigger(STEP_ONE_FIELDS, { shouldFocus: true })) showStep(1);
+  }
+
+  function focusStepOneError(field: (typeof STEP_ONE_FIELDS)[number]) {
+    showStep(0);
+    window.setTimeout(() => document.getElementById(STEP_ONE_INPUT_IDS[field])?.focus(), 60);
+  }
 
   useEffect(() => {
     form.reset(planToForm(plan));
@@ -133,6 +156,11 @@ export function PlanForm({
         // Field errors on hidden Additional-settings inputs auto-expand that
         // section (via hasAdditionalErrors); move focus there as well.
         window.setTimeout(() => {
+          const firstStepError = STEP_ONE_FIELDS.find((field) => form.getFieldState(field).error);
+          if (firstStepError) {
+            focusStepOneError(firstStepError);
+            return;
+          }
           const hit = ADDITIONAL_FIELDS.find((field) => form.getFieldState(field).error);
           if (hit) {
             setAdvanced(true);
@@ -145,6 +173,11 @@ export function PlanForm({
       }
     },
     (errors) => {
+      const firstStepError = STEP_ONE_FIELDS.find((field) => errors[field]);
+      if (firstStepError) {
+        focusStepOneError(firstStepError);
+        return;
+      }
       if (ADDITIONAL_FIELDS.some((field) => errors[field])) {
         setAdvanced(true);
         focusAdditionalError(errors);
@@ -155,11 +188,23 @@ export function PlanForm({
   const [advanced, setAdvanced] = useState(plan?.plan_type === 'iot_mac');
   const busy = form.formState.isSubmitting;
   const hasAdditionalErrors = ADDITIONAL_FIELDS.some((field) => form.formState.errors[field]);
+  const configuredDevices = plan?.configured_max_devices ?? plan?.max_devices ?? 1;
+  const effectiveDevices = plan?.max_devices ?? configuredDevices;
 
   return (
-    <form onSubmit={(e) => void submit(e)} noValidate className="plan-editor">
+    <form onSubmit={(event) => event.preventDefault()} noValidate className="plan-editor">
       {message && <Alert tone="danger">{message}</Alert>}
+      <ol aria-label="Plan setup progress" className="plan-editor-progress">
+        {['Plan essentials', 'Access and availability'].map((label, index) => (
+          <li key={label} aria-current={step === index ? 'step' : undefined} className={step === index ? 'plan-editor-current-step' : ''}>
+            <span aria-hidden>{index + 1}</span> {label}
+          </li>
+        ))}
+      </ol>
+      <p className="plan-editor-step-label" role="status">Step {step + 1} of 2: {step === 0 ? 'Plan essentials' : 'Access and availability'}</p>
       <div className="plan-editor-fields">
+        {step === 0 ? <>
+          <h3 id={stepHeadingId} tabIndex={-1} className="sr-only">Plan essentials</h3>
           <fieldset className="min-w-0 space-y-4 rounded-xl border border-border p-4">
             <legend className="px-2 text-sm font-semibold text-brand-950">Plan essentials</legend>
             <FormField label="Plan name" required error={form.formState.errors.name?.message}>
@@ -280,6 +325,8 @@ export function PlanForm({
               </FormField>
             )}
           </fieldset>
+        </> : <>
+          <h3 id={stepHeadingId} tabIndex={-1} className="sr-only">Access and availability</h3>
           <fieldset className="min-w-0 space-y-4 rounded-xl border border-border p-4">
             <legend className="px-2 text-sm font-semibold text-brand-950">
               Speed
@@ -381,6 +428,22 @@ export function PlanForm({
               </>
             )}
           </fieldset>
+          <FormField
+            label="Maximum devices"
+            hint={effectiveDevices < configuredDevices
+              ? `Saved setting: ${configuredDevices} devices. Platform policy currently limits new vouchers to ${effectiveDevices}; the administrator must enable multi-device vouchers before the higher limit takes effect.`
+              : 'Maximum devices that can use one newly issued voucher at the same time.'}
+            error={form.formState.errors.max_devices?.message}
+          >
+            <Select
+              id="plan-max-devices"
+              {...form.register('max_devices')}
+              options={Array.from({ length: 10 }, (_, i) => ({
+                value: String(i + 1),
+                label: `${i + 1} device${i ? 's' : ''}`,
+              }))}
+            />
+          </FormField>
           <Controller
             control={form.control}
             name="is_active"
@@ -428,20 +491,6 @@ export function PlanForm({
                   />
                 </FormField>
               </div>
-              <FormField
-                label="Maximum devices"
-                hint="Maximum number of devices that can use one voucher at the same time."
-                error={form.formState.errors.max_devices?.message}
-              >
-                <Select
-                  id="plan-max-devices"
-                  {...form.register('max_devices')}
-                  options={Array.from({ length: 10 }, (_, i) => ({
-                    value: String(i + 1),
-                    label: `${i + 1} device${i ? 's' : ''}`,
-                  }))}
-                />
-              </FormField>
               <Controller
                 control={form.control}
                 name="is_public"
@@ -493,15 +542,17 @@ export function PlanForm({
               )}
             </div>
           </details>
+        </>}
       </div>
       <div className="plan-editor-footer">
         <p>Changes apply to newly issued access.</p>
-        <Button type="button" variant="secondary" onClick={onCancel} disabled={busy}>
-          Cancel
-        </Button>
-        <Button type="submit" loading={busy}>
-          {plan ? 'Save changes' : 'Create plan'}
-        </Button>
+        {step === 0 ? <>
+          <Button type="button" variant="secondary" onClick={onCancel} disabled={busy}>Cancel</Button>
+          <Button type="button" onClick={() => void goNext()} disabled={busy}>Next</Button>
+        </> : <>
+          <Button type="button" variant="secondary" onClick={() => showStep(0)} disabled={busy}>Back</Button>
+          <Button type="button" onClick={() => void submit()} loading={busy}>{plan ? 'Save changes' : 'Create plan'}</Button>
+        </>}
       </div>
     </form>
   );
