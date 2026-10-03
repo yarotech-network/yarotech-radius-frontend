@@ -187,7 +187,7 @@ describe('VouchersPage', () => {
 });
 
 describe('GenerateVouchersPage', () => {
-  it('sends plan/quantity/prefix with an Idempotency-Key, then shows the batch and prints all', async () => {
+  it('sends the selected plan and quantity with an Idempotency-Key, then prints the batch', async () => {
     const posts: { body: Record<string, unknown>; key: string | null }[] = [];
     server.use(
       http.post(`${API}/vouchers/generate/`, async ({ request }) => {
@@ -206,15 +206,15 @@ describe('GenerateVouchersPage', () => {
       path: '/vouchers/generate',
       route: '/vouchers/generate?plan=1',
     });
-    const planRadio = await screen.findByRole('radio', { name: /Daily 1GB/ });
-    expect(planRadio).toHaveAttribute('aria-checked', 'true');
-    await userEvent.click(screen.getByRole('radio', { name: '50' }));
-    await userEvent.type(screen.getByLabelText(/Username prefix/), 'wk');
+    const planInput = screen.getByRole('combobox', { name: 'Plan' });
+    await waitFor(() => expect(planInput).toHaveValue('Daily 1GB'));
+    await userEvent.clear(screen.getByRole('spinbutton', { name: 'Quantity' }));
+    await userEvent.type(screen.getByRole('spinbutton', { name: 'Quantity' }), '50');
     expect(screen.getByText(/25,000/)).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: /Generate 50 vouchers/ }));
     expect(await screen.findByRole('heading', { name: '2 vouchers ready' })).toBeInTheDocument();
     expect(posts).toHaveLength(1);
-    expect(posts[0]?.body).toEqual({ plan_id: 1, quantity: 50, prefix: 'wk' });
+    expect(posts[0]?.body).toEqual({ plan_id: 1, quantity: 50 });
     expect(posts[0]?.key).toMatch(/^gen-[A-Za-z0-9_.:-]{12,}$/);
     await userEvent.click(screen.getByRole('button', { name: 'Print all' }));
     await waitFor(() => expect(printed).toHaveLength(1));
@@ -236,8 +236,8 @@ describe('GenerateVouchersPage', () => {
       path: '/vouchers/generate',
       route: '/vouchers/generate?plan=1',
     });
-    await screen.findByRole('radio', { name: /Daily 1GB/ });
-    expect(screen.getByText('Price per voucher')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole('combobox', { name: 'Plan' })).toHaveValue('Daily 1GB'));
+    expect(screen.getByText(/Face value:/)).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Generate 20 vouchers' }));
     expect(await screen.findByRole('link', { name: 'WH100021' })).toHaveAttribute(
       'href',
@@ -270,9 +270,38 @@ describe('GenerateVouchersPage', () => {
       ),
     );
     renderPage(<GenerateVouchersPage />, { role: 'manager', path: '/vouchers/generate' });
-    await userEvent.click(await screen.findByRole('radio', { name: /Daily 1GB/ }));
+    await screen.findByRole('combobox', { name: 'Plan' });
+    await userEvent.click(screen.getByRole('combobox', { name: 'Plan' }));
+    await userEvent.click(await screen.findByRole('option', { name: /Daily 1GB/ }));
     await userEvent.click(screen.getByRole('button', { name: /Generate 20 vouchers/ }));
     expect(await screen.findByText('Plan not found or inactive.')).toBeInTheDocument();
+  });
+
+  it('searches tenant plans with the keyboard and rejects text without a selected plan', async () => {
+    const user = userEvent.setup();
+    const otherPlan = { ...plan, id: 2, name: 'Weekly Unlimited' };
+    let posts = 0;
+    server.use(
+      http.get(`${API}/plans/`, () => HttpResponse.json(paginated([plan, otherPlan]))),
+      http.post(`${API}/vouchers/generate/`, () => {
+        posts += 1;
+        return HttpResponse.json([voucher(1)], { status: 201 });
+      }),
+    );
+    renderPage(<GenerateVouchersPage />, { role: 'manager', path: '/vouchers/generate' });
+    const input = screen.getByRole('combobox', { name: 'Plan' });
+    await waitFor(() => expect(input).toBeEnabled());
+    await user.click(input);
+    await user.type(input, 'Weekly');
+    expect(within(screen.getByRole('listbox')).getAllByRole('option')).toHaveLength(1);
+    await user.keyboard('{Enter}');
+    expect(input).toHaveValue('Weekly Unlimited');
+    await user.click(input);
+    await user.type(input, 'missing plan');
+    expect(screen.getByText('No matching plans')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Generate 20 vouchers' }));
+    expect(await screen.findByText('Choose a plan')).toBeInTheDocument();
+    expect(posts).toBe(0);
   });
 });
 
@@ -396,7 +425,7 @@ it('submits device capacity separately from voucher batch quantity', async () =>
     path: '/vouchers/generate',
     route: '/vouchers/generate?plan=1',
   });
-  await screen.findByRole('radio', { name: /Daily 1GB/ });
+  await waitFor(() => expect(screen.getByRole('combobox', { name: 'Plan' })).toHaveValue('Daily 1GB'));
   await userEvent.selectOptions(screen.getByLabelText('Devices per voucher'), '3');
   await userEvent.click(screen.getByRole('button', { name: /Generate 20 vouchers/ }));
   await waitFor(() => expect(posted).toMatchObject({ plan_id: 1, quantity: 20, device_limit: 3 }));
@@ -420,7 +449,7 @@ describe('GenerateVouchersPage device ceiling', () => {
       path: '/vouchers/generate',
       route: '/vouchers/generate?plan=1',
     });
-    await screen.findByRole('radio', { name: /Daily 1GB/ });
+    await waitFor(() => expect(screen.getByRole('combobox', { name: 'Plan' })).toHaveValue('Daily 1GB'));
     const select = screen.getByLabelText('Devices per voucher') as HTMLSelectElement;
     expect(select).toBeEnabled();
     expect(Array.from(select.options).map((o) => o.text)).toEqual([
@@ -444,10 +473,11 @@ describe('GenerateVouchersPage device ceiling', () => {
       path: '/vouchers/generate',
       route: '/vouchers/generate?plan=1',
     });
-    await screen.findByRole('radio', { name: /Daily 1GB/ });
+    await waitFor(() => expect(screen.getByRole('combobox', { name: 'Plan' })).toHaveValue('Daily 1GB'));
     const select = screen.getByLabelText('Devices per voucher') as HTMLSelectElement;
     expect(select).toBeDisabled();
     expect(Array.from(select.options).map((o) => o.text)).toEqual(['1 device']);
+    expect(screen.getByText(/raise Maximum devices in the plan’s Additional settings/)).toBeInTheDocument();
   });
 
   it('clamps the selection when switching to a plan with a lower ceiling', async () => {
@@ -464,9 +494,11 @@ describe('GenerateVouchersPage device ceiling', () => {
       path: '/vouchers/generate',
       route: '/vouchers/generate?plan=1',
     });
-    await screen.findByRole('radio', { name: /Daily 1GB/ });
+    await waitFor(() => expect(screen.getByRole('combobox', { name: 'Plan' })).toHaveValue('Daily 1GB'));
     await userEvent.selectOptions(screen.getByLabelText('Devices per voucher'), '4');
-    await userEvent.click(screen.getByRole('radio', { name: /Hourly 500MB/ }));
+    await userEvent.click(screen.getByRole('combobox', { name: 'Plan' }));
+    await userEvent.type(screen.getByRole('combobox', { name: 'Plan' }), 'Hourly');
+    await userEvent.click(screen.getByRole('option', { name: /Hourly 500MB/ }));
     const select = screen.getByLabelText('Devices per voucher') as HTMLSelectElement;
     await waitFor(() => expect(select.value).toBe('2'));
     await userEvent.click(screen.getByRole('button', { name: /Generate 20 vouchers/ }));
@@ -503,15 +535,17 @@ describe('Voucher portal styling', () => {
     expect(screen.getByRole('button', { name: 'Refresh' })).toBeInTheDocument();
   });
 
-  it('keeps the generation form inside portal cards with the plan picker intact', async () => {
+  it('keeps the simple generation form inside portal cards', async () => {
     const { container } = renderPage(<GenerateVouchersPage />, {
       role: 'manager',
       path: '/vouchers/generate',
     });
-    await screen.findByRole('radio', { name: /Daily 1GB/ });
+    expect(await screen.findByRole('combobox', { name: 'Plan' })).toHaveValue('');
     expect(container.querySelector('.rv-portal')).not.toBeNull();
     expect(screen.getByRole('heading', { name: 'Generate Vouchers' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Generate 20 vouchers/ })).toBeInTheDocument();
+    expect(screen.queryByText('Quantity presets')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Username prefix')).not.toBeInTheDocument();
   });
 });
 
@@ -663,7 +697,7 @@ describe('GenerateVouchersPage permissions and retries', () => {
       route: '/vouchers/generate?plan=1',
       principal,
     });
-    await screen.findByRole('radio', { name: /Daily 1GB/ });
+    await waitFor(() => expect(screen.getByRole('combobox', { name: 'Plan' })).toHaveValue('Daily 1GB'));
     await userEvent.click(screen.getByRole('button', { name: /Generate 20 vouchers/ }));
     expect(await screen.findByRole('heading', { name: '1 voucher ready' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Print all' })).not.toBeInTheDocument();
@@ -686,10 +720,10 @@ describe('GenerateVouchersPage permissions and retries', () => {
       path: '/vouchers/generate',
       route: '/vouchers/generate?plan=1',
     });
-    await screen.findByRole('radio', { name: /Daily 1GB/ });
+    await waitFor(() => expect(screen.getByRole('combobox', { name: 'Plan' })).toHaveValue('Daily 1GB'));
     await user.click(screen.getByRole('button', { name: /Generate 20 vouchers/ }));
     expect(await screen.findByText('Generator unavailable')).toBeInTheDocument();
-    expect(screen.getByRole('radio', { name: /Daily 1GB/ })).toBeChecked();
+    expect(screen.getByRole('combobox', { name: 'Plan' })).toHaveValue('Daily 1GB');
     await user.click(screen.getByRole('button', { name: /Generate 20 vouchers/ }));
     expect(await screen.findByRole('heading', { name: '1 voucher ready' })).toBeInTheDocument();
     expect(calls).toBe(2);

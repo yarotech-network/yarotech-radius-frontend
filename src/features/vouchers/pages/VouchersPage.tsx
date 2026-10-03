@@ -493,7 +493,7 @@ export default function VouchersPage() {
           toast.success(`${result.deleted + result.preserved} vouchers removed`);
         }} />
       <Dialog open={generateOpen} onClose={() => setGenerateOpen(false)} title="Generate Vouchers"
-        description="Create a batch of hotspot access codes." size="xl">
+        description="Create a batch of hotspot access codes." size="lg">
         <GenerateVouchersPage embedded onDone={() => setGenerateOpen(false)} />
       </Dialog>
       <ManualCodeDialog open={manualOpen} onClose={() => setManualOpen(false)} />

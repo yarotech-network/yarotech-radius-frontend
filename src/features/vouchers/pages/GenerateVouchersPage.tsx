@@ -2,8 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
 import { Controller, useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { CheckCircle2, Printer, RotateCcw, Ticket } from 'lucide-react';
-import { Button, Card, FormField, Input, Select, SegmentedControl } from '@/components/ui';
+import { CheckCircle2, Printer, RotateCcw } from 'lucide-react';
+import { Button, Card, FormField, Input, Select } from '@/components/ui';
 import { Alert } from '@/components/feedback';
 import { PageHeader } from '@/components/layout';
 
@@ -12,20 +12,18 @@ import { newIdempotencyKey } from '@/lib/utilities/idempotency';
 import { formatKobo } from '@/lib/formatting/money';
 import { can } from '@/services/auth/principal';
 import { usePrincipal } from '@/app/auth/useAuth';
-import { PlanSummary } from '@/features/plans/components/PlanSummary';
 import { usePlanOptions } from '@/features/plans/queries';
 import type { Voucher } from '@/types/api';
-import { PlanPicker } from '../components/PlanPicker';
+import { PlanCombobox } from '../components/PlanCombobox';
 import { usePrintVouchers } from '../hooks/usePrintVouchers';
 import { useGenerateVouchers } from '../queries';
 import {
   generateSchema,
-  QUANTITY_PRESETS,
   type GenerateInput,
   type GenerateOutput,
 } from '../voucherSchemas';
 
-const FIELDS = ['plan_id', 'quantity', 'prefix', 'device_limit'] as const;
+const FIELDS = ['plan_id', 'quantity', 'device_limit'] as const;
 
 interface BatchResult {
   vouchers: Voucher[];
@@ -71,18 +69,19 @@ export default function GenerateVouchersPage({ embedded = false, onDone }: { emb
   // Clamp the device selection when the selected plan changes to one with a
   // lower ceiling, so a stale value can never be submitted.
   useEffect(() => {
-    if (deviceLimit > maxDevices) {
+    if (selectedPlan && deviceLimit > maxDevices) {
       form.setValue('device_limit', maxDevices, { shouldValidate: true });
     }
-  }, [form, maxDevices, deviceLimit]);
+  }, [form, selectedPlan, maxDevices, deviceLimit]);
   const validQuantity = Number.isInteger(quantity) && quantity >= 1 && quantity <= 100;
-  const prefixPlaceholder = selectedPlan?.voucher_prefix
-    ? `Defaults to ${selectedPlan.voucher_prefix}`
-    : 'Optional';
 
   const submit = form.handleSubmit(async (values) => {
     resetErrors();
     try {
+      if (!plans.data?.some((plan) => plan.id === values.plan_id)) {
+        form.setError('plan_id', { message: 'Choose an active plan.' });
+        return;
+      }
       if (values.device_limit > maxDevices) {
         form.setError('device_limit', {message: `Choose at most ${maxDevices} device(s).`});
         return;
@@ -225,7 +224,7 @@ export default function GenerateVouchersPage({ embedded = false, onDone }: { emb
           <p className="rv-portal-eyebrow">Batch Generation</p>
           <h1 className="rv-portal-title">Generate Vouchers</h1>
           <p className="rv-portal-desc">
-            Choose a plan, set your batch size and review the value before creating access codes.
+            Choose a plan and quantity, then generate your access codes.
           </p>
         </div>
         <div className="rv-portal-actions">
@@ -240,166 +239,76 @@ export default function GenerateVouchersPage({ embedded = false, onDone }: { emb
       <form
         onSubmit={(e) => void submit(e)}
         noValidate
-        className={embedded ? 'grid grid-cols-1 gap-5' : 'grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]'}
+        className="max-w-2xl"
       >
-        <div className="flex min-w-0 flex-col gap-6">
-          <Card className="rv-portal-card">
-            <h2 className="text-lg font-semibold text-brand-950">1. Choose a plan</h2>
-            <p className="mt-1 mb-5 text-sm text-ink-500">
-              Compare duration, speed and data allowance. Only active plans are listed.
-            </p>
-            <Controller
-              control={form.control}
-              name="plan_id"
-              render={({ field, fieldState }) => (
-                <>
-                  <PlanPicker
-                    plans={plans.data}
-                    loading={plans.isPending}
-                    error={plans.error}
-                    onRetry={() => void plans.refetch()}
-                    value={Number(field.value) || null}
-                    onChange={(id) => field.onChange(id)}
-                    invalid={Boolean(fieldState.error)}
-                    describedBy="plan-error"
-                  />
-                  {fieldState.error && (
-                    <p id="plan-error" className="mt-2 text-sm text-danger-700" role="alert">
-                      {fieldState.error.message}
-                    </p>
-                  )}
-                </>
-              )}
-            />
-          </Card>
-          <Card className="rv-portal-card">
-            <h2 className="text-lg font-semibold text-brand-950">2. Set up your batch</h2>
-            <p className="mt-1 mb-5 text-sm text-ink-500">
-              Choose a preset or enter 1 to 100 vouchers. Add a prefix to help identify this batch.
-            </p>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <Card className="rv-portal-card space-y-5">
+          {plans.isError && <Alert tone="danger" actions={<Button type="button" variant="secondary" size="sm" onClick={() => void plans.refetch()}>Retry</Button>}>
+            Plans could not be loaded.
+          </Alert>}
+          {!plans.isPending && !plans.isError && !plans.data?.length && <Alert tone="info">
+            No active hotspot plans are available. Create or activate a plan before generating vouchers.
+          </Alert>}
+          <Controller
+            control={form.control}
+            name="plan_id"
+            render={({ field, fieldState }) => (
+              <FormField label="Plan" required error={fieldState.error?.message}
+                hint={plans.isPending ? 'Loading active plans…' : 'Type to search your active plans.'}>
+                <PlanCombobox
+                  plans={plans.data ?? []}
+                  value={Number(field.value) || 0}
+                  onChange={field.onChange}
+                  onBlur={field.onBlur}
+                  disabled={plans.isPending || plans.isError || generate.isPending}
+                />
+              </FormField>
+            )}
+          />
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Controller
                 control={form.control}
                 name="quantity"
                 render={({ field, fieldState }) => (
-                  <FormField label="Quantity" required error={fieldState.error?.message}>
-                    <div className="flex flex-col gap-2">
-                      <SegmentedControl
-                        ariaLabel="Quantity presets"
-                        size="sm"
-                        options={QUANTITY_PRESETS.map((n) => ({
-                          value: String(n),
-                          label: String(n),
-                        }))}
-                        value={
-                          QUANTITY_PRESETS.includes(
-                            Number(field.value) as (typeof QUANTITY_PRESETS)[number],
-                          )
-                            ? String(field.value)
-                            : ''
-                        }
-                        onChange={(v) => field.onChange(Number(v))}
-                      />
-                      <Input
-                        type="number"
-                        min={1}
-                        max={100}
-                        step={1}
-                        inputMode="numeric"
-                        value={field.value as number}
-                        onChange={(e) => field.onChange(e.target.value)}
-                        onBlur={field.onBlur}
-                        invalid={Boolean(fieldState.error)}
-                        aria-label="Custom quantity"
-                      />
-                    </div>
+                  <FormField label="Quantity" required hint="1 to 100 vouchers per batch." error={fieldState.error?.message}>
+                    <Input
+                      type="number"
+                      min={1}
+                      max={100}
+                      step={1}
+                      inputMode="numeric"
+                      value={field.value as number}
+                      onChange={(e) => field.onChange(e.target.value)}
+                      onBlur={field.onBlur}
+                    />
                   </FormField>
                 )}
               />
-              <FormField label="Devices per voucher" error={form.formState.errors.device_limit?.message}>
+              <FormField
+                label="Devices per voucher"
+                error={form.formState.errors.device_limit?.message}
+                hint={!selectedPlan
+                  ? 'Choose a plan to see how many devices each voucher can allow.'
+                  : maxDevices === 1
+                    ? 'This plan currently allows one device. To offer more, raise Maximum devices in the plan’s Additional settings and enable multi-device vouchers on the backend.'
+                    : `Choose 1 to ${maxDevices} devices. Each added device increases the voucher’s face value.`}
+              >
                 <Select {...form.register('device_limit')} options={Array.from({length: maxDevices}, (_, i) => ({value:String(i+1), label:`${i+1} device${i ? 's' : ''}`}))} disabled={generate.isPending || maxDevices <= 1} />
               </FormField>
-              <FormField
-                label="Username prefix"
-                optionalLabel
-                hint={prefixPlaceholder}
-                error={form.formState.errors.prefix?.message}
-              >
-                <Input
-                  maxLength={10}
-                  className="font-mono uppercase"
-                  placeholder="e.g. WK"
-                  {...form.register('prefix')}
-                />
-              </FormField>
-            </div>
-            <Button
-              type="submit"
-              block
-              className="mt-5"
-              loading={form.formState.isSubmitting}
-              disabled={plans.isPending || (plans.data?.length ?? 0) === 0}
-            >
-              Generate {validQuantity ? quantity : ''} vouchers
-            </Button>
-            <p className="mt-2 text-xs text-ink-500">
-              Once generation is confirmed, review the returned codes and print their credentials.
-              Retries of the same request reuse the existing batch protection.
-            </p>
-          </Card>
+          </div>
+          <div className="rounded-control border border-border bg-surface-muted p-3 text-sm text-ink-700" aria-live="polite">
+            Face value: <strong className="text-ink-900">{selectedPlan && validQuantity ? formatKobo(selectedPlan.price * deviceLimit * quantity) : 'Choose a plan and quantity'}</strong>
+            <p className="mt-1 text-xs text-ink-500">Potential selling value, not money collected.</p>
+          </div>
           {message && <Alert tone="danger">{message}</Alert>}
-        </div>
-        <aside
-          className={embedded ? 'min-w-0' : 'min-w-0 xl:sticky xl:top-20 xl:self-start'}
-          aria-labelledby="batch-review-title"
-        >
-          <Card className="rv-portal-card">
-            <span className="mb-4 flex size-11 items-center justify-center rounded-xl bg-brand-600 text-white">
-              <Ticket className="size-5" aria-hidden />
-            </span>
-            <h2 id="batch-review-title" className="text-lg font-semibold text-brand-950">
-              3. Review your batch
-            </h2>
-            <p className="mt-1 text-sm text-ink-500">
-              Check the package and quantity before generating.
-            </p>
-            <dl className="mt-3 space-y-2 text-sm">
-              <div className="flex justify-between gap-3">
-                <dt className="text-ink-500">Plan</dt>
-                <dd className="min-w-0 text-right font-medium break-words text-ink-900">
-                  {selectedPlan?.name ?? '—'}
-                </dd>
-              </div>
-              <div className="flex justify-between gap-3">
-                <dt className="text-ink-500">Price per voucher</dt>
-                <dd className="font-medium text-ink-900 tabular-nums">
-                  {selectedPlan ? formatKobo(selectedPlan.price * deviceLimit) : 'Choose a plan'}
-                </dd>
-              </div>
-              <div className="flex justify-between gap-3">
-                <dt className="text-ink-500">Quantity</dt>
-                <dd className="font-medium text-ink-900 tabular-nums">
-                  {validQuantity ? quantity : '—'}
-                </dd>
-              </div>
-              <div className="flex justify-between gap-3 border-t border-border pt-2">
-                <dt className="text-ink-500">Face value</dt>
-                <dd className="font-semibold text-ink-900 tabular-nums">
-                  {selectedPlan && validQuantity ? formatKobo(selectedPlan.price * deviceLimit * quantity) : '—'}
-                </dd>
-              </div>
-            </dl>
-            {selectedPlan && (
-              <div className="mt-4 rounded-lg border border-brand-100 bg-white p-3">
-                <PlanSummary plan={selectedPlan} />
-              </div>
-            )}
-            <p className="mt-3 text-xs leading-relaxed text-ink-500">
-              Face value is the combined selling price of this batch, not a payment collected.
-              Use the Generate button in the batch form to create these vouchers.
-            </p>
-          </Card>
-        </aside>
+          <Button
+            type="submit"
+            block
+            loading={form.formState.isSubmitting}
+            disabled={plans.isPending || plans.isError || (plans.data?.length ?? 0) === 0}
+          >
+            Generate {validQuantity ? quantity : ''} vouchers
+          </Button>
+        </Card>
       </form>
     </div>
   );
