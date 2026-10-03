@@ -102,6 +102,7 @@ export type Capability =
   | 'customers.view'
   | 'customers.manage'
   | 'dashboard.view'
+  | 'reports.view'
   | 'plans.view'
   | 'plans.manage'
   | 'vouchers.view'
@@ -149,6 +150,7 @@ const MEMBER_CAPS: Record<MembershipRole, Set<Capability>> = (() => {
   ];
   const manager: Capability[] = [
     ...staff,
+    'reports.view',
     'pppoe.manage',
     'customers.manage',
     'plans.manage',

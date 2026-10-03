@@ -9,6 +9,7 @@ import {
   LayoutDashboard,
   ListChecks,
   Radio,
+  ChartNoAxesCombined,
   Router,
   ScrollText,
   Settings,
@@ -138,6 +139,13 @@ export const WORKSPACE_NAV: NavGroup[] = [
     key: 'finance',
     label: 'Finance',
     items: [
+      {
+        key: 'reports',
+        label: 'Reports',
+        to: '/reports',
+        icon: ChartNoAxesCombined,
+        capabilities: ['reports.view'],
+      },
       {
         key: 'payments',
         label: 'Payments',

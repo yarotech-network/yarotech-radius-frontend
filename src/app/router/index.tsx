@@ -39,6 +39,7 @@ const SelectTenantPage = lazyRoute(lazy(() => import('@/features/auth/pages/Sele
 const NoAccessPage = lazyRoute(lazy(() => import('@/features/auth/pages/NoAccessPage')));
 
 const DashboardPage = lazyRoute(lazy(() => import('@/features/dashboard/pages/DashboardPage')));
+const ReportsPage = lazyRoute(lazy(() => import('@/features/reports/ReportsPage')));
 const CustomersPage = lazyRoute(lazy(() => import('@/features/customers/AccessCustomersPage')));
 const CustomerDevicesPage = lazyRoute(lazy(() => import('@/features/customers/CustomersPage')));
 const ContactRecordsPage = lazyRoute(lazy(() => import('@/features/customers/ContactRecordsPage')));
@@ -129,6 +130,10 @@ const workspaceRoutes: RouteObject[] = [
     children: [{ path: 'whatsapp', Component: WhatsAppPage }],
   },
   { path: 'dashboard', Component: DashboardPage },
+  {
+    element: <RequireCapability capability="reports.view" />,
+    children: [{ path: 'reports', Component: ReportsPage }],
+  },
   {
     element: <RequireCapability capability="pppoe.view" />,
     children: [{ path: 'plans/pppoe', Component: PPPoEPlansPage }],
