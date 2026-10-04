@@ -48,7 +48,9 @@ const voucher = (id: number, extra: Partial<Voucher> = {}): Voucher => ({
   ...extra,
 });
 const printPage = (v: Voucher) =>
-  `<html><body><h1>YAROTECH Voucher</h1><p><strong>Username:</strong> ${v.username}</p><p><strong>Password:</strong> pw-${v.id}</p><p><strong>Plan:</strong> Daily 1GB</p><p><strong>Duration:</strong> 24 hours</p><p><strong>Status:</strong> unused</p></body></html>`;
+  `<html><body><h1>Wuse Hotspot</h1><p>Username: ${v.username}</p><p>Daily 1GB · 24 hours</p></body></html>`;
+const legacyPrintPage = (v: Voucher) =>
+  `<html><body><p><strong>Username:</strong> ${v.username}</p><p><strong>Password:</strong> pw-${v.id}</p><p><strong>Plan:</strong> Daily 1GB</p><p><strong>Duration:</strong> 24 hours</p></body></html>`;
 
 let printed: string[] = [];
 function LocationProbe() {
@@ -61,6 +63,10 @@ beforeEach(() => {
     http.post(`${API}/vouchers/authorize-print/`, () =>
       HttpResponse.json({ used: 1, limit: null, day: '2026-09-07', timezone: 'Africa/Lagos' }),
     ),
+    http.post(`${API}/vouchers/bulk-print/`, async ({ request }) => {
+      const body = await request.json() as { voucher_ids: number[] };
+      return HttpResponse.text(body.voucher_ids.map((id) => printPage(voucher(id))).join(''));
+    }),
   );
   vi.spyOn(download, 'printHtml').mockImplementation((html) => {
     printed.push(html);
@@ -101,9 +107,6 @@ describe('VouchersPage', () => {
           paginated(status ? rows.filter((r) => r.status === status) : rows),
         );
       }),
-      http.get(`${API}/vouchers/:id/print/`, ({ params }) =>
-        HttpResponse.text(printPage(voucher(Number(params.id)))),
-      ),
     );
     renderPage(<VouchersPage />, { role: 'manager', path: '/vouchers' });
     const table = await screen.findByRole('table', { name: 'Vouchers' });
@@ -120,8 +123,9 @@ describe('VouchersPage', () => {
     expect(screen.getByText('3 selected across pages')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Print selected' }));
     await waitFor(() => expect(printed).toHaveLength(1));
-    expect(printed[0]).toContain('pw-1');
-    expect(printed[0]).toContain('pw-3');
+    expect(printed[0]).toContain('WH10001');
+    expect(printed[0]).toContain('WH10003');
+    expect(printed[0]).not.toContain('Password:');
     expect(printed[0]).toContain('Wuse Hotspot');
   });
 
@@ -138,6 +142,45 @@ describe('VouchersPage', () => {
     expect(within(menu).getByRole('menuitem', { name: 'Print credentials' })).toBeInTheDocument();
     expect(within(menu).queryByRole('menuitem', { name: 'Disable' })).not.toBeInTheDocument();
     expect(within(menu).queryByRole('menuitem', { name: 'Edit' })).not.toBeInTheDocument();
+  });
+
+  it('downloads a selected bulk PDF through the authorized endpoint', async () => {
+    const downloaded = vi.spyOn(download, 'downloadBlob').mockImplementation(() => {});
+    let ids: number[] = [];
+    server.use(
+      http.get(`${API}/vouchers/`, () => HttpResponse.json(paginated([voucher(1)]))),
+      http.post(`${API}/vouchers/bulk-pdf/`, async ({ request }) => {
+        ids = ((await request.json()) as { voucher_ids: number[] }).voucher_ids;
+        return new HttpResponse(new Blob(['%PDF-1.7'], { type: 'application/pdf' }), {
+          headers: { 'Content-Type': 'application/pdf' },
+        });
+      }),
+    );
+    renderPage(<VouchersPage />, { role: 'manager', path: '/vouchers' });
+    const table = await screen.findByRole('table', { name: 'Vouchers' });
+    await within(table).findByText('WH10001');
+    await userEvent.click(within(table).getByLabelText('Select all vouchers on this page'));
+    await userEvent.click(screen.getByRole('button', { name: 'Download PDF' }));
+    await waitFor(() => expect(downloaded).toHaveBeenCalledWith(expect.any(Blob), 'vouchers.pdf'));
+    expect(ids).toEqual([1]);
+  });
+
+  it('offers browser Save as PDF while bulk PDF is rollout-gated', async () => {
+    server.use(
+      http.get(`${API}/vouchers/`, () => HttpResponse.json(paginated([voucher(1)]))),
+      http.post(`${API}/vouchers/bulk-pdf/`, () =>
+        HttpResponse.json({ error: 'The new print format is not enabled.' }, { status: 503 })),
+      http.post(`${API}/vouchers/bulk-print/`, () =>
+        HttpResponse.json({ error: 'The new print format is not enabled.' }, { status: 503 })),
+      http.get(`${API}/vouchers/1/print/`, () => HttpResponse.text(legacyPrintPage(voucher(1)))),
+    );
+    renderPage(<VouchersPage />, { role: 'manager', path: '/vouchers' });
+    const table = await screen.findByRole('table', { name: 'Vouchers' });
+    await within(table).findByText('WH10001');
+    await userEvent.click(within(table).getByLabelText('Select all vouchers on this page'));
+    await userEvent.click(screen.getByRole('button', { name: 'Download PDF' }));
+    await waitFor(() => expect(printed).toHaveLength(1));
+    expect(printed[0]).toContain('pw-1');
   });
 
   it('keeps vouchers visible when refresh fails and links to their details', async () => {
@@ -197,9 +240,6 @@ describe('GenerateVouchersPage', () => {
         });
         return HttpResponse.json([voucher(11), voucher(12)], { status: 201 });
       }),
-      http.get(`${API}/vouchers/:id/print/`, ({ params }) =>
-        HttpResponse.text(printPage(voucher(Number(params.id)))),
-      ),
     );
     renderPage(<GenerateVouchersPage />, {
       role: 'manager',
@@ -219,7 +259,7 @@ describe('GenerateVouchersPage', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Print all' }));
     await waitFor(() => expect(printed).toHaveLength(1));
     expect(printed[0]).toContain('WH100011');
-    expect(printed[0]).toContain('pw-12');
+    expect(printed[0]).toContain('WH100012');
   });
 
   it('starts a distinct request for another batch and shows the returned usernames', async () => {
@@ -388,6 +428,44 @@ function PrintQuotaExample() {
   return <button onClick={() => void printer.print([1, 2])}>Print selected vouchers</button>;
 }
 
+it('uses authorized legacy printing while the new format is disabled', async () => {
+  const requested: number[] = [];
+  server.use(
+    http.post(`${API}/vouchers/bulk-print/`, () =>
+      HttpResponse.json({ error: 'The new print format is not enabled.' }, { status: 503 }),
+    ),
+    http.get(`${API}/vouchers/:id/print/`, ({ params }) => {
+      const id = Number(params.id);
+      requested.push(id);
+      return HttpResponse.text(legacyPrintPage(voucher(id)));
+    }),
+  );
+  renderPage(<PrintQuotaExample />);
+  await userEvent.click(screen.getByRole('button', { name: 'Print selected vouchers' }));
+  await waitFor(() => expect(printed).toHaveLength(1));
+  expect(requested).toEqual([1, 2]);
+  expect(printed[0]).toContain('pw-1');
+  expect(printed[0]).toContain('pw-2');
+});
+
+it('does not hide other bulk-print failures behind the legacy fallback', async () => {
+  let legacyRequested = false;
+  server.use(
+    http.post(`${API}/vouchers/bulk-print/`, () =>
+      HttpResponse.json({ error: 'Print renderer unavailable.' }, { status: 503 }),
+    ),
+    http.get(`${API}/vouchers/:id/print/`, () => {
+      legacyRequested = true;
+      return HttpResponse.text(legacyPrintPage(voucher(1)));
+    }),
+  );
+  renderPage(<PrintQuotaExample />);
+  await userEvent.click(screen.getByRole('button', { name: 'Print selected vouchers' }));
+  expect(await screen.findByText('Print renderer unavailable.')).toBeInTheDocument();
+  expect(legacyRequested).toBe(false);
+  expect(printed).toHaveLength(0);
+});
+
 it('shows quota errors without loading or printing a partial batch', async () => {
   let credentialsRequested = false;
   server.use(
@@ -397,7 +475,7 @@ it('shows quota errors without loading or printing a partial batch', async () =>
         { status: 403 },
       ),
     ),
-    http.get(`${API}/vouchers/:id/print/`, () => {
+    http.post(`${API}/vouchers/bulk-print/`, () => {
       credentialsRequested = true;
       return HttpResponse.text(printPage(voucher(1)));
     }),
@@ -735,7 +813,6 @@ describe('VoucherDetailPage actions', () => {
     const user = userEvent.setup({ delay: null });
     server.use(
       http.get(`${API}/vouchers/7/`, () => HttpResponse.json(voucher(7))),
-      http.get(`${API}/vouchers/:id/print/`, () => HttpResponse.text(printPage(voucher(7)))),
     );
     renderPage(<VoucherDetailPage />, {
       role: 'owner',
@@ -745,7 +822,7 @@ describe('VoucherDetailPage actions', () => {
     await screen.findByRole('heading', { name: /WH10007/ });
     await user.click(screen.getByRole('button', { name: 'Print' }));
     await waitFor(() => expect(printed).toHaveLength(1));
-    expect(printed[0]).toContain('pw-7');
+    expect(printed[0]).toContain('WH10007');
     expect(printed[0]).toContain('Wuse Hotspot');
   });
 

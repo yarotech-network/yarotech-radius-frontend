@@ -448,7 +448,7 @@ function BusinessPlanForm({
           <input type="checkbox" {...form.register('whatsapp_enabled')} /> WhatsApp enabled
         </label>
         <p className="text-xs text-ink-500">
-          Printing counts distinct vouchers prepared each Lagos day. Same-day reprints are free.
+          Printing counts distinct vouchers prepared each day. Same-day reprints are free.
         </p>
       </fieldset>
       <label className="business-plan-toggle">

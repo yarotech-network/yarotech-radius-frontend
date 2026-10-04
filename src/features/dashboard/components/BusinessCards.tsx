@@ -32,11 +32,11 @@ export function BusinessCards({
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {(
               [
-                ["Today's collections", s?.collected_revenue?.today, 'Since midnight in Lagos'],
+                ["Today's collections", s?.collected_revenue?.today, 'Since midnight'],
                 [
                   'Monthly collections',
                   s?.collected_revenue?.month,
-                  'Current calendar month in Lagos',
+                  'Current calendar month',
                 ],
                 ['Total collections', s?.collected_revenue?.total, 'All recorded collections'],
               ] as const

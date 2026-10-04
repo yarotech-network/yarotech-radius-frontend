@@ -19,8 +19,8 @@ export function VoucherRevenue({
     >
       <div className="grid gap-3 sm:grid-cols-3">
         {([
-          ['today', "Today's activated revenue", 'Since midnight in Lagos'],
-          ['month', 'Monthly activated revenue', 'Current calendar month in Lagos'],
+          ['today', "Today's activated revenue", 'Since midnight'],
+          ['month', 'Monthly activated revenue', 'Current calendar month'],
           ['total', 'Total activated revenue', 'All recorded activation history'],
         ] as const).map(([period, label, hint]) => (
           <Stat

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
-import { Check, Copy, Plus, Printer, Ticket, X, Trash2 } from 'lucide-react';
+import { Check, Copy, FileDown, Plus, Printer, Ticket, X, Trash2 } from 'lucide-react';
 import { StatusBadge } from '@/components/layout';
 import {
   DataTable,
@@ -25,7 +25,7 @@ import { ManualCodeDialog } from '../components/ManualCodeDialog';
 import GenerateVouchersPage from './GenerateVouchersPage';
 import { newIdempotencyKey } from '@/lib/utilities/idempotency';
 import { downloadBlob } from '@/lib/utilities/download';
-import { errorMessage } from '@/services/api/errors';
+import { errorMessage, isApiError } from '@/services/api/errors';
 import { useQueryClient } from '@tanstack/react-query';
 import type { VoucherRemovalPreview } from '@/types/api';
 
@@ -102,6 +102,23 @@ export default function VouchersPage() {
       downloadBlob(blob, `voucher-${voucher.id}.${kind === 'pdf' ? 'pdf' : 'png'}`);
     } catch (error) {
       toast.error('Download unavailable', errorMessage(error));
+    } finally {
+      setActionBusy(false);
+    }
+  };
+  const downloadBulkPdf = async () => {
+    if (actionBusy || selected.size === 0 || selected.size > 100) return;
+    setActionBusy(true);
+    try {
+      const blob = await vouchersApi.bulkPdf([...selected]);
+      downloadBlob(blob, 'vouchers.pdf');
+    } catch (error) {
+      if (isApiError(error) && error.status === 503 && error.message === 'The new print format is not enabled.') {
+        toast.info('Use the print dialog to save as PDF', 'Bulk PDF downloads will be available after voucher credential conversion.');
+        await printer.print([...selected]);
+      } else {
+        toast.error('Could not download vouchers', errorMessage(error));
+      }
     } finally {
       setActionBusy(false);
     }
@@ -356,6 +373,12 @@ export default function VouchersPage() {
                 onClick={() => void printer.print([...selected], { showStatusLabels: true })}>
                 Print with status
               </Button>}
+              {canPrint && selected.size <= 100 && <Button size="sm" variant="secondary"
+                leadingIcon={<FileDown className="h-4 w-4" aria-hidden />}
+                loading={actionBusy} onClick={() => void downloadBulkPdf()}>
+                Download PDF
+              </Button>}
+              {canPrint && selected.size > 100 && <span className="text-sm text-ink-600">Select at most 100 to download as PDF.</span>}
               {canManage && selected.size <= 100 && <Button size="sm" variant="danger" onClick={() => void prepareRemoval([...selected])} leadingIcon={<Trash2 className="h-4 w-4" aria-hidden />}>Remove selected</Button>}
               {selected.size > 100 && <span className="text-sm text-danger-700">Select at most 100 to remove.</span>}
               <Button

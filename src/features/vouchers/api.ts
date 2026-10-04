@@ -18,6 +18,17 @@ export const vouchersApi = {
       { voucher_ids: ids },
     );
   },
+  async bulkPrint(ids: readonly number[], showStatusLabels = false, signal?: AbortSignal) {
+    const response = await request<string>({ method: 'POST', path: '/vouchers/bulk-print/',
+      body: { voucher_ids: ids, show_status_labels: showStatusLabels }, responseType: 'text',
+      ...(signal ? { signal } : {}) });
+    return response.data;
+  },
+  async bulkPdf(ids: readonly number[]) {
+    const response = await request<Blob>({ method: 'POST', path: '/vouchers/bulk-pdf/',
+      body: { voucher_ids: ids }, responseType: 'blob' });
+    return response.data;
+  },
   list(params: VoucherListParams) {
     return http.get<Paginated<Voucher>>('/vouchers/', { ...params });
   },

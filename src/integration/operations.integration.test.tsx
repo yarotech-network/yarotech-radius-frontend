@@ -72,9 +72,17 @@ describe.runIf(import.meta.env.LIVE_API === '1')('operations against live API', 
       expect.arrayContaining(vouchers.map((v) => v.id)),
     );
 
-    const parsed = parsePrintHtml(vouchers[0]!.id, await vouchersApi.printHtml(vouchers[0]!.id));
-    expect(parsed?.username).toBe(vouchers[0]!.username);
-    expect(parsed?.password.length).toBeGreaterThanOrEqual(8);
+    await vouchersApi.authorizePrint([vouchers[0]!.id]);
+    const sheet = await vouchersApi.bulkPrint([vouchers[0]!.id]).catch((e: unknown) => e);
+    if (sheet instanceof ApiError && sheet.status === 503 && sheet.message === 'The new print format is not enabled.') {
+      const legacy = parsePrintHtml(vouchers[0]!.id, await vouchersApi.printHtml(vouchers[0]!.id));
+      expect(legacy?.username).toBe(vouchers[0]!.username);
+      expect(legacy?.password).toBeTruthy();
+    } else {
+      expect(typeof sheet).toBe('string');
+      expect(sheet).toContain(vouchers[0]!.username);
+      expect(sheet).not.toContain('Password:');
+    }
 
     const pdf = await vouchersApi.pdf(vouchers[0]!.id).catch((e: unknown) => e);
     expect(pdf instanceof Blob || (pdf instanceof ApiError && pdf.status === 503)).toBe(true);

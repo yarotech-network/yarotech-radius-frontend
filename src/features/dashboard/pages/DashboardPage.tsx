@@ -47,7 +47,7 @@ export default function DashboardPage() {
       value: s?.activated_voucher_revenue
         ? formatKobo(s.activated_voucher_revenue.totals.today.amount)
         : 'Unavailable',
-      hint: 'First activation today in Lagos; service value, not cash collected.',
+      hint: 'First activation today; service value, not cash collected.',
       to: '/vouchers#voucher-revenue',
       link: 'View voucher revenue',
       loading: stats.isPending,
@@ -56,7 +56,7 @@ export default function DashboardPage() {
       show: collectionsAllowed,
       label: "Today's collections",
       value: s?.collected_revenue ? formatKobo(s.collected_revenue.today) : 'Unavailable',
-      hint: 'Recorded collections today in Lagos.',
+      hint: 'Recorded collections today.',
       to: '/payments',
       link: 'View payments',
       loading: stats.isPending,
