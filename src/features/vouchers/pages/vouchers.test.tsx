@@ -151,7 +151,7 @@ describe('VouchersPage', () => {
       http.get(`${API}/vouchers/`, () => HttpResponse.json(paginated([voucher(1)]))),
       http.post(`${API}/vouchers/bulk-pdf/`, async ({ request }) => {
         ids = ((await request.json()) as { voucher_ids: number[] }).voucher_ids;
-        return new HttpResponse(new Blob(['%PDF-1.7'], { type: 'application/pdf' }), {
+        return new HttpResponse(new TextEncoder().encode('%PDF-1.7'), {
           headers: { 'Content-Type': 'application/pdf' },
         });
       }),
@@ -161,7 +161,9 @@ describe('VouchersPage', () => {
     await within(table).findByText('WH10001');
     await userEvent.click(within(table).getByLabelText('Select all vouchers on this page'));
     await userEvent.click(screen.getByRole('button', { name: 'Download PDF' }));
-    await waitFor(() => expect(downloaded).toHaveBeenCalledWith(expect.any(Blob), 'vouchers.pdf'));
+    await waitFor(() => expect(downloaded).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'application/pdf' }), 'vouchers.pdf',
+    ));
     expect(ids).toEqual([1]);
   });
 
