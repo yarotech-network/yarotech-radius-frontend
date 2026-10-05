@@ -47,7 +47,7 @@ describe('PlansPage', () => {
     server.use(
       http.get(`${API}/plans/`, ({ request }) => {
         seen.push(new URL(request.url));
-        return HttpResponse.json(paginated(plans));
+        return HttpResponse.json(paginated([{ ...plans[0]!, rate_limit: '5000k/10000k' }, plans[1]!]));
       }),
     );
     renderPage(<PlansPage />, { role: 'manager', path: '/plans' });
@@ -55,6 +55,8 @@ describe('PlansPage', () => {
     // DataTable renders a table (≥md) and a card list (<md); assert inside the table.
     const table = await screen.findByRole('table', { name: 'Internet plans' });
     expect(await within(table).findByText('Daily 1GB')).toBeInTheDocument();
+    expect(within(table).getByText('5 Mbps up · 10 Mbps down')).toBeInTheDocument();
+    expect(within(table).queryByText(/5000 Kbps/)).not.toBeInTheDocument();
     expect(within(table).getByText('Weekly Unlimited')).toBeInTheDocument();
     expect(within(table).getByText('Inactive')).toBeInTheDocument();
     expect(seen[0]?.searchParams.get('ordering')).toBe('price');
@@ -687,7 +689,16 @@ describe('PlanDialog speeds', () => {
 
 describe('PPPoE plans navigation', () => {
   it('keeps both section tabs and the bandwidth route available', async () => {
-    server.use(http.get(`${API}/pppoe-plans/`, () => HttpResponse.json(paginated([]))));
+    server.use(http.get(`${API}/pppoe-plans/`, () => HttpResponse.json(paginated([{
+      id: 1,
+      name: 'Monthly PPPoE',
+      bandwidth_profile: 7,
+      bandwidth_profile_name: 'Gold',
+      rate_limit: '5000k/10000k',
+      duration_hours: 720,
+      price: 500000,
+      is_active: true,
+    }]))));
     renderPage(<PPPoEPlansPage />, { role: 'owner', path: '/plans/pppoe' });
     await screen.findByRole('heading', { name: 'PPPoE Plans' });
     expect(screen.getByRole('link', { name: 'Hotspot plans' })).toHaveAttribute('href', '/plans');
@@ -695,6 +706,7 @@ describe('PPPoE plans navigation', () => {
       'href',
       '/plans/bandwidth',
     );
+    expect(await screen.findByText('Gold - 5 Mbps up · 10 Mbps down')).toBeInTheDocument();
   });
 });
 

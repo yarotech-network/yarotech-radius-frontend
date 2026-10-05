@@ -47,7 +47,11 @@ describe('units', () => {
   });
   it('describes RouterOS rate limits and normalises MACs', () => {
     expect(describeRateLimit('5M/10M')).toBe('5 Mbps up · 10 Mbps down');
+    expect(describeRateLimit('5000k/10000k')).toBe('5 Mbps up · 10 Mbps down');
+    expect(describeRateLimit('2500k/1500000k')).toBe('2.5 Mbps up · 1.5 Gbps down');
+    expect(describeRateLimit('1000k/1000000k')).toBe('1 Mbps up · 1 Gbps down');
     expect(describeRateLimit('512k/1M')).toBe('512 Kbps up · 1 Mbps down');
+    expect(describeRateLimit('5M/10M 1M/2M')).toBe('5M/10M 1M/2M');
     expect(describeRateLimit('weird')).toBe('weird');
     expect(normaliseMac('aa-bb-cc-dd-ee-ff')).toBe('AA:BB:CC:DD:EE:FF');
     expect(normaliseMac('aabbccddeeff')).toBe('AA:BB:CC:DD:EE:FF');

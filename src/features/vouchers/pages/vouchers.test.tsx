@@ -185,6 +185,38 @@ describe('VouchersPage', () => {
     expect(printed[0]).toContain('pw-1');
   });
 
+  it('prints the username-only card when local bulk PDF rendering is unavailable', async () => {
+    server.use(
+      http.get(`${API}/vouchers/`, () => HttpResponse.json(paginated([voucher(1)]))),
+      http.post(`${API}/vouchers/bulk-pdf/`, () =>
+        HttpResponse.json({ error: 'PDF generation is unavailable. Use browser printing.' }, { status: 503 })),
+    );
+    renderPage(<VouchersPage />, { role: 'manager', path: '/vouchers' });
+    const table = await screen.findByRole('table', { name: 'Vouchers' });
+    await within(table).findByText('WH10001');
+    await userEvent.click(within(table).getByLabelText('Select all vouchers on this page'));
+    await userEvent.click(screen.getByRole('button', { name: 'Download PDF' }));
+    await waitFor(() => expect(printed).toHaveLength(1));
+    expect(printed[0]).toContain('WH10001');
+    expect(printed[0]).not.toContain('Password:');
+  });
+
+  it('prints one username-only card when local single PDF rendering is unavailable', async () => {
+    server.use(
+      http.get(`${API}/vouchers/`, () => HttpResponse.json(paginated([voucher(1)]))),
+      http.get(`${API}/vouchers/1/pdf/`, () =>
+        HttpResponse.json({ error: 'PDF generation is unavailable. Use the print endpoint.' }, { status: 503 })),
+    );
+    renderPage(<VouchersPage />, { role: 'manager', path: '/vouchers' });
+    const table = await screen.findByRole('table', { name: 'Vouchers' });
+    await within(table).findByText('WH10001');
+    await userEvent.click(within(table).getByRole('button', { name: 'Actions for WH10001' }));
+    await userEvent.click(within(await screen.findByRole('menu')).getByRole('menuitem', { name: 'Download PDF' }));
+    await waitFor(() => expect(printed).toHaveLength(1));
+    expect(printed[0]).toContain('WH10001');
+    expect(printed[0]).not.toContain('Password:');
+  });
+
   it('keeps vouchers visible when refresh fails and links to their details', async () => {
     server.use(http.get(`${API}/vouchers/`, () => HttpResponse.json(paginated([voucher(1)]))));
     const { client } = renderPage(<VouchersPage />, { role: 'manager', path: '/vouchers' });

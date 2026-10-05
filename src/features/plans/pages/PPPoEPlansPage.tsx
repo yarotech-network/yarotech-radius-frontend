@@ -8,6 +8,7 @@ import { can } from '@/services/auth/principal';
 import { errorMessage, isApiError } from '@/services/api/errors';
 import { newIdempotencyKey } from '@/lib/utilities/idempotency';
 import { useDebouncedValue } from '@/lib/utilities/useDebouncedValue';
+import { describeRateLimit } from '@/lib/formatting/units';
 import { pppoeApi } from '@/features/customers/pppoe';
 import { BandwidthPicker } from '../components/BandwidthPicker';
 import { ServicePlansNav } from '../components/ServicePlansNav';
@@ -116,7 +117,7 @@ export default function PPPoEPlansPage() {
                 )}
               </p>
               <p className="text-sm">
-                {plan.bandwidth_profile_name} - {plan.rate_limit} up/down
+                {plan.bandwidth_profile_name} - {describeRateLimit(plan.rate_limit)}
               </p>
               {manage && (
                 <Button

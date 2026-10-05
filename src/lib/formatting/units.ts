@@ -48,14 +48,22 @@ export function formatHours(hours: number | string | null | undefined): string {
   return `${n} hour${n === 1 ? '' : 's'}`;
 }
 
-/** "5M/10M" → "5 Mbps up · 10 Mbps down" (falls back to raw). */
+/** Show simple RouterOS speeds in their clearest decimal unit; leave advanced rules intact. */
 export function describeRateLimit(rate: string | null | undefined): string {
   if (!rate) return '—';
-  const match = rate.trim().match(/^(\d+(?:\.\d+)?)([kKmMgG])?\/(\d+(?:\.\d+)?)([kKmMgG])?$/);
+  const match = rate.trim().match(/^(\d+(?:\.\d+)?)\s*([kKmMgG])?\s*\/\s*(\d+(?:\.\d+)?)\s*([kKmMgG])?$/);
   if (!match) return rate;
-  const unit = (u: string | undefined) =>
-    ({ k: 'Kbps', m: 'Mbps', g: 'Gbps' })[(u ?? 'm').toLowerCase()] ?? 'Mbps';
-  return `${match[1]} ${unit(match[2])} up · ${match[3]} ${unit(match[4])} down`;
+  const speed = (value: string, suffix: string | undefined) => {
+    const factor = ({ k: 1, m: 1000, g: 1000000 })[(suffix ?? 'm').toLowerCase()] ?? 1000;
+    const kbps = Number(value) * factor;
+    if (!Number.isFinite(kbps)) return null;
+    const displayFactor = kbps >= 1000000 ? 1000000 : kbps >= 1000 ? 1000 : 1;
+    const unit = displayFactor === 1000000 ? 'Gbps' : displayFactor === 1000 ? 'Mbps' : 'Kbps';
+    return `${Number((kbps / displayFactor).toPrecision(12))} ${unit}`;
+  };
+  const upload = speed(match[1]!, match[2]);
+  const download = speed(match[3]!, match[4]);
+  return upload && download ? `${upload} up · ${download} down` : rate;
 }
 
 export function formatNumber(value: number | null | undefined): string {

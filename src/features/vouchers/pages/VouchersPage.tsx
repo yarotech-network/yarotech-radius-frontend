@@ -39,6 +39,10 @@ const STATUSES: readonly VoucherStatus[] = [
   'disabled',
 ];
 
+const pdfRendererUnavailable = (error: unknown) =>
+  isApiError(error) && error.status === 503 &&
+  error.message.startsWith('PDF generation is unavailable.');
+
 export default function VouchersPage() {
   const principal = usePrincipal();
   const navigate = useNavigate();
@@ -101,7 +105,12 @@ export default function VouchersPage() {
       const blob = kind === 'pdf' ? await vouchersApi.pdf(voucher.id) : await vouchersApi.image(voucher.id);
       downloadBlob(blob, `voucher-${voucher.id}.${kind === 'pdf' ? 'pdf' : 'png'}`);
     } catch (error) {
-      toast.error('Download unavailable', errorMessage(error));
+      if (kind === 'pdf' && pdfRendererUnavailable(error)) {
+        toast.info('Use the print dialog to save as PDF', 'The local PDF renderer is unavailable.');
+        await printer.print([voucher.id]);
+      } else {
+        toast.error('Download unavailable', errorMessage(error));
+      }
     } finally {
       setActionBusy(false);
     }
@@ -113,8 +122,11 @@ export default function VouchersPage() {
       const blob = await vouchersApi.bulkPdf([...selected]);
       downloadBlob(blob, 'vouchers.pdf');
     } catch (error) {
-      if (isApiError(error) && error.status === 503 && error.message === 'The new print format is not enabled.') {
-        toast.info('Use the print dialog to save as PDF', 'Bulk PDF downloads will be available after voucher credential conversion.');
+      if (isApiError(error) && error.status === 503 &&
+        (error.message === 'The new print format is not enabled.' || pdfRendererUnavailable(error))) {
+        toast.info('Use the print dialog to save as PDF',
+          pdfRendererUnavailable(error) ? 'The local PDF renderer is unavailable.' :
+            'Bulk PDF downloads will be available after voucher credential conversion.');
         await printer.print([...selected]);
       } else {
         toast.error('Could not download vouchers', errorMessage(error));
