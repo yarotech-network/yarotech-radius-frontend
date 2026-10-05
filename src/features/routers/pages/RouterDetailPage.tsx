@@ -172,7 +172,7 @@ function RouterDetail({
                   items={[
                     {
                       key: 'delete',
-                      label: deletable ? 'Delete router' : 'Delete (suspend VPN first)',
+                      label: deletable ? 'Retire router' : 'Retire (deprovision VPN first)',
                       icon: <Trash2 className="h-4 w-4" aria-hidden />,
                       tone: 'danger',
                       disabled: !deletable,
@@ -329,14 +329,14 @@ function RouterDetail({
         open={deleting && canManage && deletable}
         onClose={() => setDeleting(false)}
         tone="danger"
-        title={`Delete ${router.name}?`}
-        description="The router is removed as a RADIUS client and its history is deleted. Sessions already recorded are kept. This cannot be undone."
-        confirmLabel="Delete router"
+        title={`Retire ${router.name}?`}
+        description="This hides the router from your active fleet and frees its slot. Voucher, payment, operation and audit history remain. The VPN peer must already be deprovisioned, and the router must have no live access. Existing sessions are not disconnected."
+        confirmLabel="Retire router"
         onConfirm={async () => {
           if (!canManage || !deletable) return;
           try {
             await remove.mutateAsync(router.id);
-            toast.success('Router deleted', `${router.name} was removed.`);
+            toast.success('Router retired', `${router.name} was removed from the active fleet.`);
             navigate('/routers', { replace: true });
           } catch (error) {
             if (isApiError(error) && error.status === 409) {

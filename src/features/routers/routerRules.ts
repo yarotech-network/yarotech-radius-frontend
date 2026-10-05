@@ -110,7 +110,7 @@ export function isOperationOpen(op: RouterOperation): boolean {
   return op.status === 'pending' || op.status === 'running';
 }
 
-/** Mirrors the backend guards in perform_update / perform_destroy / provisioning. */
+/** Mirrors the backend guards for editing, retirement, and provisioning. */
 export function isRouterBusy(router: NasDevice, operations?: readonly RouterOperation[]): boolean {
   return router.deployment_status === 'deploying' || Boolean(operations?.some(isOperationOpen));
 }
@@ -120,7 +120,8 @@ export function canDeleteRouter(
   operations?: readonly RouterOperation[],
 ): boolean {
   return (
-    !['deploying', 'deployed'].includes(router.deployment_status) &&
+    router.deployment_status === 'not_deployed' &&
+    !router.retired_at &&
     !isRouterBusy(router, operations)
   );
 }

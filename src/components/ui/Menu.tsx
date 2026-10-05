@@ -108,7 +108,7 @@ export function Menu({ trigger, items, align = 'end', className }: MenuProps) {
                 }}
                 className={cn(
                   'flex w-full items-center gap-2 rounded-[6px] px-2.5 py-2 text-left text-sm transition-colors',
-                  'hover:bg-slate-100 focus:bg-slate-100 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50',
+                  'hover:bg-fill focus:bg-fill focus:outline-none disabled:cursor-not-allowed disabled:opacity-50',
                   item.tone === 'danger' ? 'text-danger-700' : 'text-ink-900',
                 )}
               >

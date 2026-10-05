@@ -80,6 +80,7 @@ export interface NasDevice {
   onboarding_state: OnboardingState;
   deployment_status: DeploymentStatus;
   is_active: boolean;
+  retired_at?: IsoDateTime | null;
   last_seen_at: IsoDateTime | null;
   created_at: IsoDateTime;
   updated_at: IsoDateTime;

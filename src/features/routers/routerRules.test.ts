@@ -69,6 +69,8 @@ describe('busy / delete / provision guards', () => {
   it('refuses delete while deployed or an operation is open', () => {
     expect(canDeleteRouter(router({ deployment_status: 'not_deployed' }))).toBe(true);
     expect(canDeleteRouter(router({ deployment_status: 'deployed' }))).toBe(false);
+    expect(canDeleteRouter(router({ deployment_status: 'failed' }))).toBe(false);
+    expect(canDeleteRouter(router({ deployment_status: 'not_deployed', retired_at: '2026-10-05T10:00:00Z' }))).toBe(false);
     expect(canDeleteRouter(router({ deployment_status: 'not_deployed' }), [op('running')])).toBe(
       false,
     );

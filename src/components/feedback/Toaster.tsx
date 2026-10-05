@@ -61,7 +61,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
               key={t.id}
               role={t.tone === 'error' ? 'alert' : 'status'}
               className={cn(
-                'pointer-events-auto flex w-full max-w-sm items-start gap-3 rounded-control bg-brand-950 px-4 py-3 text-sm text-white shadow-floating',
+                'pointer-events-auto flex w-full max-w-sm items-start gap-3 rounded-control bg-inverse px-4 py-3 text-sm text-on-inverse shadow-floating',
               )}
             >
               <Icon
@@ -76,7 +76,9 @@ export function ToastProvider({ children }: { children: ReactNode }) {
               <div className="min-w-0 flex-1">
                 <p className="font-medium">{t.title}</p>
                 {t.description && (
-                  <p className="mt-0.5 text-xs leading-relaxed text-brand-200">{t.description}</p>
+                  <p className="mt-0.5 text-xs leading-relaxed text-on-inverse/75">
+                    {t.description}
+                  </p>
                 )}
                 {t.action && (
                   <button
@@ -85,7 +87,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                       t.action?.onClick();
                       dismiss(t.id);
                     }}
-                    className="mt-1.5 text-xs font-medium text-brand-300 underline-offset-4 hover:underline"
+                    className="mt-1.5 text-xs font-medium text-on-inverse underline underline-offset-4"
                   >
                     {t.action.label}
                   </button>
@@ -95,7 +97,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                 type="button"
                 aria-label="Dismiss"
                 onClick={() => dismiss(t.id)}
-                className="-mr-1 rounded p-1 text-brand-300 hover:text-white"
+                className="-mr-1 rounded p-1 text-on-inverse/70 hover:text-on-inverse"
               >
                 <X className="size-4" />
               </button>

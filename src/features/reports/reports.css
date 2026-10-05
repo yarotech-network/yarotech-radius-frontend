@@ -1,0 +1,65 @@
+/*
+ * Report chart palette. Categorical slots are validated (dataviz validate_palette.js)
+ * against the card surface in each theme: light #ffffff, dark #0d1b2e.
+ * Slot 3 is under 3:1 on white, so every chart ships a legend and a figures table.
+ */
+.report-viz {
+  --viz-1: #2a78d6;
+  --viz-2: #eb6834;
+  --viz-3: #1baf7a;
+  --viz-quiet: var(--color-ink-300);
+  --viz-grid: var(--color-border);
+  --viz-axis: var(--color-ink-500);
+  --viz-surface: var(--color-surface);
+}
+
+.dark .report-viz {
+  --viz-1: #3987e5;
+  --viz-2: #d95926;
+  --viz-3: #199e70;
+  --viz-quiet: var(--color-ink-400);
+}
+
+.report-viz svg text {
+  fill: var(--viz-axis);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.report-chart:focus-visible {
+  outline: 2px solid var(--color-brand-600);
+  outline-offset: 4px;
+  border-radius: 0.5rem;
+}
+
+.report-tooltip {
+  pointer-events: none;
+  position: absolute;
+  top: 0;
+  z-index: 10;
+  min-width: 10rem;
+  max-width: 15rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+  background: var(--color-surface);
+  box-shadow: var(--shadow-floating);
+  padding: 0.5rem 0.75rem;
+  transition: transform 80ms ease-out;
+}
+
+/* Short stroke keys in tooltips and line legends; filled squares for bars. */
+.report-key-line {
+  display: inline-block;
+  width: 0.75rem;
+  height: 2px;
+  border-radius: 1px;
+  flex-shrink: 0;
+}
+
+.report-key-box {
+  display: inline-block;
+  width: 0.625rem;
+  height: 0.625rem;
+  border-radius: 2px;
+  flex-shrink: 0;
+}

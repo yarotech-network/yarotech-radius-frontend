@@ -8,6 +8,11 @@ export interface ReportParams {
   from?: string;
   to?: string;
 }
+export interface CollectionsByChannel {
+  online_payments: number;
+  agent_wallet: number;
+  credit_repayments: number;
+}
 export interface ReportRow {
   start: string;
   end_exclusive: string;
@@ -15,6 +20,8 @@ export interface ReportRow {
   complete: boolean;
   activated_value: number;
   collections: number;
+  /** Absent on backends deployed before the channel split. */
+  collections_by_channel?: CollectionsByChannel;
   active_vouchers: number | null;
 }
 export interface TenantReport {
@@ -32,8 +39,16 @@ export interface TenantReport {
   accounting_available: boolean;
   latest_accounting_at: string | null;
   completed_periods: number;
-  totals: { activated_value: number; collections: number };
-  averages: { activated_value: number | null; collections: number | null; active_vouchers: number | null };
+  totals: {
+    activated_value: number;
+    collections: number;
+    collections_by_channel?: CollectionsByChannel;
+  };
+  averages: {
+    activated_value: number | null;
+    collections: number | null;
+    active_vouchers: number | null;
+  };
   rows: ReportRow[];
 }
 

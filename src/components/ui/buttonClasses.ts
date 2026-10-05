@@ -5,9 +5,9 @@ const VARIANTS: Record<ButtonVariant, string> = {
   primary:
     'bg-brand-600 text-white hover:bg-brand-700 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-brand-600/30 active:translate-y-0 active:bg-brand-800 disabled:bg-brand-300 disabled:hover:translate-y-0 border border-transparent transition-all duration-200',
   secondary:
-    'bg-surface text-ink-900 border border-border hover:bg-surface-muted hover:border-border-strong active:bg-slate-100 disabled:text-ink-400',
+    'bg-surface text-ink-900 border border-border hover:bg-surface-muted hover:border-border-strong active:bg-fill disabled:text-ink-400',
   ghost:
-    'bg-transparent text-ink-700 hover:bg-slate-100 active:bg-slate-200 border border-transparent disabled:text-ink-400',
+    'bg-transparent text-ink-700 hover:bg-fill active:bg-fill-strong border border-transparent disabled:text-ink-400',
   danger:
     'bg-danger-600 text-white hover:bg-danger-700 border border-transparent disabled:bg-danger-600/50',
   link: 'bg-transparent text-brand-600 hover:text-brand-700 hover:underline underline-offset-4 border-0 px-0 h-auto',

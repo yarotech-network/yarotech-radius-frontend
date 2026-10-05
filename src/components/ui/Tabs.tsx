@@ -75,7 +75,7 @@ export function Tabs<T extends string>({
               <span
                 className={cn(
                   'rounded-full px-1.5 py-0.5 text-[11px] tabular',
-                  active ? 'bg-brand-100 text-brand-700' : 'bg-slate-100 text-ink-500',
+                  active ? 'bg-brand-100 text-brand-700' : 'bg-fill text-ink-500',
                 )}
               >
                 {item.count}

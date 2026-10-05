@@ -99,6 +99,16 @@
   --color-info-100: #dbeafe;
   --color-info-50: #eff6ff;
 
+  /* Interaction fills — neutral wells, hover and pressed states */
+  --color-fill: #f1f5f9;
+  --color-fill-strong: #e2e8f0;
+
+  /* Emphasis — solid branded chips; inverse — tooltips (always contrast with surface) */
+  --color-emphasis: #0b1f3f;
+  --color-on-emphasis: #ffffff;
+  --color-inverse: #0f172a;
+  --color-on-inverse: #ffffff;
+
   --radius-control: 0.5rem;
   --radius-card: 0.75rem;
 
@@ -119,7 +129,9 @@
     -webkit-text-size-adjust: 100%;
     font-feature-settings: 'cv11', 'ss01';
     scroll-behavior: smooth;
-    transition: background-color 0.2s ease, color 0.2s ease;
+    transition:
+      background-color 0.2s ease,
+      color 0.2s ease;
   }
   body {
     @apply bg-canvas font-sans text-sm text-ink-900 antialiased;
@@ -178,11 +190,11 @@
   --color-brand-950: #eff6ff;
 
   /* Surfaces — deep navy hierarchy (matches sidebar: #0d1b2e) */
-  --color-canvas:        #071527;   /* page background — deepest navy   */
-  --color-surface:       #0d1b2e;   /* cards, panels                    */
-  --color-surface-muted: #112240;   /* inputs, table rows, hover wells  */
-  --color-border:        #1e3050;   /* default dividers                 */
-  --color-border-strong: #2a4a70;   /* stronger borders, focus rings    */
+  --color-canvas: #071527; /* page background — deepest navy   */
+  --color-surface: #0d1b2e; /* cards, panels                    */
+  --color-surface-muted: #112240; /* inputs, table rows, hover wells  */
+  --color-border: #1e3050; /* default dividers                 */
+  --color-border-strong: #2a4a70; /* stronger borders, focus rings    */
 
   /* Ink / text — slightly warmer blue-white on navy */
   --color-ink-900: #e2efff;
@@ -193,23 +205,29 @@
   --color-ink-300: #2a4060;
 
   /* Status — adjusted for dark navy surfaces */
-  --color-success-700:  #4ade80;
-  --color-success-600:  #22c55e;
-  --color-success-100:  #032912;
-  --color-success-50:   #021a0c;
-  --color-warning-700:  #fbbf24;
-  --color-warning-600:  #f59e0b;
-  --color-warning-100:  #2a1a00;
-  --color-warning-50:   #1a1000;
-  --color-danger-700:   #f87171;
-  --color-danger-600:   #ef4444;
-  --color-danger-100:   #2a0808;
-  --color-danger-50:    #180505;
-  --color-info-700:     #60a5fa;
-  --color-info-100:     #0f2a5f;
-  --color-info-50:      #071a3d;
-}
+  --color-success-700: #4ade80;
+  --color-success-600: #22c55e;
+  --color-success-100: #032912;
+  --color-success-50: #021a0c;
+  --color-warning-700: #fbbf24;
+  --color-warning-600: #f59e0b;
+  --color-warning-100: #2a1a00;
+  --color-warning-50: #1a1000;
+  --color-danger-700: #f87171;
+  --color-danger-600: #ef4444;
+  --color-danger-100: #2a0808;
+  --color-danger-50: #180505;
+  --color-info-700: #60a5fa;
+  --color-info-100: #0f2a5f;
+  --color-info-50: #071a3d;
 
+  --color-fill: #16294a;
+  --color-fill-strong: #1e3050;
+  --color-emphasis: #2563eb;
+  --color-on-emphasis: #ffffff;
+  --color-inverse: #e2efff;
+  --color-on-inverse: #071527;
+}
 
 /* ------------------------------------------------------------------ */
 /* Utilities                                                           */

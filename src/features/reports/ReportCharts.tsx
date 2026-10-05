@@ -1,122 +1,446 @@
-import { useState } from 'react';
-import { Card } from '@/components/ui';
-import { formatKobo } from '@/lib/formatting/money';
-import { formatNumber } from '@/lib/formatting/units';
-import type { ReportRow } from './api';
+import {
+  useEffect,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type PointerEvent,
+  type ReactNode,
+} from 'react';
+import { cn } from '@/lib/utilities/cn';
+import { niceTicks } from './reportMath';
+import './reports.css';
 
-type Metric = 'activated_value' | 'collections' | 'active_vouchers';
-const METRICS: { key: Metric; label: string }[] = [
-  { key: 'activated_value', label: 'Activated value' },
-  { key: 'collections', label: 'Collections' },
-  { key: 'active_vouchers', label: 'Active vouchers' },
-];
-const PAGE_SIZE = 12;
-
-function displayValue(value: number | null, metric: Metric) {
-  return value === null ? 'Unavailable' : metric === 'active_vouchers'
-    ? formatNumber(value) : formatKobo(value);
+export interface ChartSeries {
+  key: string;
+  label: string;
+  /** A CSS colour, normally one of the --viz-N slots. */
+  color: string;
+  values: (number | null)[];
 }
 
-function periodState(row: ReportRow) {
-  return row.in_progress ? 'In progress' : row.complete ? 'Complete' : 'Partial range';
+interface ChartProps {
+  ariaLabel: string;
+  /** Short x-axis labels, one per period. */
+  labels: string[];
+  /** Tooltip heading per period (e.g. "Fri 2 Oct 2026 · In progress"). */
+  titles: string[];
+  series: ChartSeries[];
+  format: (value: number) => string;
+  axisFormat: (value: number) => string;
+  /** Periods drawn lighter because they are still in progress or partial. */
+  provisional?: boolean[];
+  height?: number;
 }
 
-export function ReportTrend({ rows, accountingAvailable }: {
-  rows: ReportRow[];
-  accountingAvailable: boolean;
+const MARGIN = { top: 12, right: 16, bottom: 28, left: 60 };
+
+function useWidth() {
+  const ref = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState(640);
+  useEffect(() => {
+    const element = ref.current;
+    if (!element || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(([entry]) => {
+      if (entry) setWidth(Math.max(260, Math.round(entry.contentRect.width)));
+    });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+  return [ref, width] as const;
+}
+
+interface Geometry {
+  plotLeft: number;
+  plotRight: number;
+  plotTop: number;
+  plotBottom: number;
+  band: number;
+  cx: (index: number) => number;
+  y: (value: number) => number;
+}
+
+/**
+ * Shared frame for every time chart: recessive grid, axes, a crosshair band that
+ * snaps to the nearest period, and one tooltip listing every series. Arrow keys
+ * move the same readout for keyboard users.
+ */
+function ChartFrame({
+  ariaLabel,
+  labels,
+  titles,
+  series,
+  format,
+  axisFormat,
+  height = 240,
+  max,
+  keyShape,
+  children,
+}: ChartProps & {
+  max: number;
+  keyShape: 'line' | 'box';
+  children: (geometry: Geometry, active: number | null) => ReactNode;
 }) {
-  const [metric, setMetric] = useState<Metric>('activated_value');
-  const [page, setPage] = useState(Math.max(0, Math.ceil(rows.length / PAGE_SIZE) - 1));
-  const [selected, setSelected] = useState<number | null>(null);
-  const pages = Math.ceil(rows.length / PAGE_SIZE);
-  const visible = rows.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
-  const chosen = selected !== null && selected >= page * PAGE_SIZE &&
-    selected < (page + 1) * PAGE_SIZE ? rows[selected] : visible.at(-1);
-  const max = Math.max(1, ...visible.map((row) => Math.abs(row[metric] ?? 0)));
-  const hasValue = visible.some((row) => row[metric] !== null && row[metric] !== 0);
+  const [ref, width] = useWidth();
+  const [active, setActive] = useState<number | null>(null);
+  const count = labels.length;
+  const ticks = niceTicks(max);
+  const top = ticks.at(-1) || 1;
+  const geometry: Geometry = {
+    plotLeft: MARGIN.left,
+    plotRight: width - MARGIN.right,
+    plotTop: MARGIN.top,
+    plotBottom: height - MARGIN.bottom,
+    band: (width - MARGIN.left - MARGIN.right) / Math.max(1, count),
+    cx: (index) => MARGIN.left + geometry.band * (index + 0.5),
+    y: (value) => height - MARGIN.bottom - (value / top) * (height - MARGIN.top - MARGIN.bottom),
+  };
+  const labelWidth = Math.max(...labels.map((label) => label.length), 1) * 6.5 + 16;
+  const labelEvery = Math.ceil(
+    count / Math.max(2, Math.floor((width - MARGIN.left - MARGIN.right) / labelWidth)),
+  );
 
-  return <Card className="min-w-0">
-    <div className="flex flex-wrap items-start justify-between gap-3">
-      <div>
-        <h2 className="text-lg font-semibold text-brand-950">Activity over time</h2>
-        <p className="mt-1 text-sm text-ink-500">Choose a measure, then select a bar to see its exact value.</p>
-      </div>
-      <div role="group" aria-label="Chart measure" className="flex flex-wrap gap-1 rounded-xl bg-surface-muted p-1">
-        {METRICS.filter((item) => item.key !== 'active_vouchers' || accountingAvailable).map((item) =>
-          <button key={item.key} type="button" aria-pressed={metric === item.key}
-            onClick={() => setMetric(item.key)}
-            className={`rounded-lg px-3 py-2 text-xs font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600 ${metric === item.key ? 'bg-brand-600 text-white' : 'text-ink-700 hover:bg-brand-50'}`}>
-            {item.label}
-          </button>)}
-      </div>
+  function onPointerMove(event: PointerEvent<SVGRectElement>) {
+    const box = event.currentTarget.getBoundingClientRect();
+    const index = Math.floor((event.clientX - box.left) / geometry.band);
+    setActive(Math.min(count - 1, Math.max(0, index)));
+  }
+
+  function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    const current = active ?? count - 1;
+    const next =
+      event.key === 'ArrowRight'
+        ? current + 1
+        : event.key === 'ArrowLeft'
+          ? current - 1
+          : event.key === 'Home'
+            ? 0
+            : event.key === 'End'
+              ? count - 1
+              : null;
+    if (event.key === 'Escape') setActive(null);
+    if (next === null) return;
+    event.preventDefault();
+    setActive(Math.min(count - 1, Math.max(0, next)));
+  }
+
+  const tooltipLeft = active === null ? 0 : geometry.cx(active);
+  const flip = tooltipLeft > width / 2;
+
+  return (
+    <div
+      ref={ref}
+      role="group"
+      aria-label={`${ariaLabel}. Use the left and right arrow keys to read each period.`}
+      tabIndex={0}
+      onKeyDown={onKeyDown}
+      onFocus={() => setActive((value) => value ?? count - 1)}
+      onBlur={() => setActive(null)}
+      className="report-chart relative"
+    >
+      <svg width={width} height={height} role="img" aria-label={ariaLabel} className="block">
+        {ticks.map((tick) => (
+          <g key={tick}>
+            <line
+              x1={geometry.plotLeft}
+              x2={geometry.plotRight}
+              y1={geometry.y(tick)}
+              y2={geometry.y(tick)}
+              stroke="var(--viz-grid)"
+              strokeWidth={1}
+              shapeRendering="crispEdges"
+            />
+            <text x={geometry.plotLeft - 8} y={geometry.y(tick)} dy="0.32em" textAnchor="end">
+              {axisFormat(tick)}
+            </text>
+          </g>
+        ))}
+        {labels.map((label, index) =>
+          (count - 1 - index) % labelEvery === 0 ? (
+            <text
+              key={`${label}-${index}`}
+              x={geometry.cx(index)}
+              y={height - 8}
+              textAnchor={count > 1 && index === 0 ? 'start' : 'middle'}
+            >
+              {label}
+            </text>
+          ) : null,
+        )}
+        {active !== null && (
+          <rect
+            x={geometry.plotLeft + geometry.band * active}
+            y={geometry.plotTop}
+            width={geometry.band}
+            height={geometry.plotBottom - geometry.plotTop}
+            fill="var(--color-fill)"
+            opacity={0.7}
+          />
+        )}
+        {children(geometry, active)}
+        <rect
+          x={geometry.plotLeft}
+          y={geometry.plotTop}
+          width={Math.max(0, geometry.plotRight - geometry.plotLeft)}
+          height={geometry.plotBottom - geometry.plotTop}
+          fill="transparent"
+          onPointerMove={onPointerMove}
+          onPointerLeave={() => setActive(null)}
+        />
+      </svg>
+      {active !== null && (
+        <div
+          role="status"
+          className="report-tooltip"
+          style={{
+            left: tooltipLeft,
+            transform: `translate(${flip ? 'calc(-100% - 12px)' : '12px'}, ${MARGIN.top}px)`,
+          }}
+        >
+          <p className="mb-1.5 text-xs text-ink-500">{titles[active]}</p>
+          <ul className="space-y-1">
+            {series.map((item) => {
+              const value = item.values[active];
+              return (
+                <li key={item.key} className="flex items-center gap-2 text-xs">
+                  <span
+                    aria-hidden
+                    className={keyShape === 'line' ? 'report-key-line' : 'report-key-box'}
+                    style={{ background: item.color }}
+                  />
+                  <span className="min-w-0 flex-1 text-ink-500">{item.label}</span>
+                  <strong className="text-sm font-semibold text-ink-900 tabular">
+                    {value === null || value === undefined ? 'Unavailable' : format(value)}
+                  </strong>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
     </div>
-    <div className="mt-5 rounded-xl border border-border bg-surface-muted/50 px-3 pt-5 pb-3 sm:px-5">
-      {hasValue ? <div className="flex h-48 items-end gap-1.5 sm:gap-2" aria-label={`${METRICS.find((item) => item.key === metric)?.label} by period`}>
-        {visible.map((row, index) => {
-          const value = row[metric];
-          const active = chosen?.start === row.start;
-          return <button key={row.start} type="button" onClick={() => setSelected(page * PAGE_SIZE + index)}
-            aria-label={`${row.start}: ${displayValue(value, metric)}; ${periodState(row)}`}
-            aria-pressed={active}
-            className="group flex h-full min-w-0 flex-1 flex-col justify-end gap-1 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600">
-            <span aria-hidden="true" className={`block w-full rounded-t-md transition-colors ${value === null ? 'border-2 border-dashed border-ink-300' : value < 0 ? 'bg-warning-600' : active ? 'bg-brand-600' : 'bg-brand-300 group-hover:bg-brand-600'}`}
-              style={{ height: `${value === null ? 10 : Math.max(value === 0 ? 3 : 8, Math.abs(value) / max * 100)}%` }} />
-            </button>;
-        })}
-      </div> : <p className="flex h-48 items-center justify-center text-center text-sm text-ink-500">No {metric === 'active_vouchers' ? 'recorded voucher sessions' : 'recorded value'} in these periods.</p>}
-      <div className="mt-2 flex justify-between text-xs text-ink-500"><span>{visible[0]?.start}</span><span>{visible.at(-1)?.start}</span></div>
-    </div>
-    {chosen && <div aria-live="polite" className="mt-4 flex flex-wrap items-baseline justify-between gap-2 rounded-xl bg-brand-50 px-4 py-3">
-      <span className="text-sm font-medium text-brand-950">{chosen.start} <span className="font-normal text-ink-500">· {periodState(chosen)}</span></span>
-      <strong className="text-lg tabular-nums text-brand-950">{displayValue(chosen[metric], metric)}</strong>
-    </div>}
-    {pages > 1 && <div className="mt-4 flex items-center justify-between gap-3 text-sm">
-      <button type="button" disabled={page === 0} onClick={() => { setPage(page - 1); setSelected(null); }}
-        className="rounded-lg border border-border px-3 py-2 font-medium disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-brand-600">Previous periods</button>
-      <span className="text-center text-ink-500">{page + 1} of {pages}</span>
-      <button type="button" disabled={page === pages - 1} onClick={() => { setPage(page + 1); setSelected(null); }}
-        className="rounded-lg border border-border px-3 py-2 font-medium disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-brand-600">Next periods</button>
-    </div>}
-  </Card>;
+  );
 }
 
-const SLICE_COLORS = [
-  'var(--color-brand-600)', 'var(--color-success-600)',
-  'var(--color-warning-600)', 'var(--color-brand-300)', 'var(--color-ink-300)',
-];
+function seriesMax(series: ChartSeries[], stacked: boolean, count: number) {
+  if (!stacked) return Math.max(0, ...series.flatMap((item) => item.values.map((v) => v ?? 0)));
+  let max = 0;
+  for (let index = 0; index < count; index++) {
+    max = Math.max(
+      max,
+      series.reduce((sum, item) => sum + Math.max(0, item.values[index] ?? 0), 0),
+    );
+  }
+  return max;
+}
 
-export function ActivationShare({ rows }: { rows: ReportRow[] }) {
-  const ranked = rows.filter((row) => row.activated_value > 0)
-    .sort((a, b) => b.activated_value - a.activated_value);
-  const top = ranked.slice(0, 4).map((row) => ({ label: row.start, amount: row.activated_value }));
-  const remaining = ranked.slice(4).reduce((sum, row) => sum + row.activated_value, 0);
-  const slices = remaining ? [...top, { label: 'Other periods', amount: remaining }] : top;
-  const total = slices.reduce((sum, slice) => sum + slice.amount, 0);
-  const stops = slices.map((slice, index) => {
-    const start = slices.slice(0, index).reduce((sum, previous) => sum + previous.amount, 0) / total * 100;
-    const end = start + slice.amount / total * 100;
-    return `${SLICE_COLORS[index]} ${start}% ${end}%`;
-  });
+/** Multi-series trend: 2px lines, ringed end dots, a 10% wash only when there is one series. */
+export function LineChart(props: ChartProps) {
+  const { series, labels, provisional } = props;
+  const single = series.length === 1;
+  return (
+    <ChartFrame {...props} keyShape="line" max={seriesMax(series, false, labels.length)}>
+      {(g, active) =>
+        series.map((item) => {
+          const points = item.values.map((value, index) =>
+            value === null ? null : ([g.cx(index), g.y(Math.max(0, value))] as const),
+          );
+          let path = '';
+          points.forEach((point, index) => {
+            if (!point) return;
+            path += `${index > 0 && points[index - 1] ? 'L' : 'M'}${point[0]},${point[1]}`;
+          });
+          const lastIndex = points.findLastIndex(Boolean);
+          const last = points[lastIndex];
+          const firstIndex = points.findIndex(Boolean);
+          return (
+            <g key={item.key}>
+              {single && last && firstIndex >= 0 && (
+                <path
+                  d={`${path}L${last[0]},${g.plotBottom}L${points[firstIndex]?.[0]},${g.plotBottom}Z`}
+                  fill={item.color}
+                  opacity={0.1}
+                />
+              )}
+              <path
+                d={path}
+                fill="none"
+                stroke={item.color}
+                strokeWidth={2}
+                strokeLinejoin="round"
+                strokeLinecap="round"
+              />
+              {last && (
+                <circle
+                  cx={last[0]}
+                  cy={last[1]}
+                  r={4}
+                  fill={provisional?.[lastIndex] ? 'var(--viz-surface)' : item.color}
+                  stroke={provisional?.[lastIndex] ? item.color : 'var(--viz-surface)'}
+                  strokeWidth={2}
+                />
+              )}
+              {active !== null && points[active] && active !== lastIndex && (
+                <circle
+                  cx={points[active][0]}
+                  cy={points[active][1]}
+                  r={4}
+                  fill={item.color}
+                  stroke="var(--viz-surface)"
+                  strokeWidth={2}
+                />
+              )}
+            </g>
+          );
+        })
+      }
+    </ChartFrame>
+  );
+}
 
-  return <Card className="min-w-0">
-    <h2 className="text-lg font-semibold text-brand-950">Activated value by period</h2>
-    <p className="mt-1 text-sm text-ink-500">The four highest periods are shown separately; the rest are grouped.</p>
-    {total > 0 ? <div className="mt-6 flex flex-col items-center gap-6 sm:flex-row">
-      <div role="img" aria-label="Activated value share by reporting period"
-        className="relative size-44 shrink-0 rounded-full"
-        style={{ background: `conic-gradient(${stops.join(', ')})` }}>
-        <div className="absolute inset-8 flex flex-col items-center justify-center rounded-full bg-surface text-center">
-          <span className="text-xs text-ink-500">Total</span>
-          <strong className="text-base text-brand-950">{formatKobo(total, { compact: true })}</strong>
-        </div>
+function roundedTop(x: number, y: number, w: number, h: number, r: number) {
+  const radius = Math.min(r, h, w / 2);
+  return `M${x},${y + h}V${y + radius}Q${x},${y} ${x + radius},${y}H${x + w - radius}Q${x + w},${y} ${x + w},${y + radius}V${y + h}Z`;
+}
+
+/** Columns (stacked when given several series): <=24px wide, 4px rounded top, 2px surface gaps. */
+export function BarChart(props: ChartProps) {
+  const { series, labels, provisional } = props;
+  return (
+    <ChartFrame {...props} keyShape="box" max={seriesMax(series, true, labels.length)}>
+      {(g) =>
+        labels.map((label, index) => {
+          const width = Math.max(4, Math.min(24, g.band * 0.62));
+          const x = g.cx(index) - width / 2;
+          const values = series.map((item) => Math.max(0, item.values[index] ?? 0));
+          const topSegment = values.findLastIndex((value) => value > 0);
+          let base = 0;
+          return (
+            <g key={`${label}-${index}`} opacity={provisional?.[index] ? 0.5 : 1}>
+              {series.map((item, slot) => {
+                const value = values[slot] ?? 0;
+                if (value <= 0) return null;
+                const y0 = g.y(base);
+                base += value;
+                const y1 = g.y(base);
+                const gap = slot === 0 ? 0 : 2;
+                const height = Math.max(1, y0 - y1 - gap);
+                return slot === topSegment ? (
+                  <path key={item.key} d={roundedTop(x, y1, width, height, 4)} fill={item.color} />
+                ) : (
+                  <rect
+                    key={item.key}
+                    x={x}
+                    y={y1}
+                    width={width}
+                    height={height}
+                    fill={item.color}
+                  />
+                );
+              })}
+            </g>
+          );
+        })
+      }
+    </ChartFrame>
+  );
+}
+
+export function Legend({
+  items,
+  shape,
+  note,
+}: {
+  items: { label: string; color: string }[];
+  shape: 'line' | 'box';
+  note?: ReactNode;
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-ink-600">
+      {items.map((item) => (
+        <span key={item.label} className="inline-flex items-center gap-1.5">
+          <span
+            aria-hidden
+            className={shape === 'line' ? 'report-key-line' : 'report-key-box'}
+            style={{ background: item.color }}
+          />
+          {item.label}
+        </span>
+      ))}
+      {note && <span className="text-ink-500">{note}</span>}
+    </div>
+  );
+}
+
+/** A small trend line for stat tiles: quiet history, accent on the latest point. */
+export function Sparkline({ values, className }: { values: number[]; className?: string }) {
+  if (values.length < 2) return null;
+  const width = 96;
+  const height = 28;
+  const max = Math.max(...values);
+  const min = Math.min(0, ...values);
+  const span = max - min || 1;
+  const points = values.map(
+    (value, index) =>
+      [
+        2 + (index / (values.length - 1)) * (width - 6),
+        height - 4 - ((value - min) / span) * (height - 8),
+      ] as const,
+  );
+  const last = points.at(-1);
+  return (
+    <svg width={width} height={height} aria-hidden className={cn('shrink-0', className)}>
+      <polyline
+        points={points.map((point) => point.join(',')).join(' ')}
+        fill="none"
+        stroke="var(--viz-quiet)"
+        strokeWidth={1.5}
+        strokeLinejoin="round"
+        strokeLinecap="round"
+      />
+      {last && <circle cx={last[0]} cy={last[1]} r={2.5} fill="var(--viz-1)" />}
+    </svg>
+  );
+}
+
+/** Part-to-whole for a handful of parts: one stacked bar plus a labelled breakdown. */
+export function ShareBar({
+  parts,
+  format,
+  ariaLabel,
+}: {
+  parts: { label: string; value: number; color: string }[];
+  format: (value: number) => string;
+  ariaLabel: string;
+}) {
+  const total = parts.reduce((sum, part) => sum + Math.max(0, part.value), 0);
+  const visible = parts.filter((part) => part.value > 0);
+  return (
+    <div>
+      <div role="img" aria-label={ariaLabel} className="flex h-3 gap-0.5 overflow-hidden rounded">
+        {total > 0 ? (
+          visible.map((part) => (
+            <span
+              key={part.label}
+              className="block h-full"
+              style={{ width: `${(part.value / total) * 100}%`, background: part.color }}
+            />
+          ))
+        ) : (
+          <span className="block h-full w-full bg-fill" />
+        )}
       </div>
-      <ul className="w-full min-w-0 space-y-3 text-sm">
-        {slices.map((slice, index) => <li key={slice.label} className="flex items-center gap-2">
-          <span aria-hidden="true" className="size-3 shrink-0 rounded-sm" style={{ background: SLICE_COLORS[index] }} />
-          <span className="min-w-0 flex-1 text-ink-700">{slice.label}</span>
-          <span className="shrink-0 tabular-nums font-semibold text-brand-950">{formatKobo(slice.amount)} <span className="font-normal text-ink-500">({Math.round(slice.amount / total * 100)}%)</span></span>
-        </li>)}
+      <ul className="mt-4 space-y-2.5">
+        {parts.map((part) => (
+          <li key={part.label} className="flex items-center gap-2 text-sm">
+            <span aria-hidden className="report-key-box" style={{ background: part.color }} />
+            <span className="min-w-0 flex-1 text-ink-600">{part.label}</span>
+            <strong className="font-semibold text-ink-900 tabular">{format(part.value)}</strong>
+            <span className="w-11 text-right text-xs text-ink-500 tabular">
+              {total > 0 ? `${Math.round((Math.max(0, part.value) / total) * 100)}%` : '—'}
+            </span>
+          </li>
+        ))}
       </ul>
-    </div> : <p className="mt-6 rounded-xl bg-surface-muted px-4 py-8 text-center text-sm text-ink-500">No activated voucher value was recorded for this range.</p>}
-  </Card>;
+    </div>
+  );
 }

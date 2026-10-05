@@ -43,7 +43,7 @@ export function SegmentedControl<T extends string>({
       role="radiogroup"
       aria-label={ariaLabel}
       onKeyDown={onKeyDown}
-      className={cn('inline-flex rounded-control bg-slate-100 p-0.5', className)}
+      className={cn('inline-flex rounded-control bg-fill p-0.5', className)}
     >
       {options.map((option) => {
         const active = option.value === value;
