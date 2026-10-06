@@ -1,5 +1,5 @@
 import {
-  useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type KeyboardEvent,
@@ -7,8 +7,8 @@ import {
   type ReactNode,
 } from 'react';
 import { cn } from '@/lib/utilities/cn';
-import { niceTicks } from './reportMath';
-import './reports.css';
+import { niceTicks } from './scale';
+import './charts.css';
 
 export interface ChartSeries {
   key: string;
@@ -37,11 +37,15 @@ const MARGIN = { top: 12, right: 16, bottom: 28, left: 60 };
 function useWidth() {
   const ref = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(640);
-  useEffect(() => {
+  // Measure before paint, then follow the container (layouts change as sibling cards load).
+  useLayoutEffect(() => {
     const element = ref.current;
-    if (!element || typeof ResizeObserver === 'undefined') return;
+    if (!element) return;
+    if (element.clientWidth > 0) setWidth(Math.max(260, element.clientWidth));
+    if (typeof ResizeObserver === 'undefined') return;
     const observer = new ResizeObserver(([entry]) => {
-      if (entry) setWidth(Math.max(260, Math.round(entry.contentRect.width)));
+      if (entry && entry.contentRect.width > 0)
+        setWidth(Math.max(260, Math.round(entry.contentRect.width)));
     });
     observer.observe(element);
     return () => observer.disconnect();
@@ -100,8 +104,11 @@ function ChartFrame({
   );
 
   function onPointerMove(event: PointerEvent<SVGRectElement>) {
+    // The plot rect may be scaled if a measurement is momentarily stale; map back to plot units.
     const box = event.currentTarget.getBoundingClientRect();
-    const index = Math.floor((event.clientX - box.left) / geometry.band);
+    const plotWidth = geometry.plotRight - geometry.plotLeft;
+    const offset = ((event.clientX - box.left) / Math.max(1, box.width)) * plotWidth;
+    const index = Math.floor(offset / geometry.band);
     setActive(Math.min(count - 1, Math.max(0, index)));
   }
 
@@ -135,9 +142,16 @@ function ChartFrame({
       onKeyDown={onKeyDown}
       onFocus={() => setActive((value) => value ?? count - 1)}
       onBlur={() => setActive(null)}
-      className="report-chart relative"
+      className="viz-chart relative"
     >
-      <svg width={width} height={height} role="img" aria-label={ariaLabel} className="block">
+      <svg
+        width="100%"
+        height={height}
+        viewBox={`0 0 ${width} ${height}`}
+        role="img"
+        aria-label={ariaLabel}
+        className="block max-w-full"
+      >
         {ticks.map((tick) => (
           <g key={tick}>
             <line
@@ -190,7 +204,7 @@ function ChartFrame({
       {active !== null && (
         <div
           role="status"
-          className="report-tooltip"
+          className="viz-tooltip"
           style={{
             left: tooltipLeft,
             transform: `translate(${flip ? 'calc(-100% - 12px)' : '12px'}, ${MARGIN.top}px)`,
@@ -204,7 +218,7 @@ function ChartFrame({
                 <li key={item.key} className="flex items-center gap-2 text-xs">
                   <span
                     aria-hidden
-                    className={keyShape === 'line' ? 'report-key-line' : 'report-key-box'}
+                    className={keyShape === 'line' ? 'viz-key-line' : 'viz-key-box'}
                     style={{ background: item.color }}
                   />
                   <span className="min-w-0 flex-1 text-ink-500">{item.label}</span>
@@ -360,7 +374,7 @@ export function Legend({
         <span key={item.label} className="inline-flex items-center gap-1.5">
           <span
             aria-hidden
-            className={shape === 'line' ? 'report-key-line' : 'report-key-box'}
+            className={shape === 'line' ? 'viz-key-line' : 'viz-key-box'}
             style={{ background: item.color }}
           />
           {item.label}
@@ -402,6 +416,12 @@ export function Sparkline({ values, className }: { values: number[]; className?:
   );
 }
 
+function sharePercent(share: number) {
+  if (share > 0 && share < 0.01) return '<1%';
+  if (share < 1 && share > 0.99) return '>99%';
+  return `${Math.round(share * 100)}%`;
+}
+
 /** Part-to-whole for a handful of parts: one stacked bar plus a labelled breakdown. */
 export function ShareBar({
   parts,
@@ -432,11 +452,11 @@ export function ShareBar({
       <ul className="mt-4 space-y-2.5">
         {parts.map((part) => (
           <li key={part.label} className="flex items-center gap-2 text-sm">
-            <span aria-hidden className="report-key-box" style={{ background: part.color }} />
+            <span aria-hidden className="viz-key-box" style={{ background: part.color }} />
             <span className="min-w-0 flex-1 text-ink-600">{part.label}</span>
             <strong className="font-semibold text-ink-900 tabular">{format(part.value)}</strong>
             <span className="w-11 text-right text-xs text-ink-500 tabular">
-              {total > 0 ? `${Math.round((Math.max(0, part.value) / total) * 100)}%` : '—'}
+              {total > 0 ? sharePercent(Math.max(0, part.value) / total) : '—'}
             </span>
           </li>
         ))}

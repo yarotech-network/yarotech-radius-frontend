@@ -11,12 +11,24 @@ import {
 import { PublicLayout } from '@/app/shell/PublicLayout';
 import { PurchaseLayout } from '@/app/shell/PurchaseLayout';
 import { RootGate } from './RootGate';
-import { WorkspaceLayout } from '@/app/shell/WorkspaceLayout';
-import { PlatformLayout } from '@/app/shell/PlatformLayout';
-import { AgentLayout } from '@/app/shell/AgentLayout';
+import { AppSplash } from '@/app/shell/AppSplash';
 import { NotFoundPage } from '@/app/shell/NotFoundPage';
 import { RequireCapability } from '@/app/auth/RequireCapability';
 import { PaymentRedirect } from '@/features/payments/pages/PaymentRedirect';
+
+/* ---------- signed-in shells: lazy so public visitors never download AppShell ---------- */
+const WorkspaceLayout = lazyRoute(
+  lazy(() => import('@/app/shell/WorkspaceLayout').then((m) => ({ default: m.WorkspaceLayout }))),
+  <AppSplash />,
+);
+const PlatformLayout = lazyRoute(
+  lazy(() => import('@/app/shell/PlatformLayout').then((m) => ({ default: m.PlatformLayout }))),
+  <AppSplash />,
+);
+const AgentLayout = lazyRoute(
+  lazy(() => import('@/app/shell/AgentLayout').then((m) => ({ default: m.AgentLayout }))),
+  <AppSplash />,
+);
 
 /* ---------- lazily loaded pages (one chunk per page) ---------- */
 const AboutPage = lazyRoute(lazy(() => import('@/features/storefront/pages/AboutPage')));

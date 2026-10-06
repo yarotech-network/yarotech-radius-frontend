@@ -17,11 +17,17 @@ import {
   type ReportParams,
   type TenantReport,
 } from './api';
-import { BarChart, Legend, LineChart, ShareBar, Sparkline } from './ReportCharts';
 import {
-  CHANNELS,
+  BarChart,
   compactKobo,
   compactNumber,
+  Legend,
+  LineChart,
+  ShareBar,
+  Sparkline,
+} from '@/components/charts';
+import {
+  CHANNELS,
   peakPeriod,
   percentChange,
   periodLabel,
@@ -628,7 +634,7 @@ export default function ReportsPage() {
   }
 
   return (
-    <div className="report-viz space-y-6">
+    <div className="viz space-y-6">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="text-sm text-ink-500">Business intelligence</p>

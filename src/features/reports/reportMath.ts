@@ -134,34 +134,3 @@ export function reportCsv(report: TenantReport) {
   ]);
   return [header, ...lines].map((line) => line.join(',')).join('\r\n');
 }
-
-/** Round an axis maximum up to a clean value and return evenly spaced ticks from zero. */
-export function niceTicks(max: number, count = 4) {
-  if (max <= 0) return [0, 1];
-  const rough = max / count;
-  const magnitude = 10 ** Math.floor(Math.log10(rough));
-  const step = ([1, 2, 2.5, 5, 10].find((n) => n * magnitude >= rough) ?? 10) * magnitude;
-  const ticks = [];
-  for (let value = 0; value < max + step / 2; value += step) ticks.push(value);
-  if ((ticks.at(-1) ?? 0) < max) ticks.push((ticks.at(-1) ?? 0) + step);
-  return ticks;
-}
-
-const COMPACT_NAIRA = new Intl.NumberFormat('en-NG', {
-  style: 'currency',
-  currency: 'NGN',
-  notation: 'compact',
-  maximumFractionDigits: 1,
-});
-const COMPACT_NUMBER = new Intl.NumberFormat('en-NG', {
-  notation: 'compact',
-  maximumFractionDigits: 1,
-});
-
-export function compactKobo(kobo: number) {
-  return COMPACT_NAIRA.format(kobo / 100);
-}
-
-export function compactNumber(value: number) {
-  return COMPACT_NUMBER.format(value);
-}

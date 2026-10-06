@@ -40,6 +40,12 @@ const stats: DashboardStats = {
     incomplete_vouchers: 0,
   },
   collected_revenue: { today: 12300, month: 40000, total: 50000 },
+  voucher_usage: { total: 41, active: 9, not_started: 25, expired: 6, disabled: 1 },
+  vouchers_issued_today: 4,
+  total_customers: 128,
+  revenue_sources: { online: 30000, agent_wallet: 15000, agent_credit_repayments: 5000 },
+  successful_payments: 12,
+  failed_payments: 2,
   total_vouchers: 41,
   active_vouchers: 9,
   total_revenue: 1250000,
@@ -82,41 +88,115 @@ const payments = Array.from({ length: 5 }, (_, index) => ({
   created_at: `2026-09-29T10:0${5 - index}:00Z`,
 }));
 
+const trendReport = {
+  period: 'last_30_days',
+  group_by: 'day',
+  from_date: '2026-10-04',
+  to_date: '2026-10-05',
+  reporting_timezone: 'Africa/Lagos',
+  observed_at: new Date().toISOString(),
+  currency: 'NGN',
+  amount_unit: 'kobo',
+  activation_basis: '',
+  collections_basis: '',
+  usage_basis: '',
+  accounting_available: true,
+  latest_accounting_at: null,
+  completed_periods: 1,
+  totals: { activated_value: 90000, collections: 70000 },
+  averages: { activated_value: 50000, collections: 40000, active_vouchers: 3 },
+  rows: [
+    {
+      start: '2026-10-04',
+      end_exclusive: '2026-10-05',
+      in_progress: false,
+      complete: true,
+      activated_value: 50000,
+      collections: 40000,
+      active_vouchers: 3,
+    },
+    {
+      start: '2026-10-05',
+      end_exclusive: '2026-10-06',
+      in_progress: true,
+      complete: false,
+      activated_value: 40000,
+      collections: 30000,
+      active_vouchers: 2,
+    },
+  ],
+};
+
 describe('DashboardPage', () => {
   beforeEach(() => {
     server.use(
+      http.get(`${API}/reports/`, () => HttpResponse.json(trendReport)),
       http.get(`${API}/dashboard/stats/`, () => HttpResponse.json(stats)),
       http.get(`${API}/dashboard/network/`, () => HttpResponse.json(networkSummary)),
       http.get(`${API}/payments/transactions/`, () => HttpResponse.json(paginated(payments))),
     );
   });
 
-  it('keeps four summary cards with destinations and no detailed reports or session table', async () => {
+  it('shows revenue and operations tiles with destinations, then the analytics sections', async () => {
     renderPage(<DashboardPage />, { role: 'owner' });
-    const cards = screen.getByRole('region', { name: 'Dashboard summaries' });
-    await within(cards).findByText('52');
-    expect(cards.children).toHaveLength(4);
-    for (const [name, href] of [
-      ['View voucher revenue', '/vouchers#voucher-revenue'],
-      ['View payments', '/payments'],
-      ['View live sessions', '/sessions'],
-      ['View routers', '/routers'],
+    const ops = await screen.findByRole('region', { name: 'Network & operations' });
+    await within(ops).findByText('52');
+    const revenue = screen.getByRole('region', { name: 'Revenue' });
+    expect(within(revenue).getAllByRole('link')).toHaveLength(4);
+    expect(within(ops).getAllByRole('link')).toHaveLength(4);
+    for (const [region, name, href] of [
+      [revenue, 'View voucher revenue', '/vouchers#voucher-revenue'],
+      [revenue, 'View payments', '/payments'],
+      [revenue, "Open this month's report", '/reports?period=this_month&group_by=day'],
+      [revenue, 'Open revenue reports', '/reports'],
+      [ops, 'View live sessions', '/sessions'],
+      [ops, 'View routers', '/routers'],
+      [ops, 'View voucher inventory', '/vouchers'],
+      [ops, 'View customers', '/customers'],
     ] as const)
-      expect(within(cards).getByRole('link', { name })).toHaveAttribute('href', href);
-    expect(within(cards).getByText('0 confirmed offline / 1 unknown')).toBeInTheDocument();
+      expect(within(region).getByRole('link', { name })).toHaveAttribute('href', href);
+    expect(within(ops).getByText('0 confirmed offline / 1 unknown')).toBeInTheDocument();
+    // Month and all-time collections lead; activated value is the supporting line.
+    expect(within(revenue).getByText('₦400')).toBeInTheDocument();
+    expect(within(revenue).getByText('₦500')).toBeInTheDocument();
+    expect(within(revenue).getByText('₦600 activated value all time')).toBeInTheDocument();
+    expect(within(ops).getByText('25 ready to sell · 4 issued today')).toBeInTheDocument();
+    expect(within(ops).getByText('128')).toBeInTheDocument();
+    expect(within(ops).getByText('2 agents selling vouchers')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Review payments' })).toHaveAttribute(
       'href',
       '/payments/recovery',
     );
     for (const name of [
-      'Voucher usage',
-      'Activated voucher revenue',
-      'Recorded collections and payments',
+      'Revenue, last 30 days',
+      'Revenue by channel',
+      'Router health',
+      'Live network',
+      'Voucher inventory',
+      'Payments',
     ]) {
-      expect(screen.queryByRole('heading', { name })).not.toBeInTheDocument();
+      expect(await screen.findByRole('heading', { name })).toBeInTheDocument();
     }
+    expect(screen.getByRole('link', { name: 'Open reports' })).toHaveAttribute('href', '/reports');
+    expect(screen.getByRole('img', { name: 'Routers by status' })).toBeInTheDocument();
+    // Detail tables stay on their own pages.
     expect(screen.queryByRole('table', { name: 'Live sessions' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Generate vouchers' })).not.toBeInTheDocument();
+  });
+
+  it('switches the channel breakdown between today, month and all time', async () => {
+    renderPage(<DashboardPage />, { role: 'owner' });
+    const user = userEvent.setup();
+    expect(await screen.findByRole('radio', { name: 'Today' })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    );
+    await user.click(screen.getByRole('radio', { name: 'All time' }));
+    expect(screen.getByRole('radio', { name: 'All time' })).toHaveAttribute('aria-checked', 'true');
+    expect(
+      screen.getByRole('img', { name: 'Share of activated value by channel' }),
+    ).toBeInTheDocument();
+    expect(screen.getByText('50%')).toBeInTheDocument();
   });
 
   it('requests exactly five newest payments and displays exact creation dates', async () => {
@@ -152,8 +232,9 @@ describe('DashboardPage', () => {
       ),
     );
     await userEvent.click(screen.getByRole('button', { name: 'Refresh dashboard' }));
-    await screen.findByText('0');
-    expect(screen.getByText('0 confirmed offline / 1 unknown')).toBeInTheDocument();
+    const ops = screen.getByRole('region', { name: 'Network & operations' });
+    await within(ops).findByText('0');
+    expect(within(ops).getByText('0 confirmed offline / 1 unknown')).toBeInTheDocument();
   });
 
   it('retains cached figures with a warning after a failed refresh', async () => {
@@ -164,7 +245,8 @@ describe('DashboardPage', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Refresh dashboard' }));
     await screen.findByText('Business figures unavailable');
     expect(screen.getByText(/Showing the last successful figures/)).toBeInTheDocument();
-    expect(screen.getByText(/600.00/)).toBeInTheDocument();
+    const revenue = screen.getByRole('region', { name: 'Revenue' });
+    expect(within(revenue).getByText('₦600')).toBeInTheDocument();
   });
 
   it('never fetches unauthorized aggregates for payment-only delegated staff', async () => {
@@ -173,6 +255,10 @@ describe('DashboardPage', () => {
       http.get(`${API}/dashboard/:kind/`, () => {
         forbiddenCalls++;
         return HttpResponse.json({});
+      }),
+      http.get(`${API}/reports/`, () => {
+        forbiddenCalls++;
+        return HttpResponse.json(trendReport);
       }),
     );
     renderPage(<DashboardPage />, {
@@ -183,7 +269,8 @@ describe('DashboardPage', () => {
       ),
     });
     await screen.findByText('buyer0@example.com');
-    expect(screen.getByRole('region', { name: 'Dashboard summaries' }).children).toHaveLength(0);
+    expect(screen.queryByRole('region', { name: 'Revenue' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Network & operations' })).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Refresh dashboard' }));
     expect(forbiddenCalls).toBe(0);
   });

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { ReportRow, TenantReport } from './api';
-import { niceTicks, percentChange, previousRange, reportCsv, weekdayPattern } from './reportMath';
+import { niceTicks } from '@/components/charts';
+import { percentChange, previousRange, reportCsv, weekdayPattern } from './reportMath';
 
 function day(start: string, activated: number, complete = true): ReportRow {
   return {
