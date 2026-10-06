@@ -143,7 +143,7 @@ describe('DashboardPage', () => {
     await within(ops).findByText('52');
     const revenue = screen.getByRole('region', { name: 'Revenue' });
     expect(within(revenue).getAllByRole('link')).toHaveLength(4);
-    expect(within(ops).getAllByRole('link')).toHaveLength(4);
+    expect(within(ops).getAllByRole('link')).toHaveLength(3);
     for (const [region, name, href] of [
       [revenue, 'View voucher revenue', '/vouchers#voucher-revenue'],
       [revenue, 'View payments', '/payments'],
@@ -152,7 +152,6 @@ describe('DashboardPage', () => {
       [ops, 'View live sessions', '/sessions'],
       [ops, 'View routers', '/routers'],
       [ops, 'View voucher inventory', '/vouchers'],
-      [ops, 'View customers', '/customers'],
     ] as const)
       expect(within(region).getByRole('link', { name })).toHaveAttribute('href', href);
     expect(within(ops).getByText('0 confirmed offline / 1 unknown')).toBeInTheDocument();
@@ -161,8 +160,8 @@ describe('DashboardPage', () => {
     expect(within(revenue).getByText('₦500')).toBeInTheDocument();
     expect(within(revenue).getByText('₦600 activated value all time')).toBeInTheDocument();
     expect(within(ops).getByText('25 ready to sell · 4 issued today')).toBeInTheDocument();
-    expect(within(ops).getByText('128')).toBeInTheDocument();
-    expect(within(ops).getByText('2 agents selling vouchers')).toBeInTheDocument();
+    // Contact-record counts are no longer shown (their page was retired).
+    expect(within(ops).queryByText('Customers')).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Review payments' })).toHaveAttribute(
       'href',
       '/payments/recovery',

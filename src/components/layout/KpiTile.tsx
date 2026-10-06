@@ -85,7 +85,14 @@ export function KpiGroup({ label, children }: { label: string; children: ReactNo
   return (
     <section aria-label={label} className="space-y-2">
       <h2 className="text-xs font-semibold tracking-wide text-ink-500 uppercase">{label}</h2>
-      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">{children}</div>
+      <div
+        className={cn(
+          'grid grid-cols-2 gap-3',
+          children.length === 3 ? 'xl:grid-cols-3' : 'xl:grid-cols-4',
+        )}
+      >
+        {children}
+      </div>
     </section>
   );
 }

@@ -68,8 +68,6 @@ export default function DashboardPage() {
   const fetching = stats.isFetching || network.isFetching || recent.isFetching || trend.isFetching;
   const revenue = s?.activated_voucher_revenue;
   const usage = s?.voucher_usage;
-  const customersAllowed = can(principal, 'customers.view') && can(principal, 'dashboard.view');
-  const agentsVisible = can(principal, 'agents.manage');
   const revenueTiles = [
     {
       show: vouchersAllowed,
@@ -150,17 +148,6 @@ export default function DashboardPage() {
         : 'Vouchers with a started session',
       to: '/vouchers',
       link: 'View voucher inventory',
-      loading: stats.isPending,
-    },
-    {
-      show: customersAllowed && s?.total_customers !== undefined,
-      label: 'Customers',
-      value: formatNumber(s?.total_customers ?? 0),
-      detail: agentsVisible
-        ? `${formatNumber(s?.total_agents ?? 0)} agents selling vouchers`
-        : 'Saved customer records',
-      to: '/customers',
-      link: 'View customers',
       loading: stats.isPending,
     },
   ];
