@@ -378,6 +378,7 @@ function PublishedPlans({ slug }: { slug: string }) {
                 <li key={plan.id} className="min-w-0">
                   <PlanCard
                     plan={plan}
+                    variant="shop"
                     className="break-words"
                     action={
                       <ButtonLink

@@ -42,15 +42,41 @@ describe('Customer access workspace', () => {
       ),
     );
     renderPage(<Page />, { role: 'owner', path: '/customers' });
-    expect(await screen.findByText('Buyer')).toBeVisible();
+    const table = await screen.findByRole('table', {
+      name: 'Customer purchases and voucher users',
+    });
+    expect(await within(table).findByText('Buyer')).toBeVisible();
+    expect(within(table).getByText('Never connected')).toBeInTheDocument();
+    expect(within(table).getByText('Bought online')).toBeInTheDocument();
     expect(screen.getByText(/Device synchronization is missing/)).toBeVisible();
     expect(screen.queryByText('TESTCODE')).not.toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button', { name: 'View details' }));
-    expect(await within(screen.getByRole('dialog')).findByText(/TESTCODE/)).toBeVisible();
+    await userEvent.click(within(table).getByRole('button', { name: 'View details' }));
+    const dialog = screen.getByRole('dialog');
+    expect(await within(dialog).findByText('TESTCODE')).toBeVisible();
+    expect(within(dialog).getByRole('button', { name: 'Copy code' })).toBeInTheDocument();
+    expect(within(dialog).getByText('purchase-42')).toBeInTheDocument();
+    expect(within(dialog).queryByText(/\?/)).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'View device history' })).toHaveAttribute(
       'href',
       '/customers/devices?voucher=42',
     );
+  });
+  it('keeps extra filters behind a toggle, opens them for active filters and clears them', async () => {
+    options();
+    const requests: URL[] = [];
+    server.use(
+      http.get(`${API}/customer-access/`, ({ request }) => {
+        requests.push(new URL(request.url));
+        return HttpResponse.json({ ...paginated([row]), synced_at: null, sync_fresh: true });
+      }),
+    );
+    renderPage(<Page />, { role: 'owner', path: '/customers', route: '/customers?source=agent' });
+    const toggle = await screen.findByRole('button', { name: 'More filters (1)' });
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByLabelText('Source')).toHaveValue('agent');
+    await waitFor(() => expect(requests.at(-1)?.searchParams.get('source')).toBe('agent'));
+    await userEvent.click(screen.getByRole('button', { name: 'Clear filters' }));
+    await waitFor(() => expect(requests.at(-1)?.searchParams.get('source')).toBeNull());
   });
   it('sends independent historical status and live connection filters', async () => {
     options();
@@ -62,7 +88,10 @@ describe('Customer access workspace', () => {
       }),
     );
     renderPage(<Page />, { role: 'owner', path: '/customers' });
-    await screen.findByText('Buyer');
+    const table = await screen.findByRole('table', {
+      name: 'Customer purchases and voucher users',
+    });
+    await within(table).findByText('Buyer');
     await userEvent.selectOptions(screen.getByLabelText('Code status'), 'used');
     await userEvent.selectOptions(screen.getByLabelText('Connection'), 'online');
     await waitFor(() => {

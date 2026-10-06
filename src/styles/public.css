@@ -529,13 +529,13 @@
 .public-storefront-heading > div {
   margin-inline: 0;
 }
-.public-storefront article {
+.public-storefront article:not(.plan-card-shop) {
   padding: 1.75rem;
 }
-.public-storefront article dl {
+.public-storefront article:not(.plan-card-shop) dl {
   margin-block: 1.5rem;
 }
-.public-storefront article > div:last-child {
+.public-storefront article:not(.plan-card-shop) > div:last-child {
   margin-top: auto;
 }
 .public-checkout-form {
@@ -1180,7 +1180,7 @@ a.public-contact-card:hover {
   padding: 2.5rem;
   background: white;
 }
-.public-storefront article {
+.public-storefront article:not(.plan-card-shop) {
   box-shadow: 0 8px 24px rgb(15 42 95 / 4%);
 }
 .public-purchase .public-checkout-form {

@@ -1,6 +1,6 @@
-import { useEffect } from 'react';
-import { Route, Routes, useParams } from 'react-router';
-import { Wifi } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Link, Route, Routes, useParams } from 'react-router';
+import { ShieldCheck, Smartphone, Wifi, Zap } from 'lucide-react';
 import { ButtonLink } from '@/components/ui';
 import { EmptyState, ErrorState } from '@/components/feedback';
 import { NotFoundPage } from '@/app/shell/NotFoundPage';
@@ -9,6 +9,7 @@ import { usePublicPlans, usePublicTenant } from '../queries';
 import { PlanCard, PlanCardSkeleton } from '../components/PlanCard';
 import CheckoutPage from './CheckoutPage';
 import { TenantLogo } from '../components/TenantLogo';
+import { pendingCheckout } from '../pendingCheckout';
 
 /** `/s/:slug/*` — public storefront: plan catalogue → checkout. */
 export default function StorefrontPage() {
@@ -55,6 +56,27 @@ export default function StorefrontPage() {
   );
 }
 
+type DurationGroup = 'hourly' | 'daily' | 'weekly' | 'monthly';
+const DURATION_GROUPS: { value: DurationGroup; label: string }[] = [
+  { value: 'hourly', label: 'Hourly' },
+  { value: 'daily', label: 'Daily' },
+  { value: 'weekly', label: 'Weekly' },
+  { value: 'monthly', label: 'Monthly' },
+];
+
+function durationGroup(hours: number): DurationGroup {
+  if (hours < 24) return 'hourly';
+  if (hours < 168) return 'daily';
+  if (hours < 720) return 'weekly';
+  return 'monthly';
+}
+
+const TRUST = [
+  { icon: Zap, label: 'Instant access code' },
+  { icon: ShieldCheck, label: 'Secure payment' },
+  { icon: Smartphone, label: 'Works on any device' },
+];
+
 function Catalogue({
   slug,
   tenantName,
@@ -74,21 +96,63 @@ function Catalogue({
   const plans = usePublicPlans(
     tenantName !== null || (!tenantLoading && !tenantError) ? slug : null,
   );
+  const [group, setGroup] = useState<DurationGroup | 'all'>('all');
+  const [lastPurchase] = useState(() => {
+    const saved = pendingCheckout.load();
+    return saved?.kind === 'voucher' && saved.slug === slug ? saved : null;
+  });
+  const results = plans.data?.results ?? [];
+  const groups = DURATION_GROUPS.filter((g) =>
+    results.some((plan) => durationGroup(plan.duration_hours) === g.value),
+  );
+  // Filters only help with a real choice: several plans across several lengths.
+  const showFilters = results.length >= 4 && groups.length >= 2;
+  const visible =
+    showFilters && group !== 'all'
+      ? results.filter((plan) => durationGroup(plan.duration_hours) === group)
+      : results;
+
   return (
     <>
-      <header className="public-storefront-heading">
-        <div className="mb-3 flex items-center justify-center gap-4 text-left sm:justify-start">
+      <header className="mb-6 rounded-card border border-border bg-surface p-5 sm:p-6">
+        <div className="flex items-center gap-4">
           <TenantLogo url={logoUrl} name={tenantName ?? 'Business'} />
-        {tenantLoading ? (
-          <div className="mx-auto h-7 w-48 animate-pulse rounded bg-slate-200 sm:mx-0" />
-        ) : (
-          <h1 className="public-section-title min-w-0 break-words">{tenantName ?? 'Buy Wi-Fi'}</h1>
-        )}
+          <div className="min-w-0">
+            {tenantLoading ? (
+              <div className="h-7 w-48 animate-pulse rounded bg-fill-strong" />
+            ) : (
+              <h1 className="text-2xl font-bold tracking-tight break-words text-ink-900 sm:text-3xl">
+                {tenantName ?? 'Buy Wi-Fi'}
+              </h1>
+            )}
+            <p className="mt-1 text-sm text-ink-500">
+              Choose a plan, pay securely online, and get connected.
+            </p>
+          </div>
         </div>
-        <p className="mt-1 text-sm text-ink-500">
-          Choose a plan, pay securely online, and get connected.
-        </p>
+        <ul className="mt-4 flex flex-wrap gap-x-5 gap-y-2 border-t border-border pt-4 text-xs font-medium text-ink-600">
+          {TRUST.map(({ icon: Icon, label }) => (
+            <li key={label} className="inline-flex items-center gap-1.5">
+              <Icon className="size-4 text-success-600" aria-hidden />
+              {label}
+            </li>
+          ))}
+        </ul>
       </header>
+
+      {lastPurchase && (
+        <p className="mb-4 rounded-control border border-border bg-surface px-4 py-3 text-sm text-ink-700">
+          Paid already?{' '}
+          <Link
+            className="font-semibold text-brand-700 underline-offset-4 hover:underline"
+            to={`/pay/result?reference=${encodeURIComponent(lastPurchase.reference)}`}
+          >
+            View your last purchase
+            {lastPurchase.planName ? ` (${lastPurchase.planName})` : ''}
+          </Link>
+        </p>
+      )}
+
       {tenantError ? (
         <ErrorState
           error={tenantError}
@@ -96,7 +160,7 @@ function Catalogue({
           title="Could not load this storefront"
         />
       ) : plans.isPending ? (
-        <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" aria-busy>
+        <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3" aria-busy>
           {[0, 1, 2].map((i) => (
             <li key={i}>
               <PlanCardSkeleton />
@@ -116,24 +180,51 @@ function Catalogue({
           description="New purchases are temporarily unavailable. Existing vouchers can still be used. Please check back later."
         />
       ) : (
-        <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {plans.data.results.map((plan) => (
-            <li key={plan.id}>
-              <PlanCard
-                plan={plan}
-                action={
-                  <ButtonLink to={`/s/${slug}/checkout/${plan.id}`} block>
-                    Buy
-                  </ButtonLink>
-                }
-              />
-            </li>
-          ))}
-        </ul>
+        <section aria-labelledby="storefront-plans-heading">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+            <h2 id="storefront-plans-heading" className="text-lg font-semibold text-ink-900">
+              Choose your plan
+            </h2>
+            {showFilters && (
+              <div
+                role="group"
+                aria-label="Filter plans by duration"
+                className="flex flex-wrap gap-1.5"
+              >
+                {[{ value: 'all' as const, label: 'All' }, ...groups].map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    aria-pressed={group === option.value}
+                    onClick={() => setGroup(option.value)}
+                    className="rounded-full border border-border bg-surface px-3 py-1.5 text-xs font-medium text-ink-600 transition-colors hover:border-border-strong hover:text-ink-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600 aria-pressed:border-brand-600 aria-pressed:bg-brand-50 aria-pressed:text-brand-700"
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {visible.map((plan) => (
+              <li key={plan.id}>
+                <PlanCard
+                  plan={plan}
+                  variant="shop"
+                  action={
+                    <ButtonLink to={`/s/${slug}/checkout/${plan.id}`} block>
+                      Buy
+                    </ButtonLink>
+                  }
+                />
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
-      <p className="mt-8 text-center text-xs text-ink-400">
-        Payments are processed by the business?s selected payment provider. Your login details are sent to you by{' '}
-        {tenantName ?? 'the business'} after payment.
+      <p className="mt-8 text-center text-xs text-ink-500">
+        Payments are processed by the business&apos;s selected payment provider. Your access code is
+        shown after payment and sent to you by {tenantName ?? 'the business'}.
       </p>
     </>
   );

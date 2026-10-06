@@ -78,6 +78,41 @@ describe('storefront catalogue', () => {
     );
   });
 
+  it('filters a varied catalogue by duration and offers the last purchase on this device', async () => {
+    const varied: PublicPlan[] = [
+      ...plans,
+      { id: 3, name: 'Quick Hour', price: 10000, duration_hours: 1, rate_limit: '2M/5M', data_limit: 0 },
+      { id: 4, name: 'Monthly Home', price: 500000, duration_hours: 720, rate_limit: '10M/20M', data_limit: 0 },
+    ];
+    mockStore();
+    server.use(
+      http.get(`${API}/public/tenants/wuse-hotspot/plans/`, () => HttpResponse.json(paginated(varied))),
+    );
+    pendingCheckout.save({ kind: 'voucher', reference: 'yarotech-last', slug: 'wuse-hotspot', planName: 'Daily 1GB' });
+    renderStore('/s/wuse-hotspot');
+    await screen.findByRole('article', { name: 'Monthly Home' });
+    expect(screen.getByRole('link', { name: /View your last purchase \(Daily 1GB\)/ })).toHaveAttribute(
+      'href',
+      '/pay/result?reference=yarotech-last',
+    );
+    const filters = screen.getByRole('group', { name: 'Filter plans by duration' });
+    await userEvent.click(within(filters).getByRole('button', { name: 'Weekly' }));
+    expect(within(filters).getByRole('button', { name: 'Weekly' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('article', { name: 'Weekly Unlimited' })).toBeInTheDocument();
+    expect(screen.queryByRole('article', { name: 'Daily 1GB' })).not.toBeInTheDocument();
+    await userEvent.click(within(filters).getByRole('button', { name: 'All' }));
+    expect(screen.getAllByRole('article')).toHaveLength(4);
+  });
+
+  it('hides duration filters for a small catalogue and ignores purchases from other shops', async () => {
+    mockStore();
+    pendingCheckout.save({ kind: 'voucher', reference: 'elsewhere', slug: 'kano-wifi' });
+    renderStore('/s/wuse-hotspot');
+    await screen.findByRole('article', { name: 'Weekly Unlimited' });
+    expect(screen.queryByRole('group', { name: 'Filter plans by duration' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /View your last purchase/ })).not.toBeInTheDocument();
+  });
+
   it('shows a not-found screen for an unknown slug', async () => {
     mockStore();
     renderStore('/s/nope');
@@ -153,11 +188,12 @@ describe('checkout', () => {
     await user.type(await screen.findByLabelText(/email address/i), 'buyer@example.com');
     await user.click(screen.getByRole('button', { name: /continue to payment/i }));
     expect(await screen.findByText('Payments are temporarily unavailable')).toBeInTheDocument();
-      expect(screen.getByText('yarotech-dead')).toBeInTheDocument();
-      expect(screen.queryByText(/you have not been charged/i)).not.toBeInTheDocument();
-      expect(screen.getByRole('link', { name: 'Check this payment' })).toHaveAttribute(
-        'href', '/pay/result?reference=yarotech-dead',
-      );
+    expect(screen.getByText('yarotech-dead')).toBeInTheDocument();
+    expect(screen.queryByText(/you have not been charged/i)).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Check this payment' })).toHaveAttribute(
+      'href',
+      '/pay/result?reference=yarotech-dead',
+    );
   });
 
   it('handles a plan that no longer exists', async () => {
@@ -174,15 +210,22 @@ describe('payment result', () => {
     server.use(
       http.post(`${API}/payments/verify/`, () => {
         verificationCalls += 1;
-        return HttpResponse.json(verificationCalls === 1
-          ? { status: 'pending', reference: 'yarotech-abc', voucher: null, fulfilled: false }
-          : {
-            status: 'success', reference: 'yarotech-abc', fulfilled: true,
-            voucher: 'WH84QRKP', access_code: 'WH84QRKP', code_revealed: true,
-            captive_portal_url: 'http://10.40.0.1/login',
-            plan: { name: 'Daily 1GB', duration_hours: 24, data_limit: 1024 },
-            tenant_name: 'Wuse Hotspot', customer_email_masked: 'a\u2022\u2022\u2022@example.com',
-          });
+        return HttpResponse.json(
+          verificationCalls === 1
+            ? { status: 'pending', reference: 'yarotech-abc', voucher: null, fulfilled: false }
+            : {
+                status: 'success',
+                reference: 'yarotech-abc',
+                fulfilled: true,
+                voucher: 'WH84QRKP',
+                access_code: 'WH84QRKP',
+                code_revealed: true,
+                captive_portal_url: 'http://10.40.0.1/login',
+                plan: { name: 'Daily 1GB', duration_hours: 24, data_limit: 1024 },
+                tenant_name: 'Wuse Hotspot',
+                customer_email_masked: 'a\u2022\u2022\u2022@example.com',
+              },
+        );
       }),
       http.get(`${API}/payments/callback/`, ({ request }) => {
         const ref = new URL(request.url).searchParams.get('reference');
@@ -214,7 +257,10 @@ describe('payment result', () => {
     expect(await screen.findByText('Payment successful')).toBeInTheDocument();
     expect(screen.getByRole('status', { name: 'Access code' })).toHaveTextContent('WH84QRKP');
     expect(screen.getByRole('button', { name: 'Copy access code' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Connect now' })).toHaveAttribute('href', 'http://10.40.0.1/login');
+    expect(screen.getByRole('link', { name: 'Connect now' })).toHaveAttribute(
+      'href',
+      'http://10.40.0.1/login',
+    );
     expect(screen.getByText('Daily 1GB · 1 day · 1 GB')).toBeInTheDocument();
     expect(screen.getByText('How to connect')).toBeInTheDocument();
     expect(screen.getByText(/Join the Wuse Hotspot Wi-Fi network/)).toBeInTheDocument();
@@ -227,51 +273,65 @@ describe('payment result', () => {
     await waitFor(() => expect(pendingCheckout.load()).toBeNull());
   });
 
-  it.each([null, 'WH84QRKP'])('hides fulfilled credentials including legacy voucher value %s', async (voucher) => {
-    const payload = (reference: string | null) => ({
-      status: 'success',
-      reference,
-      voucher,
-      fulfilled: true,
-      access_code: 'WH84QRKP',
-      code_revealed: false,
-      plan: { name: 'Daily 1GB', duration_hours: 24, data_limit: 1024 },
-      tenant_name: 'Wuse Hotspot',
-      customer_email_masked: 'a•••@example.com',
-    });
-    const verify = vi.fn(async ({ request }: { request: Request }) => {
-      const body = (await request.json()) as { reference?: string };
-      return HttpResponse.json(payload(body.reference ?? 'yarotech-used'));
-    });
-    server.use(
-      http.post(`${API}/payments/verify/`, verify),
-      http.get(`${API}/payments/callback/`, ({ request }) =>
-        HttpResponse.json(payload(new URL(request.url).searchParams.get('reference'))),
-      ),
-    );
-    pendingCheckout.save({ kind: 'voucher', reference: 'yarotech-used', slug: 'wuse-hotspot' });
-    renderStore('/pay/result?reference=yarotech-used');
-    expect(await screen.findByText('Payment successful')).toBeInTheDocument();
-    expect(screen.queryByText('WH84QRKP')).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Copy username' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Check again' })).not.toBeInTheDocument();
-    expect(screen.getByText(/Your voucher has been issued/)).toBeInTheDocument();
-    await waitFor(() => expect(pendingCheckout.load()).toBeNull());
-    // Verify-on-return performs one idempotent re-check of the existing
-    // reference; it creates no new transaction and reveals nothing.
-    expect(verify).toHaveBeenCalledTimes(1);
-    expect(screen.queryByRole('status', { name: 'Access code' })).not.toBeInTheDocument();
-  });
+  it.each([null, 'WH84QRKP'])(
+    'hides fulfilled credentials including legacy voucher value %s',
+    async (voucher) => {
+      const payload = (reference: string | null) => ({
+        status: 'success',
+        reference,
+        voucher,
+        fulfilled: true,
+        access_code: 'WH84QRKP',
+        code_revealed: false,
+        plan: { name: 'Daily 1GB', duration_hours: 24, data_limit: 1024 },
+        tenant_name: 'Wuse Hotspot',
+        customer_email_masked: 'a•••@example.com',
+      });
+      const verify = vi.fn(async ({ request }: { request: Request }) => {
+        const body = (await request.json()) as { reference?: string };
+        return HttpResponse.json(payload(body.reference ?? 'yarotech-used'));
+      });
+      server.use(
+        http.post(`${API}/payments/verify/`, verify),
+        http.get(`${API}/payments/callback/`, ({ request }) =>
+          HttpResponse.json(payload(new URL(request.url).searchParams.get('reference'))),
+        ),
+      );
+      pendingCheckout.save({ kind: 'voucher', reference: 'yarotech-used', slug: 'wuse-hotspot' });
+      renderStore('/pay/result?reference=yarotech-used');
+      expect(await screen.findByText('Payment successful')).toBeInTheDocument();
+      expect(screen.queryByText('WH84QRKP')).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Copy username' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Check again' })).not.toBeInTheDocument();
+      expect(screen.getByText(/Your voucher has been issued/)).toBeInTheDocument();
+      await waitFor(() => expect(pendingCheckout.load()).toBeNull());
+      // Verify-on-return performs one idempotent re-check of the existing
+      // reference; it creates no new transaction and reveals nothing.
+      expect(verify).toHaveBeenCalledTimes(1);
+      expect(screen.queryByRole('status', { name: 'Access code' })).not.toBeInTheDocument();
+    },
+  );
 
   it('recovers an unfulfilled payment and settles without exposing credentials', async () => {
-    const verify = vi.fn(() => HttpResponse.json({
-      status: 'success', reference: 'recover-order', fulfilled: true,
-      voucher: null, access_code: null, code_revealed: false,
-    }));
+    const verify = vi.fn(() =>
+      HttpResponse.json({
+        status: 'success',
+        reference: 'recover-order',
+        fulfilled: true,
+        voucher: null,
+        access_code: null,
+        code_revealed: false,
+      }),
+    );
     server.use(
-      http.get(`${API}/payments/callback/`, () => HttpResponse.json({
-        status: 'success', reference: 'recover-order', fulfilled: false, voucher: null,
-      })),
+      http.get(`${API}/payments/callback/`, () =>
+        HttpResponse.json({
+          status: 'success',
+          reference: 'recover-order',
+          fulfilled: false,
+          voucher: null,
+        }),
+      ),
       http.post(`${API}/payments/verify/`, verify),
     );
     pendingCheckout.save({ kind: 'voucher', reference: 'recover-order' });
@@ -374,60 +434,81 @@ it('shows the device total and remembers the authoritative reserved price', asyn
   mockStore();
   let posted: Record<string, unknown> | null = null;
   server.use(
-    http.get(`${API}/public/tenants/wuse-hotspot/plans/`, () => HttpResponse.json(paginated([{...plans[0], max_devices:10}]))),
-    http.post(`${API}/buy/`, async ({request}) => {
-      posted = await request.json() as Record<string, unknown>;
-      return HttpResponse.json({authorization_url:'https://checkout.paystack.com/devices', reference:'device-order', amount:180000, device_limit:3});
+    http.get(`${API}/public/tenants/wuse-hotspot/plans/`, () =>
+      HttpResponse.json(paginated([{ ...plans[0], max_devices: 10 }])),
+    ),
+    http.post(`${API}/buy/`, async ({ request }) => {
+      posted = (await request.json()) as Record<string, unknown>;
+      return HttpResponse.json({
+        authorization_url: 'https://checkout.paystack.com/devices',
+        reference: 'device-order',
+        amount: 180000,
+        device_limit: 3,
+      });
     }),
   );
   const assign = vi.fn();
-  vi.spyOn(window, 'location', 'get').mockReturnValue({...window.location, assign} as unknown as Location);
+  vi.spyOn(window, 'location', 'get').mockReturnValue({
+    ...window.location,
+    assign,
+  } as unknown as Location);
   renderStore('/s/wuse-hotspot/checkout/1');
   await userEvent.selectOptions(await screen.findByLabelText('Devices per voucher'), '3');
   expect(screen.getByText(/1,500/)).toBeInTheDocument();
   await userEvent.type(screen.getByLabelText(/Email address/), 'buyer@example.com');
-  await userEvent.click(screen.getByRole('button', {name:/Continue to payment/}));
-  await waitFor(()=>expect(assign).toHaveBeenCalled());
-  expect(posted).toMatchObject({plan_id:1, device_limit:3});
-  expect(pendingCheckout.load()).toMatchObject({amount:180000, deviceLimit:3});
+  await userEvent.click(screen.getByRole('button', { name: /Continue to payment/ }));
+  await waitFor(() => expect(assign).toHaveBeenCalled());
+  expect(posted).toMatchObject({ plan_id: 1, device_limit: 3 });
+  expect(pendingCheckout.load()).toMatchObject({ amount: 180000, deviceLimit: 3 });
 });
 
 it('uses a new request key when the selected device count changes after rejection', async () => {
   mockStore();
   const keys: (string | null)[] = [];
   server.use(
-    http.get(`${API}/public/tenants/wuse-hotspot/plans/`, () => HttpResponse.json(paginated([{...plans[0], max_devices:10}]))),
-    http.post(`${API}/buy/`, ({request}) => {
+    http.get(`${API}/public/tenants/wuse-hotspot/plans/`, () =>
+      HttpResponse.json(paginated([{ ...plans[0], max_devices: 10 }])),
+    ),
+    http.post(`${API}/buy/`, ({ request }) => {
       keys.push(request.headers.get('Idempotency-Key'));
-      return HttpResponse.json({device_limit:['Try another device count.']}, {status:400});
+      return HttpResponse.json({ device_limit: ['Try another device count.'] }, { status: 400 });
     }),
   );
   renderStore('/s/wuse-hotspot/checkout/1');
   await userEvent.selectOptions(await screen.findByLabelText('Devices per voucher'), '2');
   await userEvent.type(screen.getByLabelText(/Email address/), 'buyer@example.com');
-  await userEvent.click(screen.getByRole('button', {name:/Continue to payment/}));
+  await userEvent.click(screen.getByRole('button', { name: /Continue to payment/ }));
   await screen.findByText('Try another device count.');
   await userEvent.selectOptions(screen.getByLabelText('Devices per voucher'), '3');
-  await userEvent.click(screen.getByRole('button', {name:/Continue to payment/}));
-  await waitFor(()=>expect(keys).toHaveLength(2));
+  await userEvent.click(screen.getByRole('button', { name: /Continue to payment/ }));
+  await waitFor(() => expect(keys).toHaveLength(2));
   expect(keys[0]).not.toBe(keys[1]);
 });
-
 
 describe('public IoT checkout', () => {
   it('retains the original request and payment reference after uncertain initialization', async () => {
     const requests: { key: string | null; body: unknown }[] = [];
-    server.use(http.post(`${API}/buy/iot/`, async ({ request }) => {
-      requests.push({ key: request.headers.get('Idempotency-Key'), body: await request.json() });
-      return HttpResponse.json({ detail: 'Check original payment.', reference: 'iot-safe-reference' }, { status: 503 });
-    }));
-    renderWithProviders(<IoTCheckout plan={{ ...plans[0]!, plan_type: 'iot_mac' }} slug="wuse-hotspot" />);
+    server.use(
+      http.post(`${API}/buy/iot/`, async ({ request }) => {
+        requests.push({ key: request.headers.get('Idempotency-Key'), body: await request.json() });
+        return HttpResponse.json(
+          { detail: 'Check original payment.', reference: 'iot-safe-reference' },
+          { status: 503 },
+        );
+      }),
+    );
+    renderWithProviders(
+      <IoTCheckout plan={{ ...plans[0]!, plan_type: 'iot_mac' }} slug="wuse-hotspot" />,
+    );
     const user = userEvent.setup();
     await user.type(screen.getByRole('textbox', { name: 'Email address' }), 'iot@example.test');
     await user.type(screen.getByRole('textbox', { name: 'Device name' }), 'Camera');
     await user.type(screen.getByRole('textbox', { name: 'MAC address' }), 'AA:BB:CC:DD:EE:FF');
     await user.click(screen.getByRole('button', { name: /^Pay / }));
-    expect(await screen.findByRole('link', { name: 'Check this payment' })).toHaveAttribute('href', '/pay/result?reference=iot-safe-reference');
+    expect(await screen.findByRole('link', { name: 'Check this payment' })).toHaveAttribute(
+      'href',
+      '/pay/result?reference=iot-safe-reference',
+    );
     expect(screen.getByRole('textbox', { name: 'MAC address' })).toBeDisabled();
     await user.click(screen.getByRole('button', { name: 'Retry same purchase' }));
     await waitFor(() => expect(requests).toHaveLength(2));
@@ -437,11 +518,23 @@ describe('public IoT checkout', () => {
   });
 
   it('shows the renewal capability for a fulfilled device without claiming a voucher', async () => {
-    server.use(http.get(`${API}/payments/callback/`, () => HttpResponse.json({
-      kind: 'iot', status: 'success', fulfilled: true, payment_verified: true,
-      reference: 'iot-paid', voucher: null, access_code: null, code_revealed: false,
-      device_status: 'suspended', expires_at: '2030-01-01T00:00:00Z', renewal_token: 'private-renewal-token',
-    })));
+    server.use(
+      http.get(`${API}/payments/callback/`, () =>
+        HttpResponse.json({
+          kind: 'iot',
+          status: 'success',
+          fulfilled: true,
+          payment_verified: true,
+          reference: 'iot-paid',
+          voucher: null,
+          access_code: null,
+          code_revealed: false,
+          device_status: 'suspended',
+          expires_at: '2030-01-01T00:00:00Z',
+          renewal_token: 'private-renewal-token',
+        }),
+      ),
+    );
     renderStore('/pay/result?reference=iot-paid');
     expect(await screen.findByLabelText('Renewal token')).toHaveValue('private-renewal-token');
     expect(screen.getByText(/Registration status: suspended/)).toBeInTheDocument();
@@ -453,7 +546,9 @@ describe('storefront device ceiling', () => {
   it('shows the device allowance on plan cards when above one', async () => {
     mockStore();
     server.use(
-      http.get(`${API}/public/tenants/wuse-hotspot/plans/`, () => HttpResponse.json(paginated([{...plans[0], max_devices:3}]))),
+      http.get(`${API}/public/tenants/wuse-hotspot/plans/`, () =>
+        HttpResponse.json(paginated([{ ...plans[0], max_devices: 3 }])),
+      ),
     );
     renderStore('/s/wuse-hotspot');
     expect(await screen.findByText('Up to 3 devices')).toBeInTheDocument();
@@ -462,7 +557,7 @@ describe('storefront device ceiling', () => {
   it('disables the device selector when the plan allows a single device', async () => {
     mockStore();
     renderStore('/s/wuse-hotspot/checkout/1');
-    const select = await screen.findByLabelText('Devices per voucher') as HTMLSelectElement;
+    const select = (await screen.findByLabelText('Devices per voucher')) as HTMLSelectElement;
     expect(select).toBeDisabled();
     expect(Array.from(select.options).map((o) => o.text)).toEqual(['1 device']);
   });
@@ -470,11 +565,17 @@ describe('storefront device ceiling', () => {
   it('renders 1..max with singular/plural labels on a multi-device plan', async () => {
     mockStore();
     server.use(
-      http.get(`${API}/public/tenants/wuse-hotspot/plans/`, () => HttpResponse.json(paginated([{...plans[0], max_devices:3}]))),
+      http.get(`${API}/public/tenants/wuse-hotspot/plans/`, () =>
+        HttpResponse.json(paginated([{ ...plans[0], max_devices: 3 }])),
+      ),
     );
     renderStore('/s/wuse-hotspot/checkout/1');
-    const select = await screen.findByLabelText('Devices per voucher') as HTMLSelectElement;
+    const select = (await screen.findByLabelText('Devices per voucher')) as HTMLSelectElement;
     expect(select).toBeEnabled();
-    expect(Array.from(select.options).map((o) => o.text)).toEqual(['1 device', '2 devices', '3 devices']);
+    expect(Array.from(select.options).map((o) => o.text)).toEqual([
+      '1 device',
+      '2 devices',
+      '3 devices',
+    ]);
   });
 });

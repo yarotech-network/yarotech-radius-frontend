@@ -19,7 +19,7 @@ export function PurchaseLayout() {
             <span>{tenant.data?.name ?? (slug ? 'Wi-Fi storefront' : 'Your Wi-Fi purchase')}</span>
           </Link>
           <span className="public-payment-provider">
-            <LockKeyhole className="size-4" aria-hidden /> Payments with Paystack
+            <LockKeyhole className="size-4" aria-hidden /> Secure checkout
           </span>
         </div>
       </header>

@@ -4,7 +4,8 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { server } from '@/test/server';
-import { API, paginated } from '@/test/fixtures';
+import { API, makeAssignment, makeUser, paginated } from '@/test/fixtures';
+import { derivePrincipal } from '@/services/auth/principal';
 import { renderPage } from '@/test/renderPage';
 import type { PaymentDelivery, PaymentRecovery, PaymentTransaction } from '@/types/api';
 import PaymentsPage from './PaymentsPage';
@@ -184,6 +185,73 @@ describe('PaymentsPage', () => {
     expect(
       within(dialog).getByRole('button', { name: /Recover this payment/ }),
     ).toBeInTheDocument();
+  });
+
+  it('summarises collections and shows plan, reference and a contact fallback', async () => {
+    server.use(
+      http.get(`${API}/dashboard/stats/`, () =>
+        HttpResponse.json({
+          collected_revenue: { today: 3675000, month: 28900000, total: 389000000 },
+          revenue_sources: {
+            online: 271000000,
+            agent_wallet: 104000000,
+            agent_credit_repayments: 14000000,
+          },
+          successful_payments: 95,
+          failed_payments: 5,
+          pending_payments: 3,
+          paid_unfulfilled_payments: 0,
+        }),
+      ),
+      http.get(`${API}/payments/transactions/`, () =>
+        HttpResponse.json(
+          paginated([
+            payment({ plan_name: 'Weekly Saver' }),
+            payment({
+              id: 8,
+              reference: 'PAY-NOCONTACT-8',
+              customer_email: '',
+              customer_name: '',
+              customer_phone: '',
+            }),
+          ]),
+        ),
+      ),
+    );
+    renderPage(<PaymentsPage />, { path: '/payments', role: 'owner' });
+    const summary = await screen.findByRole('region', { name: 'Payment summary' });
+    expect(await within(summary).findByText('₦36,750')).toBeInTheDocument();
+    expect(within(summary).getByText('95%')).toBeInTheDocument();
+    expect(within(summary).getByRole('link', { name: 'View pending payments' })).toHaveAttribute(
+      'href',
+      '/payments?status=pending',
+    );
+    const table = await screen.findByRole('table', { name: 'Payments' });
+    expect(await within(table).findByText('Weekly Saver')).toBeInTheDocument();
+    expect(within(table).getByRole('button', { name: 'No contact provided' })).toBeInTheDocument();
+    expect(within(table).getByText('PAY-NOCONTACT-8')).toBeInTheDocument();
+  });
+
+  it('never fetches workspace figures for payment-only delegated staff', async () => {
+    let statsCalls = 0;
+    server.use(
+      http.get(`${API}/dashboard/stats/`, () => {
+        statsCalls++;
+        return HttpResponse.json({});
+      }),
+      http.get(`${API}/payments/transactions/`, () => HttpResponse.json(paginated([payment()]))),
+    );
+    renderPage(<PaymentsPage />, {
+      path: '/payments',
+      principal: derivePrincipal(
+        makeUser('platform_staff'),
+        [makeAssignment(5, ['payments.view'])],
+        5,
+      ),
+    });
+    await screen.findByRole('table', { name: 'Payments' });
+    expect(screen.queryByRole('region', { name: 'Payment summary' })).not.toBeInTheDocument();
+    expect(statsCalls).toBe(0);
   });
 
   it('shows an empty state and an error state', async () => {

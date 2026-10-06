@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { ChevronLeft, ExternalLink, Lock } from 'lucide-react';
+import { Check, ChevronLeft, ExternalLink, Lock } from 'lucide-react';
 import { Button, ButtonLink, FormField, Input, Select } from '@/components/ui';
 import { Alert, ErrorState } from '@/components/feedback';
 import { useFormSubmit } from '@/lib/forms/useFormSubmit';
@@ -43,8 +43,42 @@ export default function CheckoutPage({
       >
         <ChevronLeft className="size-4" aria-hidden /> All plans
       </Link>
-      <p className="public-eyebrow mb-3">Your next connection</p>
-      <h1 className="text-2xl font-semibold text-brand-950">Checkout</h1>
+      <ol
+        aria-label="Purchase steps"
+        className="mb-5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-medium"
+      >
+        {['Choose plan', 'Your details', 'Pay securely', 'Get your code'].map((step, index) => (
+          <li key={step} className="inline-flex items-center gap-2">
+            {index > 0 && <span aria-hidden className="h-px w-4 bg-border-strong" />}
+            <span
+              aria-current={index === 1 ? 'step' : undefined}
+              className={
+                index === 0
+                  ? 'inline-flex items-center gap-1 text-success-700'
+                  : index === 1
+                    ? 'inline-flex items-center gap-1 text-brand-700'
+                    : 'inline-flex items-center gap-1 text-ink-500'
+              }
+            >
+              <span
+                aria-hidden
+                className={
+                  index === 0
+                    ? 'flex size-5 items-center justify-center rounded-full bg-success-100'
+                    : index === 1
+                      ? 'flex size-5 items-center justify-center rounded-full bg-brand-600 text-white'
+                      : 'flex size-5 items-center justify-center rounded-full bg-fill'
+                }
+              >
+                {index === 0 ? <Check className="size-3" /> : index + 1}
+              </span>
+              {step}
+              {index === 0 && <span className="sr-only">(done)</span>}
+            </span>
+          </li>
+        ))}
+      </ol>
+      <h1 className="text-2xl font-semibold text-ink-900">Checkout</h1>
       <p className="mt-1 text-sm text-ink-500">
         {tenantName ? `Buying from ${tenantName}.` : ''} You will be taken to the business’s secure
         payment provider.
@@ -78,9 +112,17 @@ export default function CheckoutPage({
             <CheckoutForm key={plan.id} plan={plan} slug={slug} />
           )}
         </div>
-        <aside className="order-1 lg:order-2" aria-label="Order summary">
+        <aside className="order-1 lg:order-2 lg:self-start" aria-label="Order summary">
           <h2 className="public-order-label">Your selected plan</h2>
-          {plan ? <PlanCard plan={plan} selected /> : <PlanCardSkeleton />}
+          {plan ? <PlanCard plan={plan} selected variant="shop" /> : <PlanCardSkeleton />}
+          {plan && (
+            <Link
+              to={`/s/${slug}`}
+              className="mt-2 inline-block text-xs font-medium text-brand-700 underline-offset-4 hover:underline"
+            >
+              Change plan
+            </Link>
+          )}
         </aside>
       </div>
     </div>
@@ -174,7 +216,10 @@ function CheckoutForm({ plan, slug }: { plan: PublicPlan; slug: string }) {
           {unavailable && (
             <span className="mt-1 block text-xs">
               Order reference: <code className="font-mono">{unavailable}</code>
-              <Link className="ml-2 underline" to={`/pay/result?reference=${encodeURIComponent(unavailable)}`}>
+              <Link
+                className="ml-2 underline"
+                to={`/pay/result?reference=${encodeURIComponent(unavailable)}`}
+              >
                 Check this payment
               </Link>
             </span>
