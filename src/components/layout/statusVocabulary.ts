@@ -32,6 +32,9 @@ const TONES: Record<string, BadgeTone> = {
   sending: 'info',
   accepted: 'success',
   unknown: 'neutral',
+  // connectivity (routers, devices)
+  online: 'success',
+  offline: 'danger',
   // agents
   suspended: 'danger',
   // routers — onboarding

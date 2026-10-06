@@ -14,15 +14,13 @@ import { PaymentStatusBadge } from '@/features/payments/components/PaymentStatus
 import { fetchReport, type ReportParams } from '@/features/reports/api';
 import { useDashboardStats, useNetworkSummary } from '../queries';
 import { PaymentAttention } from '../components/PageMetrics';
+import { KpiGroup, KpiTile, MiniBar } from '@/components/layout';
 import {
-  HubTile,
   LiveNetwork,
-  MiniBar,
   PaymentsHealth,
   RevenueByChannel,
   RevenueTrend,
   RouterHealth,
-  TileGroup,
   VoucherInventory,
 } from '../components/HubSections';
 import { routerStatusParts, wholeNaira } from '../components/hubData';
@@ -206,20 +204,20 @@ export default function DashboardPage() {
         </Alert>
       )}
 
-      <TileGroup label="Revenue">
+      <KpiGroup label="Revenue">
         {revenueTiles
           .filter((tile) => tile.show)
           .map(({ show: _show, ...tile }) => (
-            <HubTile key={tile.label} {...tile} />
+            <KpiTile key={tile.label} {...tile} />
           ))}
-      </TileGroup>
-      <TileGroup label="Network & operations">
+      </KpiGroup>
+      <KpiGroup label="Network & operations">
         {operationsTiles
           .filter((tile) => tile.show)
           .map(({ show: _show, ...tile }) => (
-            <HubTile key={tile.label} {...tile} />
+            <KpiTile key={tile.label} {...tile} />
           ))}
-      </TileGroup>
+      </KpiGroup>
 
       {(showTrend || showChannels) && (
         <div className={cn('grid gap-4', showTrend && showChannels && 'xl:grid-cols-3')}>

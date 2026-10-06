@@ -1,4 +1,3 @@
-import { NetworkCards } from '@/features/dashboard/components/NetworkCards';
 import { RouterConnectionBadge } from '../components/RouterTelemetry';
 import { useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
@@ -21,7 +20,9 @@ import { usePrincipal } from '@/app/auth/useAuth';
 import type { DeploymentStatus, NasDevice, OnboardingState, RouterListParams } from '@/types/api';
 import { RouterStateBadges } from '../components/RouterStateBadges';
 import { ROUTERS_DEFAULT_ORDERING, useRouters } from '../queries';
-import { RouterAllowance } from '../components/RouterAllowance';
+import { FleetSummary } from '../components/FleetSummary';
+import { useNetworkSummary } from '@/features/dashboard/queries';
+import { formatNumber } from '@/lib/formatting/units';
 import { RouterSetupGuide } from '../components/RouterSetupGuide';
 import { ONBOARDING_FILTER_OPTIONS } from '../routerSchemas';
 
@@ -59,6 +60,13 @@ export default function RoutersPage() {
     return p;
   }, [list.state, debouncedSearch]);
   const query = useRouters(params);
+  // Same cached observation the fleet summary uses; gives live users per router.
+  const networkAllowed = can(principal, 'sessions.view') && can(principal, 'routers.view');
+  const network = useNetworkSummary(true, networkAllowed);
+  const usersByRouter = useMemo(
+    () => new Map(network.data?.routers.map((r) => [r.id, r.online_users]) ?? []),
+    [network.data],
+  );
 
   const columns: Column<NasDevice>[] = [
     {
@@ -88,6 +96,26 @@ export default function RoutersPage() {
       header: 'Connection',
       cell: (r) => <RouterConnectionBadge health={query.isError ? undefined : r.health} />,
     },
+    ...(networkAllowed
+      ? [
+          {
+            key: 'users',
+            header: 'Online users',
+            align: 'right' as const,
+            hideBelow: 'md' as const,
+            cell: (r: NasDevice) => {
+              const users = usersByRouter.get(r.id);
+              return users === undefined ? (
+                <span className="text-ink-400" title="No current observation for this router">
+                  —
+                </span>
+              ) : (
+                <span className="font-medium text-ink-900 tabular-nums">{formatNumber(users)}</span>
+              );
+            },
+          },
+        ]
+      : []),
     {
       key: 'vpn',
       header: 'VPN',
@@ -121,8 +149,8 @@ export default function RoutersPage() {
           <p className="rv-portal-eyebrow">Network Infrastructure</p>
           <h1 className="rv-portal-title">Router Fleet</h1>
           <p className="rv-portal-desc">
-            MikroTik hotspots registered as RADIUS clients — onboarding, VPN and provisioning in
-            one place.
+            MikroTik hotspots registered as RADIUS clients — onboarding, VPN and provisioning in one
+            place.
           </p>
           <div className="rv-portal-header-meta">
             <span role="status">
@@ -178,8 +206,7 @@ export default function RoutersPage() {
         <RouterSetupGuide canManage={canManage} />
       </div>
 
-      <RouterAllowance />
-      <NetworkCards section="routers" />
+      <FleetSummary />
 
       {/* Router directory */}
       <section aria-labelledby="router-directory-title" className="rv-portal-card space-y-4">
@@ -225,7 +252,6 @@ export default function RoutersPage() {
 
         <div className="rv-portal-filter">
           <FilterBar
-            inline
             search={
               <SearchInput
                 value={list.state.search}
@@ -235,7 +261,7 @@ export default function RoutersPage() {
               />
             }
             filters={
-              <div className="flex items-center gap-2 [&>div]:w-44 [&>div]:shrink-0">
+              <div className="flex flex-wrap items-center gap-2 [&>div]:w-full sm:[&>div]:w-44">
                 <Select
                   aria-label="Onboarding state"
                   size="sm"
