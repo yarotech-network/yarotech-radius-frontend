@@ -6,33 +6,22 @@ import { derivePrincipal } from '@/services/auth/principal';
 import { CustomerTabs } from './CustomerTabs';
 
 describe('Customer workspace navigation', () => {
-  it('shows distinct destinations and marks the current section', () => {
-    renderPage(<CustomerTabs />, {
-      role: 'owner',
-      path: '/customers/contacts',
-    });
+  it('links customers and live sessions and marks the current section', () => {
+    renderPage(<CustomerTabs />, { role: 'owner', path: '/customers' });
     const nav = screen.getByRole('navigation', { name: 'Customer workspace sections' });
-    expect(within(nav).getByRole('link', { name: /Access history/ })).toHaveAttribute(
-      'href',
-      '/customers',
-    );
-    expect(within(nav).getByRole('link', { name: /^Devices/ })).toHaveAttribute(
-      'href',
-      '/customers/devices',
-    );
-    expect(within(nav).getByRole('link', { name: /Live sessions/ })).toHaveAttribute(
+    expect(within(nav).getAllByRole('link')).toHaveLength(2);
+    const current = within(nav).getByRole('link', { name: 'Customers' });
+    expect(current).toHaveAttribute('href', '/customers');
+    expect(current).toHaveAttribute('aria-current', 'page');
+    expect(within(nav).getByRole('link', { name: 'Live sessions' })).toHaveAttribute(
       'href',
       '/sessions',
     );
-    const current = within(nav).getByRole('link', { name: /Contact records/ });
-    expect(current).toHaveClass('customer-section-link-active');
-    expect(current).toHaveAttribute(
-      'aria-current',
-      'page',
-    );
+    // Retired sections are gone.
+    expect(within(nav).queryByRole('link', { name: /Devices|Contact records/ })).toBeNull();
   });
 
-  it('shows only permitted sections to a sessions-only platform staff member', () => {
+  it('hides the switcher when only one section is permitted', () => {
     const principal = derivePrincipal(
       makeUser('platform_staff'),
       [
@@ -48,11 +37,9 @@ describe('Customer workspace navigation', () => {
       10,
     );
     renderPage(<CustomerTabs />, { principal, path: '/sessions' });
-    const nav = screen.getByRole('navigation', { name: 'Customer workspace sections' });
-    expect(within(nav).getAllByRole('link')).toHaveLength(1);
-    expect(within(nav).getByRole('link', { name: /Live sessions/ })).toHaveAttribute(
-      'aria-current',
-      'page',
-    );
+    expect(
+      screen.queryByRole('navigation', { name: 'Customer workspace sections' }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Customers' })).not.toBeInTheDocument();
   });
 });

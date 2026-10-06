@@ -23,7 +23,7 @@ const routeChunks: Record<string, () => Promise<unknown>> = {
   '/whatsapp': () => import('@/features/whatsapp/WhatsAppPage'),
   '/platform/whatsapp': () => import('@/features/whatsapp/SharedRouting'),
   '/storefront': () => import('@/features/storefront/pages/StorefrontManagementPage'),
-  '/customers': () => import('@/features/customers/CustomersPage'),
+  '/customers': () => import('@/features/customers/AccessCustomersPage'),
   '/sessions': () => import('@/features/sessions/pages/SessionsPage'),
   '/plans': () => import('@/features/plans/pages/PlansPage'),
   '/plans/pppoe': () => import('@/features/plans/pages/PPPoEPlansPage'),

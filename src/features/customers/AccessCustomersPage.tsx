@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Link } from 'react-router';
-import { ArrowUpRight, RefreshCw, SlidersHorizontal, Users, X } from 'lucide-react';
+import { useSearchParams } from 'react-router';
+import { MonitorSmartphone, RefreshCw, SlidersHorizontal, Users, X } from 'lucide-react';
 import { usePrincipal } from '@/app/auth/useAuth';
 import { Badge, Button, CopyButton, DescriptionList, Dialog, Input, Select } from '@/components/ui';
 import type { BadgeTone } from '@/components/ui/Badge';
@@ -16,6 +16,7 @@ import { formatDate, formatDateTime, formatRelative } from '@/lib/formatting/dat
 import { CustomerTabs } from './CustomerTabs';
 import { usePlanOptions } from '@/features/plans/queries';
 import { useRouterOptions } from '@/features/routers/queries';
+import { deviceUsageApi } from './deviceUsageApi';
 
 type Access = {
   id: number;
@@ -75,7 +76,20 @@ export default function AccessCustomersPage() {
   const plans = usePlanOptions(false);
   const routers = useRouterOptions();
   const search = useDebouncedValue(list.state.search);
-  const [selected, setSelected] = useState<number | null>(null);
+  // The open record lives in the URL (?details=<id>) so it can be shared or linked to.
+  const [urlParams, setUrlParams] = useSearchParams();
+  const selected = Number(urlParams.get('details')) || null;
+  function setSelected(id: number | null) {
+    setUrlParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        if (id) next.set('details', String(id));
+        else next.delete('details');
+        return next;
+      },
+      { replace: true },
+    );
+  }
   const moreActive = MORE_FILTERS.filter((key) => list.state.filters[key]).length;
   const [moreOpen, setMoreOpen] = useState(moreActive > 0);
   const params = { ...list.query, search };
@@ -471,13 +485,74 @@ function AccessDetails({ access }: { access: Access }) {
           },
         ]}
       />
-      <Link
-        to={`/customers/devices?voucher=${access.id}`}
-        className="dashboard-data-link inline-flex items-center gap-1 text-sm font-semibold"
-      >
-        View device history
-        <ArrowUpRight aria-hidden className="size-4" />
-      </Link>
+      <CodeDevices voucherId={access.id} />
     </div>
+  );
+}
+
+const DEVICE_STATUS: Record<string, { tone: BadgeTone; text: string }> = {
+  online: { tone: 'success', text: 'Online' },
+  offline: { tone: 'neutral', text: 'Offline' },
+  unknown: { tone: 'neutral', text: 'Unknown' },
+};
+
+/** Devices (by MAC address) that have used this access code, from RADIUS accounting. */
+function CodeDevices({ voucherId }: { voucherId: number }) {
+  const devices = useQuery({
+    queryKey: ['customer-access-devices', voucherId],
+    queryFn: () => deviceUsageApi.list({ voucher: voucherId, page_size: 20 }),
+    gcTime: 0,
+  });
+  return (
+    <section aria-label="Devices on this code" className="space-y-2">
+      <h3 className="flex items-center gap-1.5 text-sm font-semibold text-ink-900">
+        <MonitorSmartphone aria-hidden className="size-4 text-ink-500" />
+        Devices on this code
+      </h3>
+      {devices.isPending ? (
+        <p role="status" className="text-sm text-ink-500">
+          Loading devices...
+        </p>
+      ) : devices.isError ? (
+        <ErrorState
+          error={devices.error}
+          title="Devices could not be loaded"
+          onRetry={() => void devices.refetch()}
+        />
+      ) : devices.data.results.length === 0 ? (
+        <p className="rounded-control bg-surface-muted px-3 py-2.5 text-sm text-ink-500">
+          No device has a recorded session with this code yet.
+        </p>
+      ) : (
+        <ul className="divide-y divide-border rounded-card border border-border">
+          {devices.data.results.map((device) => {
+            const status = DEVICE_STATUS[device.status] ?? DEVICE_STATUS.unknown!;
+            return (
+              <li
+                key={device.mac_address}
+                className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-3 py-2.5"
+              >
+                <div className="min-w-0">
+                  <code className="font-mono text-sm text-ink-900">{device.mac_address}</code>
+                  <p className="text-xs text-ink-500">
+                    Last seen {formatRelative(device.last_seen)} · {formatNumber(device.sessions)}{' '}
+                    {device.sessions === 1 ? 'session' : 'sessions'} ·{' '}
+                    {formatBytes(device.bytes_total)}
+                  </p>
+                </div>
+                <Badge tone={status.tone} size="sm" dot={device.status === 'online'}>
+                  {status.text}
+                </Badge>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      {devices.data && devices.data.count > devices.data.results.length && (
+        <p className="text-xs text-ink-500">
+          Showing {devices.data.results.length} of {formatNumber(devices.data.count)} devices.
+        </p>
+      )}
+    </section>
   );
 }

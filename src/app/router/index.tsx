@@ -15,6 +15,7 @@ import { AppSplash } from '@/app/shell/AppSplash';
 import { NotFoundPage } from '@/app/shell/NotFoundPage';
 import { RequireCapability } from '@/app/auth/RequireCapability';
 import { PaymentRedirect } from '@/features/payments/pages/PaymentRedirect';
+import { RetiredCustomerSection } from '@/features/customers/RetiredCustomerSection';
 
 /* ---------- signed-in shells: lazy so public visitors never download AppShell ---------- */
 const WorkspaceLayout = lazyRoute(
@@ -53,8 +54,6 @@ const NoAccessPage = lazyRoute(lazy(() => import('@/features/auth/pages/NoAccess
 const DashboardPage = lazyRoute(lazy(() => import('@/features/dashboard/pages/DashboardPage')));
 const ReportsPage = lazyRoute(lazy(() => import('@/features/reports/ReportsPage')));
 const CustomersPage = lazyRoute(lazy(() => import('@/features/customers/AccessCustomersPage')));
-const CustomerDevicesPage = lazyRoute(lazy(() => import('@/features/customers/CustomersPage')));
-const ContactRecordsPage = lazyRoute(lazy(() => import('@/features/customers/ContactRecordsPage')));
 const SessionsPage = lazyRoute(lazy(() => import('@/features/sessions/pages/SessionsPage')));
 const BandwidthPage = lazyRoute(lazy(() => import('@/features/plans/pages/BandwidthPage')));
 const PPPoEPlansPage = lazyRoute(lazy(() => import('@/features/plans/pages/PPPoEPlansPage')));
@@ -154,8 +153,9 @@ const workspaceRoutes: RouteObject[] = [
     element: <RequireCapability capability="customers.view" />,
     children: [
       { path: 'customers', Component: CustomersPage },
-      { path: 'customers/devices', Component: CustomerDevicesPage },
-      { path: 'customers/contacts', Component: ContactRecordsPage },
+      // Retired sections: keep old links working (a device link opens that code's details).
+      { path: 'customers/devices', Component: RetiredCustomerSection },
+      { path: 'customers/contacts', Component: RetiredCustomerSection },
     ],
   },
   {

@@ -5,7 +5,9 @@ import { http, HttpResponse } from 'msw';
 import { server } from '@/test/server';
 import { API, paginated } from '@/test/fixtures';
 import { renderPage } from '@/test/renderPage';
+import { Route } from 'react-router';
 import Page from './AccessCustomersPage';
+import { RetiredCustomerSection } from './RetiredCustomerSection';
 const row = {
   id: 42,
   buyer_name: 'Buyer',
@@ -24,6 +26,16 @@ const row = {
   expires_at: null,
   access_code: null,
 };
+const device = {
+  mac_address: 'AA:BB:CC:DD:EE:01',
+  codes_used: 1,
+  lifetime_codes_used: 1,
+  sessions: 3,
+  first_seen: '2026-09-16T10:00:00Z',
+  last_seen: '2026-09-16T12:00:00Z',
+  bytes_total: 1048576,
+  status: 'online',
+};
 function options() {
   server.use(
     http.get(`${API}/plans/`, () => HttpResponse.json(paginated([]))),
@@ -40,6 +52,16 @@ describe('Customer access workspace', () => {
       http.get(`${API}/customer-access/42/`, () =>
         HttpResponse.json({ ...row, access_code: 'TESTCODE' }),
       ),
+      http.get(`${API}/customer-devices/`, ({ request }) => {
+        expect(new URL(request.url).searchParams.get('voucher')).toBe('42');
+        return HttpResponse.json({
+          ...paginated([device]),
+          summary: { devices: 1, distinct_codes: 1 },
+          synced_at: null,
+          timezone: 'Africa/Lagos',
+          accounting_note: '',
+        });
+      }),
     );
     renderPage(<Page />, { role: 'owner', path: '/customers' });
     const table = await screen.findByRole('table', {
@@ -56,10 +78,47 @@ describe('Customer access workspace', () => {
     expect(within(dialog).getByRole('button', { name: 'Copy code' })).toBeInTheDocument();
     expect(within(dialog).getByText('purchase-42')).toBeInTheDocument();
     expect(within(dialog).queryByText(/\?/)).not.toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'View device history' })).toHaveAttribute(
-      'href',
-      '/customers/devices?voucher=42',
+    const devices = within(dialog).getByRole('region', { name: 'Devices on this code' });
+    expect(await within(devices).findByText('AA:BB:CC:DD:EE:01')).toBeInTheDocument();
+    expect(within(devices).getByText('Online')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'View device history' })).not.toBeInTheDocument();
+  });
+
+  it('opens a record from a shared link and redirects retired sections', async () => {
+    options();
+    server.use(
+      http.get(`${API}/customer-access/`, () =>
+        HttpResponse.json({ ...paginated([row]), synced_at: null, sync_fresh: true }),
+      ),
+      http.get(`${API}/customer-access/42/`, () =>
+        HttpResponse.json({ ...row, access_code: 'LINKED' }),
+      ),
+      http.get(`${API}/customer-devices/`, () =>
+        HttpResponse.json({
+          ...paginated([]),
+          summary: { devices: 0, distinct_codes: 0 },
+          synced_at: null,
+          timezone: 'Africa/Lagos',
+          accounting_note: '',
+        }),
+      ),
     );
+    renderPage(<Page />, {
+      role: 'owner',
+      path: '/customers',
+      route: '/customers/devices?voucher=42',
+      extraRoutes: (
+        <>
+          <Route path="/customers/devices" element={<RetiredCustomerSection />} />
+          <Route path="/customers/contacts" element={<RetiredCustomerSection />} />
+        </>
+      ),
+    });
+    const dialog = await screen.findByRole('dialog', { name: 'Customer access details' });
+    expect(await within(dialog).findByText('LINKED')).toBeVisible();
+    expect(
+      await within(dialog).findByText('No device has a recorded session with this code yet.'),
+    ).toBeInTheDocument();
   });
   it('keeps extra filters behind a toggle, opens them for active filters and clears them', async () => {
     options();
