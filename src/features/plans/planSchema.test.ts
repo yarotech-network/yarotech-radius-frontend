@@ -10,6 +10,8 @@ import {
   planToForm,
   speedToKbps,
   toDurationHours,
+  toDataLimitMb,
+  fromDataLimitMb,
 } from './planSchema';
 
 describe('duration value/unit conversion', () => {
@@ -35,7 +37,9 @@ describe('duration value/unit conversion', () => {
   });
 
   it('round-trips stored durations exactly, including short and fractional values', () => {
-    for (const hours of [0.000139, 0.008333, 0.333333, 0.5, 1, 1.5, 3, 12, 24, 26.5, 72, 168, 336, 720]) {
+    for (const hours of [
+      0.000139, 0.008333, 0.333333, 0.5, 1, 1.5, 3, 12, 24, 26.5, 72, 168, 336, 720,
+    ]) {
       const { value, unit } = fromDurationHours(hours);
       expect(toDurationHours(value, unit)).toBe(hours);
     }
@@ -427,8 +431,53 @@ describe('compatible plan terms', () => {
       agent_enabled: false,
     });
     expect(
-      planFormSchema.safeParse({ ...parsed, price: '10', duration_value: 0.0001, duration_unit: 'hours' })
-        .success,
+      planFormSchema.safeParse({
+        ...parsed,
+        price: '10',
+        duration_value: 0.0001,
+        duration_unit: 'hours',
+      }).success,
     ).toBe(false);
+  });
+});
+
+describe('data limit units', () => {
+  const base = {
+    name: 'Daily',
+    price: '500',
+    duration_value: '1',
+    duration_unit: 'days',
+    data_mode: 'limited',
+    upload_value: '',
+    download_value: '',
+    voucher_prefix: '',
+    is_active: true,
+  } as const;
+
+  it('stores GB amounts as whole megabytes, including fractions', () => {
+    expect(toDataLimitMb(2, 'GB')).toBe(2048);
+    expect(toDataLimitMb(1.5, 'GB')).toBe(1536);
+    const parsed = planFormSchema.parse({ ...base, data_limit_mb: '1.5', data_unit: 'GB' });
+    expect(formToPlan(parsed).data_limit).toBe(1536);
+  });
+
+  it('keeps the API megabyte meaning when no unit is given', () => {
+    const parsed = planFormSchema.parse({ ...base, data_limit_mb: '1024' });
+    expect(formToPlan(parsed).data_limit).toBe(1024);
+  });
+
+  it('opens exact gigabyte limits in GB and other limits in MB', () => {
+    expect(fromDataLimitMb(5120)).toEqual({ amount: 5, unit: 'GB' });
+    expect(fromDataLimitMb(1500)).toEqual({ amount: 1500, unit: 'MB' });
+    expect(planToForm()).toMatchObject({ data_unit: 'GB' });
+  });
+
+  it('rejects fractional megabytes and empty limits', () => {
+    expect(
+      planFormSchema.safeParse({ ...base, data_limit_mb: '10.5', data_unit: 'MB' }).success,
+    ).toBe(false);
+    expect(planFormSchema.safeParse({ ...base, data_limit_mb: '0', data_unit: 'GB' }).success).toBe(
+      false,
+    );
   });
 });

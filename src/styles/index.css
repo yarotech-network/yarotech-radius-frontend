@@ -109,6 +109,11 @@
   --color-inverse: #0f172a;
   --color-on-inverse: #ffffff;
 
+  /* Primary actions — white text clears 4.5:1 in both themes */
+  --color-primary: #1d4ed8;
+  --color-primary-hover: #1e40af;
+  --color-primary-active: #163a82;
+
   --radius-control: 0.5rem;
   --radius-card: 0.75rem;
 
@@ -227,6 +232,9 @@
   --color-on-emphasis: #ffffff;
   --color-inverse: #e2efff;
   --color-on-inverse: #071527;
+  --color-primary: #2563eb;
+  --color-primary-hover: #1d4ed8;
+  --color-primary-active: #1e40af;
 }
 
 /* ------------------------------------------------------------------ */

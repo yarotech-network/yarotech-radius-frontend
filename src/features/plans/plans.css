@@ -224,7 +224,7 @@ dialog:has(.service-plan-dialog)::backdrop {
 }
 .plan-editor-footer p {
   flex: 1;
-  font: 12px monospace;
+  font-size: 12px;
   color: var(--color-ink-600);
 }
 @media (max-width: 800px) {

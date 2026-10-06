@@ -1,6 +1,6 @@
 import { http, HttpResponse } from 'msw';
 import { describe, expect, it, vi } from 'vitest';
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import * as clipboard from '@/lib/utilities/clipboard';
 import { server } from '@/test/server';
@@ -96,6 +96,28 @@ describe('tenant storefront management', () => {
       '/s/kano-wifi/checkout/7',
     );
     expect(screen.queryByText(/\/s\/wuse-hotspot/)).not.toBeInTheDocument();
+  });
+
+  it('checks readiness against real data before the link is shared', async () => {
+    mockProfile();
+    renderPage(<StorefrontManagementPage />, { role: 'owner', path: '/storefront' });
+    const readiness = await screen.findByRole('region', { name: 'Storefront readiness' });
+    expect(
+      await within(readiness).findByText('1 plan is visible to customers.'),
+    ).toBeInTheDocument();
+    expect(within(readiness).getByText('Contact details').closest('li')).toHaveTextContent(
+      'needs attention',
+    );
+    expect(within(readiness).getByText('Plans on sale').closest('li')).toHaveTextContent('(done)');
+    expect(within(readiness).getByText('2 of 3 essentials in place')).toBeInTheDocument();
+    expect(within(readiness).getByRole('link', { name: /Edit business profile/ })).toHaveAttribute(
+      'href',
+      '/settings/general',
+    );
+    expect(screen.getByRole('link', { name: 'Share on WhatsApp' })).toHaveAttribute(
+      'href',
+      expect.stringContaining(encodeURIComponent('/s/wuse-hotspot')),
+    );
   });
 
   it('explains when no customer plans have been published', async () => {

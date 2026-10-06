@@ -1,24 +1,25 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { Link } from 'react-router';
 import {
+  AlertCircle,
   ArrowUpRight,
-  Building2,
   Check,
+  CheckCircle2,
+  CircleDashed,
   Copy,
-  CreditCard,
   ExternalLink,
-  Globe,
+  MessageCircle,
   RefreshCw,
   ShoppingBag,
-  Store,
-  Zap,
 } from 'lucide-react';
 import { usePrincipal } from '@/app/auth/useAuth';
 import { can } from '@/services/auth/principal';
 import { settingsApi } from '@/features/settings/api';
-import { Badge, Button, ButtonLink, Card, Skeleton } from '@/components/ui';
+import { Badge, Button, ButtonLink, Card, CardHeader, Skeleton } from '@/components/ui';
 import { Alert, EmptyState, QueryBoundary } from '@/components/feedback';
 import { copyToClipboard } from '@/lib/utilities/clipboard';
+import { cn } from '@/lib/utilities/cn';
 import type { TenantProfile } from '@/types/api';
 import { usePublicPlans } from '../queries';
 import { PlanCard, PlanCardSkeleton } from '../components/PlanCard';
@@ -39,45 +40,29 @@ export default function StorefrontManagementPage() {
 
   return (
     <div className="space-y-6">
-      {/* Premium Hero Header */}
-      <div className="router-page-hero">
-        <div className="router-page-hero-inner">
-          <div className="router-page-hero-text">
-            <span className="router-page-hero-eyebrow">
-              <Store className="size-3" aria-hidden /> E-Commerce & Customer Sales
-            </span>
-            <h1 className="router-page-hero-title">Storefront</h1>
-            <p className="router-page-hero-desc">
-              Share your online shop so customers can choose an internet plan and purchase an access code instantly.
-            </p>
-          </div>
-          <div className="router-page-hero-actions">
-            <Button
-              variant="secondary"
-              leadingIcon={<RefreshCw className={profile.isFetching ? 'animate-spin motion-reduce:animate-none' : ''} />}
-              disabled={profile.isFetching}
-              onClick={() => void profile.refetch()}
-            >
-              {profile.isFetching ? 'Refreshing...' : 'Refresh profile'}
-            </Button>
-          </div>
+      <header className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <p className="text-sm text-ink-500">Customer sales</p>
+          <h1 className="text-2xl font-bold text-ink-900">Storefront</h1>
+          <p className="mt-1 max-w-2xl text-sm text-ink-500">
+            Share your online shop so customers can choose an internet plan and buy an access code
+            instantly.
+          </p>
         </div>
-
-        {/* Hero Stats Strip */}
-        {profile.data && (
-          <div className="router-page-hero-strip">
-            <div className="router-page-hero-stat">
-              <Globe className="size-4" aria-hidden />
-              <span>/s/{profile.data.slug}</span>
-            </div>
-            <div className="router-page-hero-divider" />
-            <div className="router-page-hero-stat">
-              <Zap className="size-4 text-emerald-400" aria-hidden />
-              <span>{profile.data.is_active ? 'Storefront active' : 'Storefront inactive'}</span>
-            </div>
-          </div>
-        )}
-      </div>
+        <Button
+          variant="secondary"
+          size="sm"
+          leadingIcon={
+            <RefreshCw
+              className={profile.isFetching ? 'animate-spin motion-reduce:animate-none' : ''}
+            />
+          }
+          disabled={profile.isFetching}
+          onClick={() => void profile.refetch()}
+        >
+          {profile.isFetching ? 'Refreshing...' : 'Refresh profile'}
+        </Button>
+      </header>
 
       {profile.isError && profile.data && (
         <Alert tone="warning" title="Business details could not be refreshed">
@@ -87,12 +72,11 @@ export default function StorefrontManagementPage() {
 
       <QueryBoundary
         query={profile}
-        skeleton={<Skeleton className="h-64 w-full rounded-2xl" />}
+        skeleton={<Skeleton className="h-64 w-full rounded-card" />}
         errorTitle="Could not load your storefront"
       >
         {(tenant) => <StorefrontDetails key={tenant.slug} tenant={tenant} />}
       </QueryBoundary>
-      <LogoSettings />
     </div>
   );
 }
@@ -101,141 +85,104 @@ function StorefrontDetails({ tenant }: { tenant: TenantProfile }) {
   const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'failed'>('idle');
   const path = `/s/${encodeURIComponent(tenant.slug)}`;
   const url = new URL(path, window.location.origin).href;
+  const whatsapp = `https://wa.me/?text=${encodeURIComponent(
+    `Buy ${tenant.name} Wi-Fi access here: ${url}`,
+  )}`;
 
   return (
     <div className="space-y-6">
-      <Card className="overflow-hidden border-brand-200 bg-gradient-to-br from-brand-50/70 via-surface to-sky-50/50 dark:from-brand-950/40 dark:via-surface dark:to-slate-900/40">
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.65fr)]">
-          <div className="min-w-0">
-            <div className="mb-4 flex flex-wrap items-center gap-3">
-              <span className="rounded-xl bg-brand-600 p-3 text-white shadow-md">
-                <Store className="size-6" aria-hidden />
-              </span>
-              <Badge tone={tenant.is_active ? 'success' : 'warning'} dot>
-                {tenant.is_active ? 'Business active' : 'Business inactive'}
-              </Badge>
-            </div>
-            <p className="text-xs font-semibold tracking-wider text-brand-600 dark:text-brand-400 uppercase">
-              Your customer storefront
-            </p>
-            <h2 className="mt-2 text-2xl font-bold break-words text-ink-900">
-              {tenant.name}
-            </h2>
-            <p className="mt-2 text-sm leading-relaxed text-ink-600">
-              One link for your internet plans. Customers can browse and purchase an access code
-              without signing in to your dashboard.
-            </p>
-            <div className="mt-5 rounded-xl border border-border bg-surface p-4 shadow-inner">
-              <p className="mb-2 text-xs font-medium text-ink-500">Customer link</p>
-              <a
-                href={path}
+      <div className="grid gap-4 lg:grid-cols-3">
+        <Card className="min-w-0 lg:col-span-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="text-xl font-bold break-words text-ink-900">{tenant.name}</h2>
+            <Badge tone={tenant.is_active ? 'success' : 'warning'} dot>
+              {tenant.is_active ? 'Business active' : 'Business inactive'}
+            </Badge>
+          </div>
+          <p className="mt-1 text-sm text-ink-500">
+            One link for all your internet plans. Customers browse and pay without signing in.
+          </p>
+
+          <div className="mt-5 rounded-card border border-border bg-surface-muted p-4">
+            <p className="mb-1.5 text-xs font-medium text-ink-500">Customer link</p>
+            <a
+              href={path}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="dashboard-data-link block text-base font-semibold break-all"
+            >
+              {url}
+            </a>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Button
+                size="sm"
+                leadingIcon={copyStatus === 'copied' ? <Check /> : <Copy />}
+                onClick={async () =>
+                  setCopyStatus((await copyToClipboard(url)) ? 'copied' : 'failed')
+                }
+              >
+                {copyStatus === 'copied' ? 'Copied' : 'Copy storefront link'}
+              </Button>
+              <ButtonLink
+                to={path}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="dashboard-data-link block text-sm font-semibold break-all"
+                variant="secondary"
+                size="sm"
+                leadingIcon={<ExternalLink />}
               >
-                {url}
+                Open storefront
+              </ButtonLink>
+              <a
+                href={whatsapp}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex h-8 items-center gap-1.5 rounded-control border border-border bg-surface px-3 text-xs font-medium text-ink-900 transition-colors hover:border-border-strong hover:bg-surface-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600"
+              >
+                <MessageCircle aria-hidden className="size-4 text-success-600" />
+                Share on WhatsApp
               </a>
-              <div className="mt-4 flex flex-wrap gap-2">
-                <Button
-                  leadingIcon={copyStatus === 'copied' ? <Check /> : <Copy />}
-                  onClick={async () =>
-                    setCopyStatus((await copyToClipboard(url)) ? 'copied' : 'failed')
-                  }
-                >
-                  {copyStatus === 'copied' ? 'Copied' : 'Copy storefront link'}
-                </Button>
-                <ButtonLink
-                  to={path}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  variant="secondary"
-                  leadingIcon={<ExternalLink />}
-                >
-                  Open storefront
-                </ButtonLink>
-              </div>
-              <p role="status" className="mt-2 text-xs text-ink-500">
-                {copyStatus === 'failed'
-                  ? 'Could not copy automatically. Select and copy the customer link above.'
-                  : copyStatus === 'copied'
-                    ? 'Link copied. Paste it into WhatsApp, social media or your hotspot welcome page.'
-                    : 'Share this link on WhatsApp, social media or your hotspot welcome page.'}
-              </p>
             </div>
+            <p role="status" className="mt-2 text-xs text-ink-500">
+              {copyStatus === 'failed'
+                ? 'Could not copy automatically. Select and copy the customer link above.'
+                : copyStatus === 'copied'
+                  ? 'Link copied. Paste it into WhatsApp, social media or your hotspot welcome page.'
+                  : 'Share this link on WhatsApp, social media or your hotspot welcome page.'}
+            </p>
           </div>
-          <div className="min-w-0 rounded-xl border border-border bg-surface-muted/50 p-5">
-            <h3 className="font-semibold text-ink-900">How customers buy</h3>
-            <ol className="mt-5 space-y-5">
+
+          <div className="mt-5">
+            <h3 className="text-xs font-semibold tracking-wide text-ink-500 uppercase">
+              How customers buy
+            </h3>
+            <ol className="mt-3 grid gap-3 sm:grid-cols-3">
               {[
-                ['Choose a plan', 'Compare the price, duration, data allowance and speed.'],
-                ['Complete payment', 'Enter contact details and continue to secure checkout.'],
+                ['Choose a plan', 'Compare price, duration, data and speed.'],
+                ['Complete payment', 'Enter contact details, then pay at secure checkout.'],
                 [
                   'Receive an access code',
-                  'The payment result page displays the code after payment and voucher fulfilment are confirmed.',
+                  'Shown once payment and voucher fulfilment are confirmed.',
                 ],
               ].map(([title, description], index) => (
-                <li key={title} className="flex gap-3">
-                  <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-brand-100 dark:bg-brand-950 text-xs font-bold text-brand-700 dark:text-brand-300">
+                <li key={title} className="flex gap-2.5">
+                  <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-brand-50 text-xs font-bold text-brand-700">
                     {index + 1}
                   </span>
                   <div className="min-w-0">
                     <p className="text-sm font-semibold text-ink-900">{title}</p>
-                    <p className="mt-1 text-sm leading-relaxed text-ink-500">{description}</p>
+                    <p className="text-xs text-ink-500">{description}</p>
                   </div>
                 </li>
               ))}
             </ol>
           </div>
-        </div>
-      </Card>
+        </Card>
 
-      <section aria-labelledby="storefront-setup-title" className="space-y-4">
-        <div>
-          <h2 id="storefront-setup-title" className="text-lg font-bold text-ink-900">
-            Storefront setup
-          </h2>
-          <p className="mt-0.5 text-sm text-ink-500">
-            Keep your customer-facing details, plans and payment settings up to date.
-          </p>
-        </div>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          {[
-            {
-              title: 'Internet plans',
-              description: 'Manage the active plans customers can choose and their pricing.',
-              to: '/plans',
-              label: 'Manage plans',
-              icon: ShoppingBag,
-            },
-            {
-              title: 'Business profile',
-              description: 'Update the business name and contact details your customers see.',
-              to: '/settings/general',
-              label: 'Edit business profile',
-              icon: Building2,
-            },
-            {
-              title: 'Payments',
-              description:
-                'Review provider credentials and payment rules before sharing your shop.',
-              to: '/settings/billing',
-              label: 'Payment settings',
-              icon: CreditCard,
-            },
-          ].map(({ title, description, to, label, icon: Icon }) => (
-            <Card key={to} className="flex min-w-0 flex-col border-border/70 hover:shadow-md transition-shadow">
-              <div className="mb-3 flex size-9 items-center justify-center rounded-lg bg-brand-50 text-brand-600 dark:bg-brand-950/60 dark:text-brand-400">
-                <Icon className="size-5" aria-hidden />
-              </div>
-              <h3 className="font-semibold text-ink-900">{title}</h3>
-              <p className="mt-2 mb-4 flex-1 text-sm leading-relaxed text-ink-500">{description}</p>
-              <ButtonLink to={to} variant="secondary" trailingIcon={<ArrowUpRight />}>
-                {label}
-              </ButtonLink>
-            </Card>
-          ))}
-        </div>
-      </section>
+        <ReadinessChecklist tenant={tenant} />
+      </div>
+
+      <LogoSettings />
 
       {tenant.is_active ? (
         <PublishedPlans slug={tenant.slug} />
@@ -249,28 +196,155 @@ function StorefrontDetails({ tenant }: { tenant: TenantProfile }) {
   );
 }
 
+type CheckState = 'done' | 'todo' | 'review' | 'loading';
+
+function CheckItem({
+  state,
+  title,
+  detail,
+  action,
+}: {
+  state: CheckState;
+  title: string;
+  detail: string;
+  action: ReactNode;
+}) {
+  const Icon = state === 'done' ? CheckCircle2 : state === 'todo' ? AlertCircle : CircleDashed;
+  return (
+    <li className="flex gap-3 py-3 first:pt-0 last:pb-0">
+      <Icon
+        aria-hidden
+        className={cn(
+          'mt-0.5 size-5 shrink-0',
+          state === 'done' && 'text-success-600',
+          state === 'todo' && 'text-warning-600',
+          (state === 'review' || state === 'loading') && 'text-ink-400',
+          state === 'loading' && 'animate-pulse',
+        )}
+      />
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-semibold text-ink-900">
+          {title}
+          <span className="sr-only">
+            {state === 'done' ? ' (done)' : state === 'todo' ? ' (needs attention)' : ' (check)'}
+          </span>
+        </p>
+        <p className="text-xs text-ink-500">{detail}</p>
+      </div>
+      <div className="shrink-0 self-center">{action}</div>
+    </li>
+  );
+}
+
+function CheckLink({ to, children }: { to: string; children: ReactNode }) {
+  return (
+    <Link
+      to={to}
+      className="dashboard-data-link inline-flex items-center gap-0.5 text-xs font-semibold whitespace-nowrap"
+    >
+      {children}
+      <ArrowUpRight aria-hidden className="size-3.5" />
+    </Link>
+  );
+}
+
+/** What a customer needs before the link is worth sharing, checked against real data. */
+function ReadinessChecklist({ tenant }: { tenant: TenantProfile }) {
+  const plans = usePublicPlans(tenant.is_active ? tenant.slug : null);
+  const planCount = plans.data?.count;
+  const hasContact = Boolean(tenant.phone?.trim() || tenant.email?.trim());
+  const planState: CheckState = !tenant.is_active
+    ? 'todo'
+    : planCount === undefined
+      ? plans.isError
+        ? 'review'
+        : 'loading'
+      : planCount > 0
+        ? 'done'
+        : 'todo';
+  const done = [tenant.is_active, planState === 'done', hasContact].filter(Boolean).length;
+  return (
+    <Card className="min-w-0">
+      <section aria-label="Storefront readiness">
+        <CardHeader
+          title="Ready to share"
+          description={`${done} of 3 essentials in place`}
+          className="mb-3"
+        />
+        <ul className="divide-y divide-border">
+          <CheckItem
+            state={tenant.is_active ? 'done' : 'todo'}
+            title="Business active"
+            detail={
+              tenant.is_active
+                ? 'Customers can open your storefront.'
+                : 'Contact your platform administrator to reactivate.'
+            }
+            action={null}
+          />
+          <CheckItem
+            state={planState}
+            title="Plans on sale"
+            detail={
+              planState === 'done'
+                ? `${planCount} ${planCount === 1 ? 'plan is' : 'plans are'} visible to customers.`
+                : planState === 'loading'
+                  ? 'Checking published plans…'
+                  : planState === 'review'
+                    ? 'Published plans could not be checked.'
+                    : 'No plan is visible to customers yet.'
+            }
+            action={<CheckLink to="/plans">Manage plans</CheckLink>}
+          />
+          <CheckItem
+            state={hasContact ? 'done' : 'todo'}
+            title="Contact details"
+            detail={
+              hasContact
+                ? [tenant.phone, tenant.email].filter((v) => v?.trim()).join(' · ')
+                : 'Add a phone number or email customers can reach.'
+            }
+            action={<CheckLink to="/settings/general">Edit business profile</CheckLink>}
+          />
+          <CheckItem
+            state="review"
+            title="Payment settings"
+            detail="Confirm provider credentials before sharing your shop."
+            action={<CheckLink to="/settings/billing">Payment settings</CheckLink>}
+          />
+        </ul>
+      </section>
+    </Card>
+  );
+}
+
 function PublishedPlans({ slug }: { slug: string }) {
   const plans = usePublicPlans(slug);
   return (
     <section aria-labelledby="storefront-plans-title" className="space-y-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
+      <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h2 id="storefront-plans-title" className="text-lg font-bold text-ink-900">
+          <h2 id="storefront-plans-title" className="text-lg font-semibold text-ink-900">
             Customer plans
           </h2>
-          <p className="mt-0.5 text-sm text-ink-500">
-            Preview the plans customers see, then open checkout to review their experience.
+          <p className="text-sm text-ink-500">
+            Exactly what customers see. Open a checkout to review their experience.
           </p>
           {plans.data && (
-            <p className="mt-1 text-xs font-semibold text-brand-600 dark:text-brand-400">
+            <p className="mt-0.5 text-xs text-ink-500">
               Showing {plans.data.results.length} of {plans.data.count} customer plans
             </p>
           )}
         </div>
         <Button
           variant="secondary"
+          size="sm"
           disabled={plans.isFetching}
-          leadingIcon={<RefreshCw className={plans.isFetching ? 'animate-spin motion-reduce:animate-none' : ''} />}
+          leadingIcon={
+            <RefreshCw
+              className={plans.isFetching ? 'animate-spin motion-reduce:animate-none' : ''}
+            />
+          }
           onClick={() => void plans.refetch()}
         >
           {plans.isFetching ? 'Refreshing...' : 'Refresh plans'}
@@ -304,13 +378,14 @@ function PublishedPlans({ slug }: { slug: string }) {
                 <li key={plan.id} className="min-w-0">
                   <PlanCard
                     plan={plan}
-                    className="border-border/70 p-5 break-words hover:shadow-md transition-shadow"
+                    className="break-words"
                     action={
                       <ButtonLink
                         to={`/s/${encodeURIComponent(slug)}/checkout/${plan.id}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         variant="secondary"
+                        size="sm"
                         block
                       >
                         View customer checkout

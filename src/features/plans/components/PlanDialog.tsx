@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { ConfirmDialog, Dialog } from '@/components/ui';
 import type { InternetPlan } from '@/types/api';
 import { PlanForm } from './PlanForm';
-import { Plus } from 'lucide-react';
+import { Pencil, Plus } from 'lucide-react';
 import '../plans.css';
 
 export function PlanDialog({
@@ -41,7 +41,7 @@ export function PlanDialog({
         title={
           <span className="plan-dialog-title">
             <span className="plan-dialog-icon">
-              <Plus aria-hidden />
+              {plan ? <Pencil aria-hidden /> : <Plus aria-hidden />}
             </span>
             {plan ? `Edit ${plan.name}` : 'Create New Hotspot Plan'}
           </span>

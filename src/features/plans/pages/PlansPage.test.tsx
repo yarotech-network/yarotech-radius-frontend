@@ -38,7 +38,9 @@ const plans: InternetPlan[] = [
 
 async function nextPlanStep(dialog: HTMLElement) {
   await userEvent.click(within(dialog).getByRole('button', { name: 'Next' }));
-  await waitFor(() => expect(within(dialog).getByText('Step 2 of 2: Access and availability')).toBeInTheDocument());
+  await waitFor(() =>
+    expect(within(dialog).getByText('Step 2 of 2: Access and availability')).toBeInTheDocument(),
+  );
 }
 
 describe('PlansPage', () => {
@@ -47,7 +49,9 @@ describe('PlansPage', () => {
     server.use(
       http.get(`${API}/plans/`, ({ request }) => {
         seen.push(new URL(request.url));
-        return HttpResponse.json(paginated([{ ...plans[0]!, rate_limit: '5000k/10000k' }, plans[1]!]));
+        return HttpResponse.json(
+          paginated([{ ...plans[0]!, rate_limit: '5000k/10000k' }, plans[1]!]),
+        );
       }),
     );
     renderPage(<PlansPage />, { role: 'manager', path: '/plans' });
@@ -267,7 +271,11 @@ it('edit populates the stored ceiling and persists a new value', async () => {
     ),
     http.patch(`${API}/plans/1/`, async ({ request }) => {
       patched = (await request.json()) as Record<string, unknown>;
-      return HttpResponse.json({ ...plans[0]!, max_devices: 1, configured_max_devices: patched.max_devices ?? 5 });
+      return HttpResponse.json({
+        ...plans[0]!,
+        max_devices: 1,
+        configured_max_devices: patched.max_devices ?? 5,
+      });
     }),
   );
   renderPage(<PlansPage />, { role: 'owner', path: '/plans' });
@@ -279,7 +287,9 @@ it('edit populates the stored ceiling and persists a new value', async () => {
   await nextPlanStep(dialog);
   const select = within(dialog).getByLabelText('Maximum devices') as HTMLSelectElement;
   expect(select.value).toBe('5');
-  expect(within(dialog).getByText(/Platform policy currently limits new vouchers to 1/)).toBeInTheDocument();
+  expect(
+    within(dialog).getByText(/Platform policy currently limits new vouchers to 1/),
+  ).toBeInTheDocument();
   await userEvent.selectOptions(select, '2');
   await userEvent.click(within(dialog).getByRole('button', { name: 'Save changes' }));
   await waitFor(() => expect(patched).toMatchObject({ max_devices: 2 }));
@@ -289,8 +299,13 @@ it('edit populates the stored ceiling and persists a new value', async () => {
 it('keeps step two open when choosing the maximum-device option or pressing Enter', async () => {
   let patched = 0;
   server.use(
-    http.get(`${API}/plans/`, () => HttpResponse.json(paginated([{ ...plans[0]!, max_devices: 1 }]))),
-    http.patch(`${API}/plans/1/`, () => { patched += 1; return HttpResponse.json(plans[0]!); }),
+    http.get(`${API}/plans/`, () =>
+      HttpResponse.json(paginated([{ ...plans[0]!, max_devices: 1 }])),
+    ),
+    http.patch(`${API}/plans/1/`, () => {
+      patched += 1;
+      return HttpResponse.json(plans[0]!);
+    }),
   );
   renderPage(<PlansPage />, { role: 'owner', path: '/plans' });
   const table = await screen.findByRole('table', { name: 'Internet plans' });
@@ -315,7 +330,10 @@ it('requires Next before saving and keeps the first step editable', async () => 
   let posts = 0;
   server.use(
     http.get(`${API}/plans/`, () => HttpResponse.json(paginated([]))),
-    http.post(`${API}/plans/`, () => { posts += 1; return HttpResponse.json({ ...plans[0]!, id: 9 }, { status: 201 }); }),
+    http.post(`${API}/plans/`, () => {
+      posts += 1;
+      return HttpResponse.json({ ...plans[0]!, id: 9 }, { status: 201 });
+    }),
   );
   renderPage(<PlansPage />, { role: 'owner', path: '/plans' });
   await userEvent.click(await screen.findByRole('button', { name: 'New plan' }));
@@ -352,13 +370,50 @@ describe('PlanDialog behavior', () => {
     await userEvent.type(within(dialog).getByLabelText(/Duration amount/), '3');
     await userEvent.selectOptions(within(dialog).getByLabelText(/Duration unit/), 'days');
     await userEvent.click(within(dialog).getByLabelText('Limited data'));
-    await userEvent.type(within(dialog).getByLabelText(/Data limit/), '1024');
+    await userEvent.selectOptions(within(dialog).getByLabelText('Data limit unit'), 'MB');
+    await userEvent.type(within(dialog).getByRole('spinbutton', { name: /^Data limit/ }), '1024');
     await nextPlanStep(dialog);
     await userEvent.click(within(dialog).getByRole('button', { name: 'Create plan' }));
-    await waitFor(() =>
-      expect(posted).toMatchObject({ duration_hours: 72, data_limit: 1024 }),
-    );
+    await waitFor(() => expect(posted).toMatchObject({ duration_hours: 72, data_limit: 1024 }));
     expect(await screen.findByText('Plan created')).toBeInTheDocument();
+  });
+
+  it('fills duration, data and speed from shortcuts and shows sales choices up front', async () => {
+    let posted: Record<string, unknown> | null = null;
+    server.use(
+      http.get(`${API}/plans/`, () => HttpResponse.json(paginated([]))),
+      http.post(`${API}/plans/`, async ({ request }) => {
+        posted = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json({ ...plans[0]!, id: 9 }, { status: 201 });
+      }),
+    );
+    renderPage(<PlansPage />, { role: 'owner', path: '/plans' });
+    await userEvent.click(await screen.findByRole('button', { name: 'New plan' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Create New Hotspot Plan' });
+    await userEvent.type(within(dialog).getByLabelText(/Plan name/), 'Weekly 5GB');
+    await userEvent.type(within(dialog).getByLabelText(/Price/), '500');
+    await userEvent.click(within(dialog).getByRole('button', { name: '7 days' }));
+    expect(within(dialog).getByRole('button', { name: '7 days' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    expect(within(dialog).getByText(/about ₦71 per day/)).toBeInTheDocument();
+    await userEvent.click(within(dialog).getByLabelText('Limited data'));
+    await userEvent.click(within(dialog).getByRole('button', { name: '5 GB' }));
+    await nextPlanStep(dialog);
+    await userEvent.click(within(dialog).getByRole('button', { name: '10/20 Mbps' }));
+    const sales = within(dialog).getByRole('group', { name: "Where it's sold" });
+    await userEvent.click(within(sales).getByRole('checkbox', { name: /Agent sales/ }));
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Create plan' }));
+    await waitFor(() =>
+      expect(posted).toMatchObject({
+        duration_hours: 168,
+        data_limit: 5120,
+        rate_limit: '10000k/20000k',
+        is_public: true,
+        agent_enabled: false,
+      }),
+    );
   });
 
   it('saves an existing fractional plan unchanged without altering its duration', async () => {
@@ -468,9 +523,7 @@ describe('PlanDialog behavior', () => {
     await waitFor(() =>
       expect(container.querySelector('details.plan-advanced')).toHaveAttribute('open'),
     );
-    await waitFor(() =>
-      expect(within(dialog).getByLabelText(/Voucher prefix/)).toHaveFocus(),
-    );
+    await waitFor(() => expect(within(dialog).getByLabelText(/Voucher prefix/)).toHaveFocus());
   });
 });
 
@@ -487,7 +540,9 @@ describe('PlanDialog speeds', () => {
     renderPage(<PlansPage />, { role: 'owner', path: '/plans' });
     await userEvent.click(await screen.findByRole('button', { name: 'New plan' }));
     const dialog = await screen.findByRole('dialog', { name: 'Create New Hotspot Plan' });
-    expect(within(dialog).queryByRole('button', { name: 'Use bandwidth profile' })).not.toBeInTheDocument();
+    expect(
+      within(dialog).queryByRole('button', { name: 'Use bandwidth profile' }),
+    ).not.toBeInTheDocument();
     expect(within(dialog).queryByLabelText('Bandwidth profile')).not.toBeInTheDocument();
     await userEvent.type(within(dialog).getByLabelText(/Plan name/), 'Speedy');
     await userEvent.type(within(dialog).getByLabelText(/Price/), '500');
@@ -689,16 +744,24 @@ describe('PlanDialog speeds', () => {
 
 describe('PPPoE plans navigation', () => {
   it('keeps both section tabs and the bandwidth route available', async () => {
-    server.use(http.get(`${API}/pppoe-plans/`, () => HttpResponse.json(paginated([{
-      id: 1,
-      name: 'Monthly PPPoE',
-      bandwidth_profile: 7,
-      bandwidth_profile_name: 'Gold',
-      rate_limit: '5000k/10000k',
-      duration_hours: 720,
-      price: 500000,
-      is_active: true,
-    }]))));
+    server.use(
+      http.get(`${API}/pppoe-plans/`, () =>
+        HttpResponse.json(
+          paginated([
+            {
+              id: 1,
+              name: 'Monthly PPPoE',
+              bandwidth_profile: 7,
+              bandwidth_profile_name: 'Gold',
+              rate_limit: '5000k/10000k',
+              duration_hours: 720,
+              price: 500000,
+              is_active: true,
+            },
+          ]),
+        ),
+      ),
+    );
     renderPage(<PPPoEPlansPage />, { role: 'owner', path: '/plans/pppoe' });
     await screen.findByRole('heading', { name: 'PPPoE Plans' });
     expect(screen.getByRole('link', { name: 'Hotspot plans' })).toHaveAttribute('href', '/plans');

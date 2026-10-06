@@ -1,10 +1,6 @@
 import { z } from 'zod';
 import { LIMITS } from '@/app/config/constants';
-import {
-  idempotentPrefixSchema,
-  nairaAmountSchema,
-  nonNegativeIntSchema,
-} from '@/lib/validation/schemas';
+import { idempotentPrefixSchema, nairaAmountSchema } from '@/lib/validation/schemas';
 import type { InternetPlan, InternetPlanWrite } from '@/types/api';
 import { koboToNairaInput } from '@/lib/formatting/money';
 import { speedInput, toKbps } from './bandwidth';
@@ -23,6 +19,23 @@ export const DATA_MODES = [
   { value: 'limited', label: 'Limited data' },
 ] as const;
 export type DataMode = (typeof DATA_MODES)[number]['value'];
+
+/** Units for the data-limit amount; the API always stores whole megabytes. */
+export const DATA_UNITS = [
+  { value: 'GB', label: 'GB' },
+  { value: 'MB', label: 'MB' },
+] as const;
+export type DataUnit = (typeof DATA_UNITS)[number]['value'];
+
+/** Data-limit amount in the chosen unit, as whole megabytes (1 GB = 1024 MB). */
+export function toDataLimitMb(amount: number, unit: DataUnit): number {
+  return Math.round(unit === 'GB' ? amount * 1024 : amount);
+}
+
+/** Show a stored MB limit in GB when it is an exact number of gigabytes. */
+export function fromDataLimitMb(mb: number): { amount: number; unit: DataUnit } {
+  return mb > 0 && mb % 1024 === 0 ? { amount: mb / 1024, unit: 'GB' } : { amount: mb, unit: 'MB' };
+}
 
 /** Backend `duration_hours` precision: six decimal places. */
 const DURATION_PRECISION = 1e6;
@@ -66,8 +79,7 @@ export function fromDurationHours(hours: number): { value: number; unit: Duratio
 /** Human duration for the compact summary, e.g. "30 minutes", "1 day". */
 export function describeDuration(value: number | null | undefined, unit: DurationUnit): string {
   if (value === null || value === undefined || !Number.isFinite(value) || value <= 0) return '—';
-  const label =
-    unit === 'minutes' ? 'minute' : unit === 'days' ? 'day' : 'hour';
+  const label = unit === 'minutes' ? 'minute' : unit === 'days' ? 'day' : 'hour';
   return `${value} ${label}${value === 1 ? '' : 's'}`;
 }
 
@@ -112,12 +124,12 @@ export function formatRateLimit(uploadKbps: number, downloadKbps: number): strin
  * values outside 1 Kbps–10 Gbps). Bare numbers follow the same Mbps
  * convention as the plan summary display.
  */
-export function parseSimpleRateLimit(
-  rate: string | null | undefined,
-): ParsedSpeed | null {
+export function parseSimpleRateLimit(rate: string | null | undefined): ParsedSpeed | null {
   const trimmed = (rate ?? '').trim();
   if (!trimmed) return null;
-  const match = /^(\d+(?:\.\d+)?)\s*([kKmMgG])?\s*\/\s*(\d+(?:\.\d+)?)\s*([kKmMgG])?$/.exec(trimmed);
+  const match = /^(\d+(?:\.\d+)?)\s*([kKmMgG])?\s*\/\s*(\d+(?:\.\d+)?)\s*([kKmMgG])?$/.exec(
+    trimmed,
+  );
   if (!match) return null;
   const [, upValue = '', upSuffix, downValue = '', downSuffix] = match;
   const unitFor = (suffix: string | undefined): SpeedUnit => {
@@ -161,9 +173,18 @@ export const planFormSchema = z
     is_public: z.boolean().default(true),
     agent_enabled: z.boolean().default(true),
     public_router: z.string().uuid().nullable().default(null),
-    data_limit_mb: nonNegativeIntSchema('Data limit'),
+    /** Data-limit amount in `data_unit` (field name kept for API error mapping). */
+    data_limit_mb: z.coerce
+      .number()
+      .finite('Enter a data limit')
+      .min(0, 'Data limit cannot be negative'),
+    // Defaults to MB so callers without a unit keep the API's megabyte meaning;
+    // the form itself starts new plans in GB (see planToForm).
+    data_unit: z.enum(['GB', 'MB']).default('MB'),
     voucher_prefix: idempotentPrefixSchema,
-    voucher_code_format: z.enum(['legacy', 'tenant_default', 'numeric', 'alphabetic', 'alphanumeric']).default('legacy'),
+    voucher_code_format: z
+      .enum(['legacy', 'tenant_default', 'numeric', 'alphabetic', 'alphanumeric'])
+      .default('legacy'),
     is_active: z.boolean(),
     max_devices: z.coerce.number().int().min(1).max(10).default(1),
   })
@@ -182,12 +203,20 @@ export const planFormSchema = z
         message: 'Duration is too long.',
       });
     }
-    if (values.data_mode === 'limited' && !(values.data_limit_mb >= 1)) {
-      ctx.addIssue({
-        code: 'custom',
-        path: ['data_limit_mb'],
-        message: 'Enter a data limit in MB for limited plans.',
-      });
+    if (values.data_mode === 'limited') {
+      if (values.data_unit === 'MB' && !Number.isInteger(values.data_limit_mb)) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['data_limit_mb'],
+          message: 'Data limit must be a whole number of MB.',
+        });
+      } else if (!(toDataLimitMb(values.data_limit_mb, values.data_unit) >= 1)) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['data_limit_mb'],
+          message: 'Enter a data limit for limited plans.',
+        });
+      }
     }
     if (!values.custom_rate_limit.trim()) {
       const upload = values.upload_value.trim();
@@ -196,7 +225,8 @@ export const planFormSchema = z
         ctx.addIssue({
           code: 'custom',
           path: [!upload ? 'upload_value' : 'download_value'],
-          message: 'Enter both upload and download speeds, or leave both blank for no plan speed limit.',
+          message:
+            'Enter both upload and download speeds, or leave both blank for no plan speed limit.',
         });
       } else if (upload && download) {
         for (const [field, text, unit] of [
@@ -223,9 +253,12 @@ export type PlanFormOutput = z.output<typeof planFormSchema>;
 export function planToForm(plan?: InternetPlan): PlanFormInput {
   const { value, unit } = fromDurationHours(plan?.duration_hours ?? 24);
   const dataLimit = plan?.data_limit ?? 0;
+  const data = fromDataLimitMb(dataLimit);
   const rawRate = (plan?.rate_limit ?? '').trim();
   const parsed = rawRate ? parseSimpleRateLimit(rawRate) : null;
-  const upload = parsed ? kbpsToSpeedFields(parsed.uploadKbps) : { value: '', unit: 'Mbps' as const };
+  const upload = parsed
+    ? kbpsToSpeedFields(parsed.uploadKbps)
+    : { value: '', unit: 'Mbps' as const };
   const download = parsed
     ? kbpsToSpeedFields(parsed.downloadKbps)
     : { value: '', unit: 'Mbps' as const };
@@ -246,7 +279,8 @@ export function planToForm(plan?: InternetPlan): PlanFormInput {
     download_value: plan ? download.value : '10',
     download_unit: plan ? download.unit : 'Mbps',
     custom_rate_limit: rawRate && !parsed ? rawRate : '',
-    data_limit_mb: dataLimit,
+    data_limit_mb: data.amount,
+    data_unit: plan ? data.unit : 'GB',
     voucher_prefix: plan?.voucher_prefix ?? '',
     voucher_code_format: plan?.voucher_code_format ?? 'legacy',
     is_active: plan?.is_active ?? true,
@@ -282,7 +316,8 @@ export function formToPlan(values: PlanFormOutput): InternetPlanWrite {
     price: values.price,
     duration_hours: toDurationHours(values.duration_value, values.duration_unit),
     rate_limit,
-    data_limit: values.data_mode === 'limited' ? values.data_limit_mb : 0,
+    data_limit:
+      values.data_mode === 'limited' ? toDataLimitMb(values.data_limit_mb, values.data_unit) : 0,
     voucher_prefix: values.voucher_prefix,
     voucher_code_format: values.voucher_code_format,
     is_active: values.is_active,

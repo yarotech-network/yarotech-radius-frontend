@@ -8,7 +8,20 @@ import { Alert } from '@/components/feedback';
 import { useFormSubmit } from '@/lib/forms/useFormSubmit';
 import { newIdempotencyKey } from '@/lib/utilities/idempotency';
 import { isApiError } from '@/services/api/errors';
-import { describeDuration, DURATION_UNITS, formToPlan, planFormSchema, planToForm, SPEED_UNITS, type PlanFormInput, type PlanFormOutput } from '../planSchema';
+import {
+  DATA_UNITS,
+  describeDuration,
+  DURATION_UNITS,
+  formToPlan,
+  planFormSchema,
+  planToForm,
+  SPEED_UNITS,
+  toDurationHours,
+  type DurationUnit,
+  type PlanFormInput,
+  type PlanFormOutput,
+} from '../planSchema';
+import { formatKobo } from '@/lib/formatting/money';
 import type { InternetPlan } from '@/types/api';
 import { useCreatePlan, useUpdatePlan } from '../queries';
 
@@ -37,7 +50,14 @@ const ALIASES = {
   duration_hours: 'duration_value',
   rate_limit: 'upload_value',
 };
-const STEP_ONE_FIELDS = ['name', 'price', 'duration_value', 'duration_unit', 'data_mode', 'data_limit_mb'] as const;
+const STEP_ONE_FIELDS = [
+  'name',
+  'price',
+  'duration_value',
+  'duration_unit',
+  'data_mode',
+  'data_limit_mb',
+] as const;
 const STEP_ONE_INPUT_IDS: Record<(typeof STEP_ONE_FIELDS)[number], string> = {
   name: 'plan-name',
   price: 'plan-price',
@@ -98,6 +118,14 @@ export function PlanForm({
   const durationValue = useWatch({ control: form.control, name: 'duration_value' });
   const durationUnit = useWatch({ control: form.control, name: 'duration_unit' });
   const customRate = useWatch({ control: form.control, name: 'custom_rate_limit' });
+  const price = useWatch({ control: form.control, name: 'price' });
+  const dataAmount = useWatch({ control: form.control, name: 'data_limit_mb' });
+  const dataUnit = useWatch({ control: form.control, name: 'data_unit' });
+  const [uploadValue, uploadUnit, downloadValue, downloadUnit] = useWatch({
+    control: form.control,
+    name: ['upload_value', 'upload_unit', 'download_value', 'download_unit'],
+  });
+  const pick = { shouldDirty: true, shouldValidate: true } as const;
   const [rateServerError, setRateServerError] = useState<string | null>(null);
   const [step, setStep] = useState<0 | 1>(0);
   const stepHeadingId = useId();
@@ -148,8 +176,7 @@ export function PlanForm({
         captureError(error);
         // A backend rate_limit error lands on the upload input via aliases in
         // split mode; in custom mode that input is hidden, so surface it here.
-        const rateLimitError =
-          isApiError(error) && error.fields['rate_limit']?.join(' ');
+        const rateLimitError = isApiError(error) && error.fields['rate_limit']?.join(' ');
         if (rateLimitError && (form.getValues('custom_rate_limit') ?? '').trim()) {
           setRateServerError(rateLimitError);
         }
@@ -196,301 +223,355 @@ export function PlanForm({
       {message && <Alert tone="danger">{message}</Alert>}
       <ol aria-label="Plan setup progress" className="plan-editor-progress">
         {['Plan essentials', 'Access and availability'].map((label, index) => (
-          <li key={label} aria-current={step === index ? 'step' : undefined} className={step === index ? 'plan-editor-current-step' : ''}>
+          <li
+            key={label}
+            aria-current={step === index ? 'step' : undefined}
+            className={step === index ? 'plan-editor-current-step' : ''}
+          >
             <span aria-hidden>{index + 1}</span> {label}
           </li>
         ))}
       </ol>
-      <p className="plan-editor-step-label" role="status">Step {step + 1} of 2: {step === 0 ? 'Plan essentials' : 'Access and availability'}</p>
+      <p className="plan-editor-step-label" role="status">
+        Step {step + 1} of 2: {step === 0 ? 'Plan essentials' : 'Access and availability'}
+      </p>
       <div className="plan-editor-fields">
-        {step === 0 ? <>
-          <h3 id={stepHeadingId} tabIndex={-1} className="sr-only">Plan essentials</h3>
-          <fieldset className="min-w-0 space-y-4 rounded-xl border border-border p-4">
-            <legend className="px-2 text-sm font-semibold text-brand-950">Plan essentials</legend>
-            <FormField label="Plan name" required error={form.formState.errors.name?.message}>
-              <Input
-                autoFocus
-                id="plan-name"
-                placeholder="e.g. 1 Day Unlimited"
-                maxLength={100}
-                {...form.register('name')}
-              />
-            </FormField>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <FormField
-                label="Price"
-                required
-                hint="Enter the price in naira (NGN). Customers and agents pay this amount."
-                error={form.formState.errors.price?.message}
-              >
+        {step === 0 ? (
+          <>
+            <h3 id={stepHeadingId} tabIndex={-1} className="sr-only">
+              Plan essentials
+            </h3>
+            <fieldset className="min-w-0 space-y-4 rounded-xl border border-border p-4">
+              <legend className="px-2 text-sm font-semibold text-brand-950">Plan essentials</legend>
+              <FormField label="Plan name" required error={form.formState.errors.name?.message}>
                 <Input
-                  id="plan-price"
-                  inputMode="decimal"
-                  prefix="₦"
-                  placeholder="500"
-                  {...form.register('price')}
+                  autoFocus
+                  id="plan-name"
+                  placeholder="e.g. 1 Day Unlimited"
+                  maxLength={100}
+                  {...form.register('name')}
                 />
               </FormField>
-              <div>
-                <span id="plan-duration-label" className="mb-1.5 block text-sm font-medium text-ink-700">
-                  Duration <span className="ml-0.5 text-danger-600" aria-hidden>*</span>
-                </span>
-                <div
-                  className="plan-duration-row"
-                  role="group"
-                  aria-labelledby="plan-duration-label"
-                >
-                  <Input
-                    id="plan-duration-value"
-                    type="number"
-                    min={0}
-                    step="any"
-                    inputMode="decimal"
-                    placeholder="Amount"
-                    aria-label="Duration amount"
-                    {...form.register('duration_value')}
-                  />
-                  <Select
-                    id="plan-duration-unit"
-                    aria-label="Duration unit"
-                    {...form.register('duration_unit')}
-                    options={DURATION_UNITS.map((u) => ({ value: u.value, label: u.label }))}
-                  />
-                </div>
-                {(form.formState.errors.duration_value || form.formState.errors.duration_unit) && (
-                  <p role="alert" className="mt-1.5 text-xs font-medium text-danger-600">
-                    {form.formState.errors.duration_value?.message ??
-                      form.formState.errors.duration_unit?.message}
-                  </p>
-                )}
-                {!form.formState.errors.duration_value && (
-                  <p className="mt-1.5 text-xs text-ink-500">
-                    {Number(durationValue) > 0
-                      ? `Lasts ${describeDuration(Number(durationValue), durationUnit ?? 'hours')} once activated.`
-                      : 'How long access lasts once activated.'}
-                  </p>
-                )}
-              </div>
-            </div>
-            <fieldset>
-              <legend className="text-sm font-medium text-ink-700">
-                Data allowance <span className="ml-0.5 text-danger-600" aria-hidden>*</span>
-              </legend>
-              <div className="mt-2 flex flex-wrap gap-4" role="radiogroup" aria-label="Data allowance">
-                <label htmlFor="plan-data-unlimited" className="flex cursor-pointer items-center gap-2 text-sm">
-                  <input
-                    id="plan-data-unlimited"
-                    type="radio"
-                    value="unlimited"
-                    className="size-4 accent-brand-600"
-                    {...form.register('data_mode')}
-                  />
-                  Unlimited data
-                </label>
-                <label htmlFor="plan-data-limited" className="flex cursor-pointer items-center gap-2 text-sm">
-                  <input
-                    id="plan-data-limited"
-                    type="radio"
-                    value="limited"
-                    className="size-4 accent-brand-600"
-                    {...form.register('data_mode')}
-                  />
-                  Limited data
-                </label>
-              </div>
-              <p className="mt-1.5 text-xs text-ink-500">Choose whether this plan has a data cap.</p>
-              {form.formState.errors.data_mode && (
-                <p role="alert" className="mt-1 text-xs font-medium text-danger-600">
-                  {form.formState.errors.data_mode.message}
-                </p>
-              )}
-            </fieldset>
-            {dataMode === 'limited' && (
-              <FormField
-                label="Data limit"
-                required
-                hint="Only shown for limited plans. Enter whole megabytes, e.g. 1024 for 1 GB."
-                error={form.formState.errors.data_limit_mb?.message}
-              >
-                <Input
-                  id="plan-data-limit"
-                  type="number"
-                  min={1}
-                  step={1}
-                  inputMode="numeric"
-                  placeholder="e.g. 1024"
-                  trailingSlot={<span className="text-xs text-ink-500">MB</span>}
-                  {...form.register('data_limit_mb')}
-                />
-              </FormField>
-            )}
-          </fieldset>
-        </> : <>
-          <h3 id={stepHeadingId} tabIndex={-1} className="sr-only">Access and availability</h3>
-          <fieldset className="min-w-0 space-y-4 rounded-xl border border-border p-4">
-            <legend className="px-2 text-sm font-semibold text-brand-950">
-              Speed
-            </legend>
-            <p className="text-xs text-ink-500">
-              Speeds are measured from the customer&apos;s perspective: upload leaves the
-              customer device, download arrives at it. Applies to newly issued access.
-            </p>
-            {customRate?.trim() ? (
-              <div className="space-y-3">
-                <Alert tone="warning" title="Custom speed expression">
-                  This plan uses <code className="font-mono">{customRate.trim()}</code>, which
-                  these fields cannot represent. It stays unchanged until you replace it below.
-                </Alert>
-                {rateServerError && (
-                  <p role="alert" className="text-xs font-medium text-danger-600">
-                    {rateServerError}
-                  </p>
-                )}
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="secondary"
-                  onClick={() => {
-                    form.setValue('custom_rate_limit', '', { shouldDirty: true });
-                    setRateServerError(null);
-                    window.setTimeout(
-                      () => document.getElementById('plan-upload-speed')?.focus(),
-                      60,
-                    );
-                  }}
-                >
-                  Enter upload and download speeds
-                </Button>
-              </div>
-            ) : (
-              <>
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <div>
-                    <label
-                      htmlFor="plan-upload-speed"
-                      className="mb-1.5 block text-sm font-medium text-ink-700"
-                    >
-                      Upload speed
-                    </label>
-                    <div className="plan-speed-row">
-                      <Input
-                        id="plan-upload-speed"
-                        inputMode="decimal"
-                        placeholder="5"
-                        aria-label="Upload speed amount"
-                        {...form.register('upload_value')}
-                      />
-                      <Select
-                        id="plan-upload-unit"
-                        aria-label="Upload speed unit"
-                        {...form.register('upload_unit')}
-                        options={SPEED_UNITS.map((u) => ({ value: u.value, label: u.label }))}
-                      />
-                    </div>
-                    {form.formState.errors.upload_value && (
-                      <p role="alert" className="mt-1.5 text-xs font-medium text-danger-600">
-                        {form.formState.errors.upload_value.message}
-                      </p>
-                    )}
-                  </div>
-                  <div>
-                    <label
-                      htmlFor="plan-download-speed"
-                      className="mb-1.5 block text-sm font-medium text-ink-700"
-                    >
-                      Download speed
-                    </label>
-                    <div className="plan-speed-row">
-                      <Input
-                        id="plan-download-speed"
-                        inputMode="decimal"
-                        placeholder="10"
-                        aria-label="Download speed amount"
-                        {...form.register('download_value')}
-                      />
-                      <Select
-                        id="plan-download-unit"
-                        aria-label="Download speed unit"
-                        {...form.register('download_unit')}
-                        options={SPEED_UNITS.map((u) => ({ value: u.value, label: u.label }))}
-                      />
-                    </div>
-                    {form.formState.errors.download_value && (
-                      <p role="alert" className="mt-1.5 text-xs font-medium text-danger-600">
-                        {form.formState.errors.download_value.message}
-                      </p>
-                    )}
-                  </div>
-                </div>
-                <p className="text-xs text-ink-500">
-                  Leave both blank for no plan speed limit.
-                </p>
-              </>
-            )}
-          </fieldset>
-          <FormField
-            label="Maximum devices"
-            hint={effectiveDevices < configuredDevices
-              ? `Saved setting: ${configuredDevices} devices. Platform policy currently limits new vouchers to ${effectiveDevices}; the administrator must enable multi-device vouchers before the higher limit takes effect.`
-              : 'Maximum devices that can use one newly issued voucher at the same time.'}
-            error={form.formState.errors.max_devices?.message}
-          >
-            <Select
-              id="plan-max-devices"
-              {...form.register('max_devices')}
-              options={Array.from({ length: 10 }, (_, i) => ({
-                value: String(i + 1),
-                label: `${i + 1} device${i ? 's' : ''}`,
-              }))}
-            />
-          </FormField>
-          <Controller
-            control={form.control}
-            name="is_active"
-            render={({ field }) => (
-              <Checkbox
-                id="plan-active-status"
-                checked={field.value}
-                onChange={(e) => field.onChange(e.target.checked)}
-                label="Active"
-                description="Inactive plans cannot be sold or used to generate vouchers, but existing vouchers keep working."
-              />
-            )}
-          />
-          <details
-            className="plan-advanced"
-            open={advanced || hasAdditionalErrors}
-            onToggle={(e) => setAdvanced(e.currentTarget.open)}
-          >
-            <summary>Additional settings</summary>
-            <div className="space-y-4 pt-4">
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <FormField
-                  label="Voucher prefix"
-                  optionalLabel
-                  hint="Prepended to generated usernames (letters and digits, max 10)."
-                  error={form.formState.errors.voucher_prefix?.message}
+                  label="Price"
+                  required
+                  hint={priceHint(price, durationValue, durationUnit)}
+                  error={form.formState.errors.price?.message}
                 >
                   <Input
-                    id="plan-voucher-prefix"
-                    placeholder="e.g. DAY"
-                    maxLength={10}
-                    className="font-mono uppercase"
-                    {...form.register('voucher_prefix')}
+                    id="plan-price"
+                    inputMode="decimal"
+                    prefix="₦"
+                    placeholder="500"
+                    {...form.register('price')}
                   />
                 </FormField>
-                <FormField
-                  label="Voucher code format"
-                  hint="Applies to future vouchers. Existing codes stay unchanged."
-                  error={form.formState.errors.voucher_code_format?.message}
-                >
-                  <Select
-                    id="plan-code-format"
-                    {...form.register('voucher_code_format')}
-                    options={planCodeFormatOptions}
+                <div>
+                  <span
+                    id="plan-duration-label"
+                    className="mb-1.5 block text-sm font-medium text-ink-700"
+                  >
+                    Duration{' '}
+                    <span className="ml-0.5 text-danger-600" aria-hidden>
+                      *
+                    </span>
+                  </span>
+                  <div
+                    className="plan-duration-row"
+                    role="group"
+                    aria-labelledby="plan-duration-label"
+                  >
+                    <Input
+                      id="plan-duration-value"
+                      type="number"
+                      min={0}
+                      step="any"
+                      inputMode="decimal"
+                      placeholder="Amount"
+                      aria-label="Duration amount"
+                      {...form.register('duration_value')}
+                    />
+                    <Select
+                      id="plan-duration-unit"
+                      aria-label="Duration unit"
+                      {...form.register('duration_unit')}
+                      options={DURATION_UNITS.map((u) => ({ value: u.value, label: u.label }))}
+                    />
+                  </div>
+                  {(form.formState.errors.duration_value ||
+                    form.formState.errors.duration_unit) && (
+                    <p role="alert" className="mt-1.5 text-xs font-medium text-danger-600">
+                      {form.formState.errors.duration_value?.message ??
+                        form.formState.errors.duration_unit?.message}
+                    </p>
+                  )}
+                  {!form.formState.errors.duration_value && (
+                    <p className="mt-1.5 text-xs text-ink-500">
+                      {Number(durationValue) > 0
+                        ? `Lasts ${describeDuration(Number(durationValue), durationUnit ?? 'hours')} once activated.`
+                        : 'How long access lasts once activated.'}
+                    </p>
+                  )}
+                  <QuickPicks
+                    label="Common durations"
+                    options={DURATION_PRESETS.map((preset) => ({
+                      key: preset.label,
+                      label: preset.label,
+                      active:
+                        Number(durationValue) === preset.value && durationUnit === preset.unit,
+                      onPick: () => {
+                        form.setValue('duration_value', preset.value, pick);
+                        form.setValue('duration_unit', preset.unit, pick);
+                      },
+                    }))}
                   />
-                </FormField>
+                </div>
               </div>
+              <fieldset>
+                <legend className="text-sm font-medium text-ink-700">
+                  Data allowance{' '}
+                  <span className="ml-0.5 text-danger-600" aria-hidden>
+                    *
+                  </span>
+                </legend>
+                <div
+                  className="mt-2 flex flex-wrap gap-4"
+                  role="radiogroup"
+                  aria-label="Data allowance"
+                >
+                  <label
+                    htmlFor="plan-data-unlimited"
+                    className="flex cursor-pointer items-center gap-2 text-sm"
+                  >
+                    <input
+                      id="plan-data-unlimited"
+                      type="radio"
+                      value="unlimited"
+                      className="size-4 accent-brand-600"
+                      {...form.register('data_mode')}
+                    />
+                    Unlimited data
+                  </label>
+                  <label
+                    htmlFor="plan-data-limited"
+                    className="flex cursor-pointer items-center gap-2 text-sm"
+                  >
+                    <input
+                      id="plan-data-limited"
+                      type="radio"
+                      value="limited"
+                      className="size-4 accent-brand-600"
+                      {...form.register('data_mode')}
+                    />
+                    Limited data
+                  </label>
+                </div>
+                <p className="mt-1.5 text-xs text-ink-500">
+                  Choose whether this plan has a data cap.
+                </p>
+                {form.formState.errors.data_mode && (
+                  <p role="alert" className="mt-1 text-xs font-medium text-danger-600">
+                    {form.formState.errors.data_mode.message}
+                  </p>
+                )}
+              </fieldset>
+              {dataMode === 'limited' && (
+                <div>
+                  <label
+                    htmlFor="plan-data-limit"
+                    className="mb-1.5 block text-sm font-medium text-ink-700"
+                  >
+                    Data limit{' '}
+                    <span className="ml-0.5 text-danger-600" aria-hidden>
+                      *
+                    </span>
+                  </label>
+                  <div className="plan-duration-row">
+                    <Input
+                      id="plan-data-limit"
+                      type="number"
+                      min={0}
+                      step="any"
+                      inputMode="decimal"
+                      placeholder={dataUnit === 'MB' ? 'e.g. 1024' : 'e.g. 2'}
+                      aria-invalid={form.formState.errors.data_limit_mb ? true : undefined}
+                      {...form.register('data_limit_mb')}
+                    />
+                    <Select
+                      id="plan-data-unit"
+                      aria-label="Data limit unit"
+                      {...form.register('data_unit')}
+                      options={DATA_UNITS.map((u) => ({ value: u.value, label: u.label }))}
+                    />
+                  </div>
+                  {form.formState.errors.data_limit_mb ? (
+                    <p role="alert" className="mt-1.5 text-xs font-medium text-danger-600">
+                      {form.formState.errors.data_limit_mb.message}
+                    </p>
+                  ) : (
+                    <p className="mt-1.5 text-xs text-ink-500">
+                      Access stops once the customer has used this much data. 1 GB = 1024 MB.
+                    </p>
+                  )}
+                  <QuickPicks
+                    label="Common data limits"
+                    options={DATA_PRESETS.map((gb) => ({
+                      key: String(gb),
+                      label: `${gb} GB`,
+                      active: dataUnit === 'GB' && Number(dataAmount) === gb,
+                      onPick: () => {
+                        form.setValue('data_limit_mb', gb, pick);
+                        form.setValue('data_unit', 'GB', pick);
+                      },
+                    }))}
+                  />
+                </div>
+              )}
+            </fieldset>
+          </>
+        ) : (
+          <>
+            <h3 id={stepHeadingId} tabIndex={-1} className="sr-only">
+              Access and availability
+            </h3>
+            <fieldset className="min-w-0 space-y-4 rounded-xl border border-border p-4">
+              <legend className="px-2 text-sm font-semibold text-brand-950">Speed</legend>
+              <p className="text-xs text-ink-500">
+                Speeds are measured from the customer&apos;s perspective: upload leaves the customer
+                device, download arrives at it. Applies to newly issued access.
+              </p>
+              {customRate?.trim() ? (
+                <div className="space-y-3">
+                  <Alert tone="warning" title="Custom speed expression">
+                    This plan uses <code className="font-mono">{customRate.trim()}</code>, which
+                    these fields cannot represent. It stays unchanged until you replace it below.
+                  </Alert>
+                  {rateServerError && (
+                    <p role="alert" className="text-xs font-medium text-danger-600">
+                      {rateServerError}
+                    </p>
+                  )}
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => {
+                      form.setValue('custom_rate_limit', '', { shouldDirty: true });
+                      setRateServerError(null);
+                      window.setTimeout(
+                        () => document.getElementById('plan-upload-speed')?.focus(),
+                        60,
+                      );
+                    }}
+                  >
+                    Enter upload and download speeds
+                  </Button>
+                </div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div>
+                      <label
+                        htmlFor="plan-upload-speed"
+                        className="mb-1.5 block text-sm font-medium text-ink-700"
+                      >
+                        Upload speed
+                      </label>
+                      <div className="plan-speed-row">
+                        <Input
+                          id="plan-upload-speed"
+                          inputMode="decimal"
+                          placeholder="5"
+                          aria-label="Upload speed amount"
+                          {...form.register('upload_value')}
+                        />
+                        <Select
+                          id="plan-upload-unit"
+                          aria-label="Upload speed unit"
+                          {...form.register('upload_unit')}
+                          options={SPEED_UNITS.map((u) => ({ value: u.value, label: u.label }))}
+                        />
+                      </div>
+                      {form.formState.errors.upload_value && (
+                        <p role="alert" className="mt-1.5 text-xs font-medium text-danger-600">
+                          {form.formState.errors.upload_value.message}
+                        </p>
+                      )}
+                    </div>
+                    <div>
+                      <label
+                        htmlFor="plan-download-speed"
+                        className="mb-1.5 block text-sm font-medium text-ink-700"
+                      >
+                        Download speed
+                      </label>
+                      <div className="plan-speed-row">
+                        <Input
+                          id="plan-download-speed"
+                          inputMode="decimal"
+                          placeholder="10"
+                          aria-label="Download speed amount"
+                          {...form.register('download_value')}
+                        />
+                        <Select
+                          id="plan-download-unit"
+                          aria-label="Download speed unit"
+                          {...form.register('download_unit')}
+                          options={SPEED_UNITS.map((u) => ({ value: u.value, label: u.label }))}
+                        />
+                      </div>
+                      {form.formState.errors.download_value && (
+                        <p role="alert" className="mt-1.5 text-xs font-medium text-danger-600">
+                          {form.formState.errors.download_value.message}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <p className="text-xs text-ink-500">Leave both blank for no plan speed limit.</p>
+                  <QuickPicks
+                    label="Common speeds"
+                    options={SPEED_PRESETS.map(([up, down]) => ({
+                      key: `${up}/${down}`,
+                      label: `${up}/${down} Mbps`,
+                      active:
+                        uploadUnit === 'Mbps' &&
+                        downloadUnit === 'Mbps' &&
+                        Number(uploadValue) === up &&
+                        Number(downloadValue) === down,
+                      onPick: () => {
+                        form.setValue('upload_value', String(up), pick);
+                        form.setValue('upload_unit', 'Mbps', pick);
+                        form.setValue('download_value', String(down), pick);
+                        form.setValue('download_unit', 'Mbps', pick);
+                      },
+                    }))}
+                  />
+                </>
+              )}
+            </fieldset>
+            <FormField
+              label="Maximum devices"
+              hint={
+                effectiveDevices < configuredDevices
+                  ? `Saved setting: ${configuredDevices} devices. Platform policy currently limits new vouchers to ${effectiveDevices}; the administrator must enable multi-device vouchers before the higher limit takes effect.`
+                  : 'Maximum devices that can use one newly issued voucher at the same time.'
+              }
+              error={form.formState.errors.max_devices?.message}
+            >
+              <Select
+                id="plan-max-devices"
+                {...form.register('max_devices')}
+                options={Array.from({ length: 10 }, (_, i) => ({
+                  value: String(i + 1),
+                  label: `${i + 1} device${i ? 's' : ''}`,
+                }))}
+              />
+            </FormField>
+            <fieldset className="min-w-0 space-y-3 rounded-xl border border-border p-4">
+              <legend className="px-2 text-sm font-semibold text-brand-950">
+                Where it&apos;s sold
+              </legend>
               <Controller
                 control={form.control}
                 name="is_public"
@@ -517,42 +598,103 @@ export function PlanForm({
                   />
                 )}
               />
-              <FormField label="Service type" error={form.formState.errors.plan_type?.message}>
-                <Select
-                  id="plan-service-type"
-                  {...form.register('plan_type')}
-                  options={[
-                    { value: 'voucher', label: 'Hotspot voucher' },
-                    { value: 'iot_mac', label: 'IoT / MAC device' },
-                  ]}
-                />
-              </FormField>
-              {planType === 'iot_mac' && (
-                <Controller
-                  control={form.control}
-                  name="public_router"
-                  render={({ field }) => (
-                    <PlanRouterField
-                      value={field.value}
-                      onChange={field.onChange}
-                      error={form.formState.errors.public_router?.message}
-                    />
-                  )}
+            </fieldset>
+            <Controller
+              control={form.control}
+              name="is_active"
+              render={({ field }) => (
+                <Checkbox
+                  id="plan-active-status"
+                  checked={field.value}
+                  onChange={(e) => field.onChange(e.target.checked)}
+                  label="Active"
+                  description="Inactive plans cannot be sold or used to generate vouchers, but existing vouchers keep working."
                 />
               )}
-            </div>
-          </details>
-        </>}
+            />
+            <details
+              className="plan-advanced"
+              open={advanced || hasAdditionalErrors}
+              onToggle={(e) => setAdvanced(e.currentTarget.open)}
+            >
+              <summary>Additional settings</summary>
+              <div className="space-y-4 pt-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <FormField
+                    label="Voucher prefix"
+                    optionalLabel
+                    hint="Prepended to generated usernames (letters and digits, max 10)."
+                    error={form.formState.errors.voucher_prefix?.message}
+                  >
+                    <Input
+                      id="plan-voucher-prefix"
+                      placeholder="e.g. DAY"
+                      maxLength={10}
+                      className="font-mono uppercase"
+                      {...form.register('voucher_prefix')}
+                    />
+                  </FormField>
+                  <FormField
+                    label="Voucher code format"
+                    hint="Applies to future vouchers. Existing codes stay unchanged."
+                    error={form.formState.errors.voucher_code_format?.message}
+                  >
+                    <Select
+                      id="plan-code-format"
+                      {...form.register('voucher_code_format')}
+                      options={planCodeFormatOptions}
+                    />
+                  </FormField>
+                </div>
+                <FormField label="Service type" error={form.formState.errors.plan_type?.message}>
+                  <Select
+                    id="plan-service-type"
+                    {...form.register('plan_type')}
+                    options={[
+                      { value: 'voucher', label: 'Hotspot voucher' },
+                      { value: 'iot_mac', label: 'IoT / MAC device' },
+                    ]}
+                  />
+                </FormField>
+                {planType === 'iot_mac' && (
+                  <Controller
+                    control={form.control}
+                    name="public_router"
+                    render={({ field }) => (
+                      <PlanRouterField
+                        value={field.value}
+                        onChange={field.onChange}
+                        error={form.formState.errors.public_router?.message}
+                      />
+                    )}
+                  />
+                )}
+              </div>
+            </details>
+          </>
+        )}
       </div>
       <div className="plan-editor-footer">
         <p>Changes apply to newly issued access.</p>
-        {step === 0 ? <>
-          <Button type="button" variant="secondary" onClick={onCancel} disabled={busy}>Cancel</Button>
-          <Button type="button" onClick={() => void goNext()} disabled={busy}>Next</Button>
-        </> : <>
-          <Button type="button" variant="secondary" onClick={() => showStep(0)} disabled={busy}>Back</Button>
-          <Button type="button" onClick={() => void submit()} loading={busy}>{plan ? 'Save changes' : 'Create plan'}</Button>
-        </>}
+        {step === 0 ? (
+          <>
+            <Button type="button" variant="secondary" onClick={onCancel} disabled={busy}>
+              Cancel
+            </Button>
+            <Button type="button" onClick={() => void goNext()} disabled={busy}>
+              Next
+            </Button>
+          </>
+        ) : (
+          <>
+            <Button type="button" variant="secondary" onClick={() => showStep(0)} disabled={busy}>
+              Back
+            </Button>
+            <Button type="button" onClick={() => void submit()} loading={busy}>
+              {plan ? 'Save changes' : 'Create plan'}
+            </Button>
+          </>
+        )}
       </div>
     </form>
   );
@@ -597,6 +739,60 @@ function PlanRouterField({
           Retry routers
         </Button>
       )}
+    </div>
+  );
+}
+
+const DURATION_PRESETS: { label: string; value: number; unit: DurationUnit }[] = [
+  { label: '1 hour', value: 1, unit: 'hours' },
+  { label: '1 day', value: 1, unit: 'days' },
+  { label: '7 days', value: 7, unit: 'days' },
+  { label: '30 days', value: 30, unit: 'days' },
+];
+const SPEED_PRESETS = [
+  [2, 5],
+  [5, 10],
+  [10, 20],
+  [20, 50],
+] as const;
+const DATA_PRESETS = [1, 5, 10, 50] as const;
+
+/** Price hint with a per-hour or per-day equivalent, to compare plans of different lengths. */
+function priceHint(price: unknown, durationValue: unknown, durationUnit: DurationUnit | undefined) {
+  const naira = Number(String(price ?? '').replace(/[,\s₦]/g, ''));
+  const hours = toDurationHours(Number(durationValue), durationUnit ?? 'hours');
+  if (!(naira > 0) || !(hours > 0)) {
+    return 'Enter the price in naira (NGN). Customers and agents pay this amount.';
+  }
+  const perDay = hours >= 48;
+  const rate = perDay ? naira / (hours / 24) : naira / hours;
+  // Whole naira for normal rates; keep kobo for very cheap per-hour rates.
+  const rateKobo = rate >= 10 ? Math.round(rate) * 100 : Math.round(rate * 100);
+  const total = formatKobo(Math.round(naira * 100), { compact: true });
+  return `Customers pay ${total} · about ${formatKobo(rateKobo, { compact: true })} per ${perDay ? 'day' : 'hour'}.`;
+}
+
+/** One-tap shortcuts that fill the fields beside them; typing a custom value still works. */
+function QuickPicks({
+  label,
+  options,
+}: {
+  label: string;
+  options: { key: string; label: string; active: boolean; onPick: () => void }[];
+}) {
+  return (
+    <div role="group" aria-label={label} className="mt-2 flex flex-wrap gap-1.5">
+      {options.map((option) => (
+        <button
+          key={option.key}
+          type="button"
+          aria-pressed={option.active}
+          onClick={option.onPick}
+          className="rounded-full border border-border bg-surface px-2.5 py-1 text-xs font-medium text-ink-600 transition-colors hover:border-border-strong hover:text-ink-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600 aria-pressed:border-brand-600 aria-pressed:bg-brand-50 aria-pressed:text-brand-700"
+        >
+          {option.label}
+        </button>
+      ))}
     </div>
   );
 }
