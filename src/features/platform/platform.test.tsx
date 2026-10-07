@@ -261,6 +261,59 @@ describe('PlatformOverviewPage', () => {
     // The platform's own tenant is excluded from "newest tenants".
     expect(screen.queryByRole('link', { name: 'Yarotech' })).not.toBeInTheDocument();
   });
+  it('lists what needs attention with links to the filtered views and flags setup problems', async () => {
+    server.use(
+      http.get(`${API}/platform/dashboard/`, () => HttpResponse.json(stats)),
+      http.get(`${API}/tenants/`, () =>
+        HttpResponse.json(
+          paginated([
+            tenant({ owner_setup_pending: true }),
+            garki,
+            tenant({
+              id: 9,
+              name: 'Kano WiFi',
+              slug: 'kano-wifi',
+              owner_delivery_status: 'failed',
+            }),
+          ]),
+        ),
+      ),
+    );
+    renderPage(<PlatformOverviewPage />, { path: '/platform', role: 'platform_admin' });
+    const attention = await screen.findByRole('region', { name: 'Needs attention' });
+    expect(within(attention).getByText('2 pending')).toBeInTheDocument();
+    expect(within(attention).getByText('1 router not yet onboarded')).toBeInTheDocument();
+    expect(within(attention).getByRole('link', { name: 'View inactive tenants' })).toHaveAttribute(
+      'href',
+      '/platform/tenants?is_active=false',
+    );
+    expect(
+      within(attention).getByRole('link', { name: 'Review router onboarding' }),
+    ).toHaveAttribute('href', '/platform/routers');
+    const table = await screen.findByRole('table', { name: 'Newest tenants' });
+    expect(await within(table).findByText('Owner setup pending')).toBeInTheDocument();
+    expect(within(table).getByText('Invite email failed')).toBeInTheDocument();
+  });
+
+  it('says so when nothing needs attention', async () => {
+    server.use(
+      http.get(`${API}/platform/dashboard/`, () =>
+        HttpResponse.json({
+          ...stats,
+          pending_payments: 0,
+          onboarded_routers: 2,
+          active_tenants: 4,
+        }),
+      ),
+      ...tenantHandlers(),
+    );
+    renderPage(<PlatformOverviewPage />, { path: '/platform', role: 'platform_admin' });
+    expect(
+      await screen.findByText('Nothing needs attention in the last retrieved figures.'),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Needs attention' })).not.toBeInTheDocument();
+  });
+
   it('shows an error state when the stats endpoint fails', async () => {
     server.use(
       http.get(`${API}/platform/dashboard/`, () =>

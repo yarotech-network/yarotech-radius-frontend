@@ -11,12 +11,14 @@ import {
   Users,
   Wallet,
 } from 'lucide-react';
-import { Section, StatusBadge } from '@/components/layout';
-import { Button, ButtonLink, Card, Skeleton, Stat } from '@/components/ui';
+import { KpiTile, MiniBar, Section, StatusBadge } from '@/components/layout';
+import { Badge, Button, ButtonLink, Card, Skeleton } from '@/components/ui';
 import { Alert, EmptyState, ErrorState } from '@/components/feedback';
 import { formatKobo } from '@/lib/formatting/money';
 import { formatDateTime, formatRelative } from '@/lib/formatting/dates';
 import { PLATFORM_RECENT_TENANTS_PARAMS, usePlatformStats, useTenants } from '../queries';
+import type { PlatformStats } from '@/types/api';
+import { TenantSetupBadge } from '../components/TenantSetupBadge';
 import '../platform-overview.css';
 
 /** Cross-tenant totals and recent operators, each with independent query feedback. */
@@ -82,67 +84,64 @@ export default function PlatformOverviewPage() {
             </Alert>
           )}
           <Section title="Platform at a glance" description="Current totals across the platform.">
-            <div className="platform-kpis">
-              <Stat
+            <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+              <KpiTile
                 label="Tenants"
                 value={number(s?.tenants)}
-                hint={s ? `${number(s.active_tenants)} active` : 'Registered businesses'}
-                icon={<Building2 />}
+                detail={s ? `${number(s.active_tenants)} active` : 'Registered businesses'}
+                extra={
+                  s && s.tenants > 0 ? (
+                    <MiniBar
+                      parts={[
+                        { value: s.active_tenants, color: 'var(--color-success-600)' },
+                        { value: s.tenants - s.active_tenants, color: 'var(--color-ink-300)' },
+                      ]}
+                    />
+                  ) : undefined
+                }
+                to="/platform/tenants"
+                link="View tenants"
                 loading={stats.isPending}
-                tone="default"
-                className="platform-kpi"
               />
-              <Stat
+              <KpiTile
                 label="Routers"
                 value={number(s?.routers)}
-                hint={s ? `${number(s.onboarded_routers)} onboarded` : 'Registered network devices'}
-                icon={<Radio />}
+                detail={
+                  s ? `${number(s.onboarded_routers)} onboarded` : 'Registered network devices'
+                }
+                extra={
+                  s && s.routers > 0 ? (
+                    <MiniBar
+                      parts={[
+                        { value: s.onboarded_routers, color: 'var(--color-success-600)' },
+                        {
+                          value: s.routers - s.onboarded_routers,
+                          color: 'var(--color-warning-600)',
+                        },
+                      ]}
+                    />
+                  ) : undefined
+                }
+                to="/platform/routers"
+                link="View routers"
                 loading={stats.isPending}
-                className="platform-kpi"
               />
-              <Stat
+              <KpiTile
                 label="Agents"
                 value={number(s?.agents)}
-                hint="Resellers across all tenants"
-                icon={<Users />}
+                detail="Resellers across all tenants"
                 loading={stats.isPending}
-                className="platform-kpi"
               />
-              <Stat
+              <KpiTile
                 label="Vouchers issued"
                 value={number(s?.vouchers)}
-                hint="Total access vouchers"
-                icon={<Ticket />}
+                detail="Total access vouchers"
                 loading={stats.isPending}
-                className="platform-kpi"
               />
             </div>
           </Section>
 
-          {s && s.pending_payments > 0 && (
-            <Alert
-              tone="warning"
-              title={`${number(s.pending_payments)} pending`}
-              actions={
-                <ButtonLink
-                  to="/platform/payments?source=vouchers&status=pending"
-                  variant="secondary"
-                  size="sm"
-                >
-                  Review pending payments
-                </ButtonLink>
-              }
-            >
-              Voucher payments are awaiting confirmation. Review their status before treating them
-              as completed sales.
-            </Alert>
-          )}
-          {s && s.pending_payments === 0 && (
-            <p className="platform-clear-note">
-              <ShieldCheck size={16} aria-hidden />
-              No pending voucher payments in the last retrieved figures.
-            </p>
-          )}
+          {s && <NeedsAttention stats={s} number={number} />}
         </>
       )}
 
@@ -270,8 +269,11 @@ export default function PlatformOverviewPage() {
                             {t.name.trim().slice(0, 2).toUpperCase()}
                           </span>
                           <span className="min-w-0">
-                            <Link className="dashboard-data-link" to={`/platform/tenants/${t.id}`}>{t.name}</Link>
+                            <Link className="dashboard-data-link" to={`/platform/tenants/${t.id}`}>
+                              {t.name}
+                            </Link>
                             <span className="platform-tenant-slug">/s/{t.slug}</span>
+                            <TenantSetupBadge tenant={t} />
                           </span>
                         </div>
                       </th>
@@ -414,5 +416,86 @@ function QuickLink({
       </span>
       <ArrowRight className="size-4 shrink-0 text-ink-400 group-hover:text-brand-600" aria-hidden />
     </Link>
+  );
+}
+
+/** One list of everything an admin should act on, each linking to the filtered view. */
+function NeedsAttention({
+  stats,
+  number,
+}: {
+  stats: PlatformStats;
+  number: (value: number | undefined) => string;
+}) {
+  const routersInSetup = Math.max(0, stats.routers - stats.onboarded_routers);
+  const inactiveTenants = Math.max(0, stats.tenants - stats.active_tenants);
+  const items = [
+    stats.pending_payments > 0 && {
+      key: 'pending',
+      tone: 'warning' as const,
+      title: `${number(stats.pending_payments)} pending`,
+      text: 'Voucher payments are awaiting confirmation. Review their status before treating them as completed sales.',
+      to: '/platform/payments?source=vouchers&status=pending',
+      action: 'Review pending payments',
+    },
+    routersInSetup > 0 && {
+      key: 'routers',
+      tone: 'info' as const,
+      title: `${number(routersInSetup)} ${routersInSetup === 1 ? 'router' : 'routers'} not yet onboarded`,
+      text: 'Registered devices that have not finished VPN and RADIUS onboarding.',
+      to: '/platform/routers',
+      action: 'Review router onboarding',
+    },
+    inactiveTenants > 0 && {
+      key: 'tenants',
+      tone: 'neutral' as const,
+      title: `${number(inactiveTenants)} inactive ${inactiveTenants === 1 ? 'tenant' : 'tenants'}`,
+      text: 'Their storefronts and customer purchases are unavailable.',
+      to: '/platform/tenants?is_active=false',
+      action: 'View inactive tenants',
+    },
+  ].filter(Boolean) as {
+    key: string;
+    tone: 'warning' | 'info' | 'neutral';
+    title: string;
+    text: string;
+    to: string;
+    action: string;
+  }[];
+
+  if (items.length === 0) {
+    return (
+      <p className="platform-clear-note">
+        <ShieldCheck size={16} aria-hidden />
+        Nothing needs attention in the last retrieved figures.
+      </p>
+    );
+  }
+  return (
+    <div role="region" aria-label="Needs attention">
+      <Section title="Needs attention" description="Items to review across the platform.">
+        <Card padded={false} className="divide-y divide-border">
+          {items.map((item) => (
+            <div
+              key={item.key}
+              className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-3"
+            >
+              <div className="min-w-0">
+                <p className="flex items-center gap-2 text-sm font-semibold text-ink-900">
+                  <Badge tone={item.tone} size="sm" dot>
+                    {item.tone === 'warning' ? 'Action' : item.tone === 'info' ? 'Setup' : 'Status'}
+                  </Badge>
+                  {item.title}
+                </p>
+                <p className="mt-0.5 text-xs text-ink-500">{item.text}</p>
+              </div>
+              <ButtonLink to={item.to} variant="secondary" size="sm">
+                {item.action}
+              </ButtonLink>
+            </div>
+          ))}
+        </Card>
+      </Section>
+    </div>
   );
 }

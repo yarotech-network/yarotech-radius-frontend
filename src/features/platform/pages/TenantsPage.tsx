@@ -17,6 +17,7 @@ import { formatDate } from '@/lib/formatting/dates';
 import type { Tenant, TenantListParams } from '@/types/api';
 import { useTenants } from '../queries';
 import { TenantDialog } from '../components/TenantDialog';
+import { TenantSetupBadge } from '../components/TenantSetupBadge';
 
 import '../tenant-directory.css';
 
@@ -74,6 +75,7 @@ export default function TenantsPage() {
               </Badge>
             </div>
             <code className="mt-1 block font-mono text-xs break-all text-ink-500">/s/{t.slug}</code>
+            <TenantSetupBadge tenant={t} />
           </div>
         </div>
       ),
@@ -113,7 +115,12 @@ export default function TenantsPage() {
       header: 'Vouchers',
       align: 'right',
       hideBelow: 'md',
-      cell: (t) => <span className="tabular-nums">{t.voucher_count.toLocaleString()}</span>,
+      cell: (t) =>
+        t.voucher_count > 0 ? (
+          <span className="tabular-nums">{t.voucher_count.toLocaleString()}</span>
+        ) : (
+          <span className="text-xs text-ink-400">None yet</span>
+        ),
     },
     {
       key: 'created',
