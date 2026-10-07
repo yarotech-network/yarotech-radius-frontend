@@ -137,6 +137,49 @@ describe('Customer access workspace', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Clear filters' }));
     await waitFor(() => expect(requests.at(-1)?.searchParams.get('source')).toBeNull());
   });
+  it('summarises the matching records and shows removable filter chips', async () => {
+    options();
+    const requests: URL[] = [];
+    server.use(
+      http.get(`${API}/customer-access/`, ({ request }) => {
+        requests.push(new URL(request.url));
+        return HttpResponse.json({
+          ...paginated([{ ...row, connection: 'online', last_seen: '2026-09-16T12:00:00Z' }]),
+          synced_at: '2026-09-16T12:00:00Z',
+          sync_fresh: true,
+          summary: {
+            total: 12,
+            connection: { online: 3, offline: 5, never_connected: 4, unknown: 0 },
+            sources: { customer: 7, agent: 4, admin: 1 },
+            bytes_total: 1073741824,
+          },
+        });
+      }),
+    );
+    renderPage(<Page />, {
+      role: 'owner',
+      path: '/customers',
+      route: '/customers?source=agent&status=used',
+    });
+    const summary = await screen.findByRole('region', { name: 'Customer summary' });
+    expect(await within(summary).findByText('12')).toBeInTheDocument();
+    expect(within(summary).getByText('7 bought online · 4 agent · 1 staff')).toBeInTheDocument();
+    expect(within(summary).getByText('25% of customers connected')).toBeInTheDocument();
+    expect(within(summary).getByText('1.0 GB')).toBeInTheDocument();
+    const connection = screen.getByRole('radiogroup', { name: 'Connection' });
+    expect(within(connection).getByRole('radio', { name: /^All\s*12/ })).toBeChecked();
+    expect(
+      within(connection).getByRole('radio', { name: /^Never connected\s*4/ }),
+    ).toBeInTheDocument();
+
+    const chips = screen.getByRole('list', { name: 'Active filters' });
+    await userEvent.click(
+      within(chips).getByRole('button', { name: 'Remove filter Source: Sold by agent' }),
+    );
+    await waitFor(() => expect(requests.at(-1)?.searchParams.get('source')).toBeNull());
+    expect(requests.at(-1)?.searchParams.get('status')).toBe('used');
+  });
+
   it('sends independent historical status and live connection filters', async () => {
     options();
     const requests: URL[] = [];
@@ -152,7 +195,8 @@ describe('Customer access workspace', () => {
     });
     await within(table).findByText('Buyer');
     await userEvent.selectOptions(screen.getByLabelText('Code status'), 'used');
-    await userEvent.selectOptions(screen.getByLabelText('Connection'), 'online');
+    const connection = screen.getByRole('radiogroup', { name: 'Connection' });
+    await userEvent.click(within(connection).getByRole('radio', { name: /^Online/ }));
     await waitFor(() => {
       expect(requests.at(-1)?.searchParams.get('status')).toBe('used');
       expect(requests.at(-1)?.searchParams.get('activity')).toBe('online');
