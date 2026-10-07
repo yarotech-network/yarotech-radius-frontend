@@ -1,18 +1,20 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router';
-import { ArrowLeft, Check } from 'lucide-react';
-import { PublicImage } from '@/features/storefront/components/PublicContent';
+import { ArrowLeft, Check, ShieldCheck } from 'lucide-react';
 import { cn } from '@/lib/utilities/cn';
 import { BrandMark } from './BrandMark';
 
 /**
- * Two-sided authentication layout: form on the left, a branded panel with a
- * dashboard preview and feature highlights on the right (hidden on mobile,
- * where the form fills the screen). Used by the sign-in, registration and
- * email-verification pages.
+ * Two-sided authentication layout: the form on the left and, on wide screens, a
+ * branded photo panel pinned to the viewport on the right (the form scrolls; the
+ * panel stays fitted to the screen). The photo is a CSS background inside a media
+ * query (public.css), so it follows window resizes and is never fetched on phones,
+ * where the panel is hidden. Used by sign-in, agent sign-in, registration,
+ * email verification, password and invitation pages.
  */
 export function AuthSplitLayout({
   title,
+  eyebrow,
   description,
   children,
   footer,
@@ -26,6 +28,8 @@ export function AuthSplitLayout({
   ],
 }: {
   title: ReactNode;
+  /** Small line above the title, e.g. "Welcome back". */
+  eyebrow?: ReactNode;
   description?: ReactNode;
   children: ReactNode;
   footer?: ReactNode;
@@ -39,62 +43,59 @@ export function AuthSplitLayout({
       <a className="public-skip" href="#public-content">
         Skip to form
       </a>
-      {/* form side */}
       <div className="public-auth-form-side">
         <header className="public-auth-header">
           <Link to="/" aria-label="Yarotech RADIUS home">
             <BrandMark />
           </Link>
-          <Link
-            to="/"
-            className="inline-flex items-center gap-1.5 text-sm font-medium text-ink-600 hover:text-brand-700"
-          >
+          <Link to="/" className="public-auth-back">
             <ArrowLeft className="size-4" aria-hidden />
             Back to site
           </Link>
         </header>
         <main id="public-content" tabIndex={-1} className="public-auth-main">
           <div className={cn('public-auth-form', className)}>
+            {eyebrow && <p className="public-auth-eyebrow">{eyebrow}</p>}
             {title && <h1 className="public-auth-title">{title}</h1>}
             {description && (
               <p className="mt-3 text-base leading-relaxed text-ink-600">{description}</p>
             )}
             <div className="mt-6">{children}</div>
           </div>
-          {footer && <div className="mt-4 text-center text-sm text-ink-500">{footer}</div>}
-          <nav
-            aria-label="Help"
-            className="mt-8 flex flex-wrap justify-center gap-x-4 gap-y-1 text-xs text-ink-500"
-          >
-            <Link to="/guide" className="hover:text-brand-700 hover:underline">
-              Getting started guide
-            </Link>
-            <Link to="/contact" className="hover:text-brand-700 hover:underline">
-              Contact support
-            </Link>
+          {footer && <div className="mt-6 text-center text-sm text-ink-500">{footer}</div>}
+          <nav aria-label="Help" className="public-auth-help">
+            <Link to="/guide">Getting started guide</Link>
+            <span aria-hidden>·</span>
+            <Link to="/contact">Contact support</Link>
           </nav>
         </main>
       </div>
 
-      {/* brand side */}
-      <aside className="public-auth-panel">
-        <PublicImage scene="infrastructure" className="public-auth-preview" />
+      <aside className="public-auth-panel" aria-label="About Yarotech RADIUS">
         <div className="public-auth-panel-copy">
-          <h2 className="text-3xl font-semibold tracking-tight text-white">{panelTitle}</h2>
-          <p className="mt-3 text-sm leading-relaxed text-brand-100">{panelDescription}</p>
-          <ul className="mt-8 space-y-3">
+          <p className="public-auth-panel-badge">
+            <ShieldCheck className="size-4" aria-hidden />
+            Hotspot & voucher management
+          </p>
+          <h2>{panelTitle}</h2>
+          <p className="public-auth-panel-lead">{panelDescription}</p>
+          <ul>
             {panelPoints.map((point) => (
-              <li key={point} className="flex items-start gap-3 text-sm text-brand-50">
-                <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-brand-500/30">
-                  <Check className="size-3.5 text-brand-100" aria-hidden />
+              <li key={point}>
+                <span aria-hidden>
+                  <Check className="size-3.5" />
                 </span>
-                <span>{point}</span>
+                {point}
               </li>
             ))}
           </ul>
-          <p className="mt-10 text-xs text-brand-200">
-            © {new Date().getFullYear()} Yarotech Network
-          </p>
+          <div className="public-auth-panel-foot">
+            <span>© {new Date().getFullYear()} Yarotech Network</span>
+            <span className="public-auth-panel-pay">
+              <span>Paystack</span>
+              <span>OPay</span>
+            </span>
+          </div>
         </div>
       </aside>
     </div>

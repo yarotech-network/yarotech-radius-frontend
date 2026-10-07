@@ -63,6 +63,7 @@ export default function LoginPage() {
 
   return (
     <AuthSplitLayout
+      eyebrow="Welcome back"
       title="Sign in"
       description="Manage your hotspot plans, vouchers and routers."
       footer={

@@ -1751,3 +1751,234 @@ a.public-contact-card:hover {
     grid-template-columns: 1fr;
   }
 }
+
+/* ------------------------------------------------------------------ */
+/* Sign-in / registration split layout (refresh)                      */
+/* ------------------------------------------------------------------ */
+.public-auth-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+  align-items: start;
+  min-height: 100dvh;
+  background: var(--color-surface);
+}
+/* The form column scrolls with the page; no nested scroll container. */
+.public-auth-form-side {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  overflow: visible;
+  box-shadow: none;
+  background:
+    radial-gradient(60% 40% at 0% 0%, rgb(37 99 235 / 7%), transparent 70%),
+    radial-gradient(50% 35% at 100% 100%, rgb(14 165 233 / 6%), transparent 70%),
+    var(--color-surface);
+}
+.public-auth-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.5rem clamp(1.25rem, 4vw, 3rem);
+}
+.public-auth-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.4rem 0.8rem;
+  border-radius: 999px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-ink-600);
+  transition:
+    background-color 150ms,
+    color 150ms;
+}
+.public-auth-back:hover {
+  background: var(--color-surface-muted);
+  color: var(--color-ink-900);
+}
+.public-auth-main {
+  max-width: 460px;
+  padding: 1.5rem clamp(1.25rem, 4vw, 2.5rem) 3rem;
+}
+.public-auth-layout:has(.registration-form) .public-auth-main {
+  max-width: 620px;
+}
+.public-auth-eyebrow {
+  margin-bottom: 0.5rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-brand-600);
+}
+.public-auth-title {
+  font-size: clamp(2rem, 3vw, 2.5rem);
+}
+.public-auth-help {
+  display: flex;
+  justify-content: center;
+  gap: 0.6rem;
+  margin-top: 2.5rem;
+  font-size: 0.75rem;
+  color: var(--color-ink-500);
+}
+.public-auth-help a:hover {
+  color: var(--color-brand-700);
+  text-decoration: underline;
+}
+
+/* Brand panel: pinned to the viewport so the photo always fills the screen. */
+.public-auth-panel {
+  position: sticky;
+  top: 0;
+  height: 100dvh;
+  min-height: 0;
+  padding: clamp(1.5rem, 3vw, 2.75rem);
+  overflow: hidden;
+  border-radius: 0;
+  background: #0b1f3f;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+/* Decorative photo as a background: fetched only when the panel is shown (>=1024px). */
+@media (min-width: 1024px) {
+  .public-auth-panel {
+    background:
+      url('../assets/images/isp-infrastructure-1280.webp') center 30% / cover no-repeat,
+      #0b1f3f;
+  }
+}
+/* Light two-way scrim: photo stays visible, copy stays readable. */
+.public-auth-panel::after {
+  z-index: -1;
+  background:
+    linear-gradient(180deg, rgb(11 31 63 / 10%) 0%, rgb(11 31 63 / 25%) 45%, rgb(7 21 39 / 85%) 100%),
+    linear-gradient(90deg, rgb(11 31 63 / 35%), transparent 40%);
+}
+.public-auth-panel-copy {
+  max-width: 520px;
+  padding: 1.75rem;
+  padding-top: 1.75rem;
+  border: 1px solid rgb(255 255 255 / 14%);
+  border-radius: 24px;
+  background: rgb(9 24 48 / 55%);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  backdrop-filter: blur(14px) saturate(140%);
+  box-shadow: 0 30px 60px -30px rgb(0 0 0 / 60%);
+  color: #fff;
+}
+.public-auth-panel-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 1rem;
+  padding: 0.3rem 0.75rem;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 10%);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #bfdbfe;
+}
+.public-auth-panel-copy h2 {
+  font-size: clamp(1.6rem, 2.4vw, 2.1rem);
+  line-height: 1.15;
+  font-weight: 650;
+  letter-spacing: -0.03em;
+  color: #fff;
+}
+.public-auth-panel-lead {
+  margin-top: 0.75rem;
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  color: #dbe7f5;
+}
+.public-auth-panel-copy ul {
+  display: grid;
+  gap: 0.65rem;
+  margin-top: 1.25rem;
+}
+.public-auth-panel-copy li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  font-size: 0.875rem;
+  color: #eaf2fd;
+}
+.public-auth-panel-copy li > span {
+  display: grid;
+  place-items: center;
+  width: 1.35rem;
+  height: 1.35rem;
+  flex-shrink: 0;
+  margin-top: 0.05rem;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #2563eb, #0ea5e9);
+  color: #fff;
+}
+.public-auth-panel-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid rgb(255 255 255 / 12%);
+  font-size: 0.75rem;
+  color: #b8cae0;
+}
+.public-auth-panel-pay {
+  display: inline-flex;
+  gap: 0.4rem;
+}
+.public-auth-panel-pay > span {
+  padding: 0.2rem 0.6rem;
+  border: 1px solid rgb(255 255 255 / 18%);
+  border-radius: 8px;
+  font-weight: 700;
+  color: #fff;
+}
+/* Short screens: tighten the card so it never overflows the pinned panel. */
+@media (max-height: 760px) and (min-width: 1024px) {
+  .public-auth-panel-lead,
+  .public-auth-panel-badge {
+    display: none;
+  }
+  .public-auth-panel-copy ul {
+    margin-top: 0.85rem;
+  }
+}
+
+/* Narrow screens: form becomes a centred card; the panel (and its photo) is skipped. */
+@media (max-width: 1023px) {
+  .public-auth-layout {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: clamp(1rem, 4vw, 2.5rem);
+    background:
+      radial-gradient(70% 50% at 50% 0%, rgb(37 99 235 / 10%), transparent 70%),
+      linear-gradient(180deg, #f3f6fd 0%, #ffffff 100%);
+  }
+  .public-auth-form-side {
+    width: 100%;
+    max-width: 520px;
+    min-height: 0;
+    border: 1px solid var(--color-border);
+    border-radius: 24px;
+    background: var(--color-surface);
+    box-shadow: 0 24px 64px -24px rgb(15 42 95 / 22%);
+  }
+  .public-auth-panel {
+    display: none;
+  }
+  .public-auth-main {
+    max-width: 100%;
+    padding-bottom: 2rem;
+  }
+}
