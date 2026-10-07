@@ -133,7 +133,7 @@ export function CreateWorkspace({
               label="Workspace ID"
               required
               error={errors.workspace_id?.message}
-              hint={`Your storefront: /s/${workspaceId || 'your-workspace-id'}`}
+              hint={`Your customer storefront: ${window.location.origin}/s/${workspaceId || 'your-workspace-id'}`}
             >
               <Input
                 autoCapitalize="none"

@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router';
-import { Check } from 'lucide-react';
+import { ArrowLeft, Check } from 'lucide-react';
 import { PublicImage } from '@/features/storefront/components/PublicContent';
 import { cn } from '@/lib/utilities/cn';
 import { BrandMark } from './BrandMark';
@@ -22,7 +22,7 @@ export function AuthSplitLayout({
   panelPoints = [
     'Vouchers & access codes generated in seconds',
     'Live sessions, routers and devices at a glance',
-    'Agents, wallets and Paystack payments built in',
+    'Agents, wallets and Paystack or OPay payments built in',
   ],
 }: {
   title: ReactNode;
@@ -45,6 +45,13 @@ export function AuthSplitLayout({
           <Link to="/" aria-label="Yarotech RADIUS home">
             <BrandMark />
           </Link>
+          <Link
+            to="/"
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-ink-600 hover:text-brand-700"
+          >
+            <ArrowLeft className="size-4" aria-hidden />
+            Back to site
+          </Link>
         </header>
         <main id="public-content" tabIndex={-1} className="public-auth-main">
           <div className={cn('public-auth-form', className)}>
@@ -55,6 +62,17 @@ export function AuthSplitLayout({
             <div className="mt-6">{children}</div>
           </div>
           {footer && <div className="mt-4 text-center text-sm text-ink-500">{footer}</div>}
+          <nav
+            aria-label="Help"
+            className="mt-8 flex flex-wrap justify-center gap-x-4 gap-y-1 text-xs text-ink-500"
+          >
+            <Link to="/guide" className="hover:text-brand-700 hover:underline">
+              Getting started guide
+            </Link>
+            <Link to="/contact" className="hover:text-brand-700 hover:underline">
+              Contact support
+            </Link>
+          </nav>
         </main>
       </div>
 

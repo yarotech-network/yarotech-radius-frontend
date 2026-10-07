@@ -91,7 +91,7 @@ function RecoveryDetail({ row }: { row: PaymentRecovery }) {
         setNotice({
           tone: 'danger',
           title: 'Payment did not verify',
-          body: `${errorMessage(error)} Check the reference in the Paystack dashboard before retrying.`,
+          body: `${errorMessage(error)} Check the reference in your Paystack or OPay dashboard before retrying.`,
         });
       else setNotice({ tone: 'danger', title: 'Retry failed', body: errorMessage(error) });
     }
@@ -185,7 +185,7 @@ function RecoveryDetail({ row }: { row: PaymentRecovery }) {
               </span>
             ),
           },
-          { label: 'Verified with Paystack', value: row.verified_at ? formatDateTime(row.verified_at) : <span className="text-ink-400">Not yet</span>, span: 2 },
+          { label: 'Verified with payment provider', value: row.verified_at ? formatDateTime(row.verified_at) : <span className="text-ink-400">Not yet</span>, span: 2 },
         ]}
       />
 

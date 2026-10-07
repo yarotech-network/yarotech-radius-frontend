@@ -91,7 +91,7 @@ export default function RecoveryPage() {
                 Verified {formatDateTime(r.verified_at)}
               </span>
             ) : (
-              'Not verified with Paystack'
+              'Not verified with the payment provider'
             )}
           </div>
         </div>

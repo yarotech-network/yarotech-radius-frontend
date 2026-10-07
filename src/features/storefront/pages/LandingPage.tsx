@@ -43,7 +43,7 @@ export default function LandingPage() {
           <p className="mt-4 max-w-lg text-base leading-relaxed text-ink-600">
             Yarotech RADIUS gives hotspot operators one workspace for plans, vouchers, routers,
             agents and payments — and every business its own storefront where customers buy access
-            codes with Paystack.
+            codes with Paystack or OPay.
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
             <ButtonLink to="/register" size="lg">
@@ -74,7 +74,7 @@ export default function LandingPage() {
         {[
           [Ticket, 'Voucher management'],
           [Radio, 'MikroTik routers'],
-          [CreditCard, 'Paystack payments'],
+          [CreditCard, 'Paystack & OPay payments'],
           [Users, 'Agent sales'],
         ].map(([Icon, label]) => {
           const CapabilityIcon = Icon as typeof Ticket;
@@ -224,7 +224,8 @@ const ABOUT_FEATURES = [
   {
     icon: CreditCard,
     title: 'Payments built in',
-    description: 'Paystack checkout on every storefront, with reconciliation and recovery tooling.',
+    description:
+      'Customers pay with Paystack or OPay on every storefront, with reconciliation and recovery tooling.',
   },
   {
     icon: Gauge,

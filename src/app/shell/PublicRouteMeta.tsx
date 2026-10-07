@@ -27,7 +27,7 @@ export function PublicRouteMeta() {
     descriptions[pathname] ??
     (pathname.startsWith('/s/')
       ? pathname.includes('/checkout/')
-        ? 'Review your Wi-Fi plan and continue to Paystack to pay.'
+        ? 'Review your Wi-Fi plan, then pay securely with Paystack or OPay.'
         : 'Choose an internet plan from this business and buy Wi-Fi access.'
       : null);
   useEffect(() => {

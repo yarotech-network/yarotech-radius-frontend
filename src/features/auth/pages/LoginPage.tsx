@@ -66,16 +66,20 @@ export default function LoginPage() {
       title="Sign in"
       description="Manage your hotspot plans, vouchers and routers."
       footer={
-        <>
-          New here?{' '}
-          <Link to="/register" className="font-medium text-brand-600 hover:underline">
-            Create an account
-          </Link>
-          <span className="mx-2 text-ink-300">·</span>
-          <Link to="/agent/login" className="font-medium text-brand-600 hover:underline">
-            Agent sign in
-          </Link>
-        </>
+        <div className="space-y-1.5">
+          <p>
+            New to Yarotech?{' '}
+            <Link to="/register" className="font-medium text-brand-600 hover:underline">
+              Create a workspace
+            </Link>
+          </p>
+          <p>
+            Selling vouchers for a business?{' '}
+            <Link to="/agent/login" className="font-medium text-brand-600 hover:underline">
+              Agent sign in
+            </Link>
+          </p>
+        </div>
       }
     >
       <form onSubmit={onSubmit} noValidate className="space-y-4">
@@ -84,7 +88,11 @@ export default function LoginPage() {
         {submitError.retryAfter !== null && (
           <ThrottleNotice seconds={submitError.retryAfter} onDone={submitError.clearThrottle} />
         )}
-        <FormField label="Username or email" error={form.formState.errors.username?.message} required>
+        <FormField
+          label="Username or email"
+          error={form.formState.errors.username?.message}
+          required
+        >
           <Input
             autoComplete="username"
             autoFocus

@@ -42,7 +42,7 @@ export default function AboutPage() {
             {
               icon: Ticket,
               title: 'Make access easier to sell',
-              copy: 'Create internet plans and vouchers, then give customers a storefront with Paystack checkout.',
+              copy: 'Create internet plans and vouchers, then give customers a storefront where they pay with Paystack or OPay.',
             },
             {
               icon: Users,

@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router';
-import { Check } from 'lucide-react';
+import { Check, Sparkles } from 'lucide-react';
 import { AuthSplitLayout } from '@/app/shell/AuthSplitLayout';
 
 export function RegistrationLayout({ step, children }: { step: number; children: ReactNode }) {
@@ -24,8 +24,13 @@ export function RegistrationLayout({ step, children }: { step: number; children:
           </li>
         ))}
       </ol>
-      {step < 3 && <p className="mb-4 text-sm text-ink-600">Start with a 15-day free trial of Starter. Upgrade to a paid plan at any time.</p>}
       {children}
+      {step < 3 && (
+        <p className="registration-trial">
+          <Sparkles className="size-4 shrink-0" aria-hidden />
+          <span>Includes a 15-day free trial of Starter. Upgrade to a paid plan at any time.</span>
+        </p>
+      )}
       {step < 3 && (
         <p className="registration-signin">
           Already have a workspace? <Link to="/login">Sign in</Link>

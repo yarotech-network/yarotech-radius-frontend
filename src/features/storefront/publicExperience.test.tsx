@@ -14,6 +14,7 @@ import PricingPage from './pages/PricingPage';
 import AboutPage from './pages/AboutPage';
 import GettingStartedPage from '@/features/auth/pages/GettingStartedPage';
 import StorefrontPage from './pages/StorefrontPage';
+import { publicContact } from './publicContact';
 
 const anonymous: AuthContextValue = {
   status: 'anonymous',
@@ -79,6 +80,48 @@ describe('public visitor journeys', () => {
     );
     expect(screen.getByText('No. 122, Lukoro Plaza A, Kano, Nigeria')).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /WhatsApp/ })).not.toBeInTheDocument();
+  });
+
+  it('separates sign in from workspace creation and shows only real contact details', () => {
+    renderWithProviders(
+      <AuthContext.Provider value={anonymous}>
+        <Routes>
+          <Route element={<PublicLayout />}>
+            <Route path="/" element={<h1>Home</h1>} />
+          </Route>
+        </Routes>
+      </AuthContext.Provider>,
+    );
+    const nav = screen.getByRole('navigation', { name: 'Public' });
+    expect(within(nav).getByRole('link', { name: 'Sign in' })).toHaveAttribute('href', '/login');
+    expect(within(nav).getByRole('link', { name: /Create workspace/ })).toHaveAttribute(
+      'href',
+      '/register',
+    );
+    expect(within(nav).queryByRole('link', { name: /Get started/ })).not.toBeInTheDocument();
+
+    const footer = screen.getByRole('contentinfo');
+    expect(within(footer).getByText(publicContact.address)).toBeInTheDocument();
+    expect(within(footer).getByRole('link', { name: publicContact.email })).toHaveAttribute(
+      'href',
+      `mailto:${publicContact.email}`,
+    );
+    expect(within(footer).getByRole('link', { name: publicContact.phoneDisplay })).toHaveAttribute(
+      'href',
+      `tel:${publicContact.phone}`,
+    );
+    // No placeholder details, no links to generic social homepages or missing legal pages.
+    expect(
+      within(footer).queryByText(/Network Drive|Lagos|\+234 800 000 0000/),
+    ).not.toBeInTheDocument();
+    expect(
+      within(footer).queryByRole('link', {
+        name: /Facebook|Instagram|LinkedIn|YouTube|Twitter|X \(/,
+      }),
+    ).toBeNull();
+    expect(
+      within(footer).queryByRole('link', { name: /Privacy|Terms|Cookie|Refund|Acceptable/ }),
+    ).toBeNull();
   });
 
   it('closes navigation with Escape, restores toggle focus and follows public links', async () => {

@@ -658,9 +658,37 @@
 /* Registration is isolated from login and the private workspace shell. */
 .registration-progress {
   display: flex;
-  justify-content: space-between;
+  flex-wrap: wrap;
+  align-items: center;
   gap: 0.75rem;
-  margin-bottom: 3rem;
+  margin-bottom: 2.5rem;
+}
+/* Short connector between compact steps. */
+.registration-progress li + li::before {
+  content: '';
+  width: 1.5rem;
+  height: 1px;
+  margin-right: 0.25rem;
+  background: var(--color-border-strong);
+}
+.registration-progress .is-complete + li::before {
+  background: var(--color-brand-600);
+}
+.registration-trial {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin-top: 1.25rem;
+  padding: 0.75rem 1rem;
+  border-radius: 12px;
+  background: var(--color-brand-50);
+  color: var(--color-brand-800);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+.registration-trial svg {
+  margin-top: 0.15rem;
+  color: var(--color-brand-600);
 }
 .registration-progress li {
   display: flex;
@@ -1455,4 +1483,146 @@ a.public-contact-card:hover {
 }
 .bpc-cta {
   margin-top: auto;
+}
+
+/* ------------------------------------------------------------------ */
+/* Header & footer refresh                                            */
+/* ------------------------------------------------------------------ */
+.public-announcement {
+  background: linear-gradient(90deg, var(--color-brand-700), var(--color-brand-600) 55%, #2563eb);
+  color: #fff;
+  font-size: 0.8125rem;
+}
+.public-announcement .public-container {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem 0.75rem;
+  padding-block: 0.5rem;
+  text-align: center;
+}
+.public-announcement a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-weight: 600;
+  color: #fff;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: rgb(255 255 255 / 45%);
+}
+.public-announcement a:hover {
+  text-decoration-color: #fff;
+}
+
+.public-header {
+  background: rgb(255 255 255 / 82%);
+  -webkit-backdrop-filter: saturate(160%) blur(14px);
+  backdrop-filter: saturate(160%) blur(14px);
+  border-bottom-color: transparent;
+  transition:
+    box-shadow 200ms ease,
+    border-color 200ms ease;
+}
+.public-header[data-scrolled] {
+  border-bottom-color: var(--color-border);
+  box-shadow: 0 8px 24px -16px rgb(15 42 95 / 35%);
+}
+.public-nav-row {
+  min-height: 72px;
+}
+@media (min-width: 1101px) {
+  .public-navigation {
+    gap: 0.25rem;
+  }
+  .public-navigation > a:not(.inline-flex) {
+    padding: 0.45rem 0.85rem;
+    border-radius: 999px;
+    transition:
+      background-color 150ms,
+      color 150ms;
+  }
+  .public-navigation > a:not(.inline-flex):hover {
+    background: var(--color-surface-muted);
+    color: var(--color-ink-900);
+  }
+  .public-navigation > a:not(.inline-flex)[aria-current] {
+    background: var(--color-brand-50);
+    color: var(--color-brand-700);
+  }
+  .public-navigation > a.inline-flex {
+    margin-left: 0.5rem;
+    border-radius: 999px;
+    box-shadow: 0 6px 18px -8px rgb(29 78 216 / 60%);
+  }
+}
+
+.public-footer {
+  position: relative;
+  border-top: 0;
+  color: #a9bfd8;
+}
+/* Soft brand glow along the top edge. */
+.public-footer::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, #3b82f6 30%, #60a5fa 50%, #3b82f6 70%, transparent);
+  opacity: 0.7;
+}
+.public-footer-tagline {
+  color: #9fb3cc;
+}
+.public-footer h2 {
+  color: #fff;
+}
+.public-footer nav a,
+.public-footer-contact a {
+  color: #a9bfd8;
+}
+.public-footer nav a:hover,
+.public-footer-contact a:hover {
+  color: #fff;
+}
+.public-footer-contact a svg {
+  box-sizing: content-box;
+  padding: 0.4rem;
+  border-radius: 8px;
+  background: rgb(255 255 255 / 6%);
+  color: #60a5fa;
+}
+.public-footer-payments {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  font-size: 12px;
+  color: #9fb3cc;
+}
+.public-footer-payments > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+.public-footer-payments svg {
+  color: #4ade80;
+}
+.public-footer-payments ul {
+  display: flex;
+  gap: 0.4rem;
+}
+.public-footer-payments li {
+  padding: 0.2rem 0.6rem;
+  border: 1px solid rgb(255 255 255 / 14%);
+  border-radius: 999px;
+  background: rgb(255 255 255 / 5%);
+  color: #fff;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+.public-footer-bottom {
+  border-top-color: rgb(255 255 255 / 8%);
+  color: #8aa2bd;
 }
