@@ -102,14 +102,16 @@ describe('public visitor journeys', () => {
 
     const footer = screen.getByRole('contentinfo');
     expect(within(footer).getByText(publicContact.address)).toBeInTheDocument();
-    expect(within(footer).getByRole('link', { name: publicContact.email })).toHaveAttribute(
-      'href',
-      `mailto:${publicContact.email}`,
-    );
-    expect(within(footer).getByRole('link', { name: publicContact.phoneDisplay })).toHaveAttribute(
-      'href',
-      `tel:${publicContact.phone}`,
-    );
+    expect(
+      within(footer).getByRole('link', { name: `Email us ${publicContact.email}` }),
+    ).toHaveAttribute('href', `mailto:${publicContact.email}`);
+    expect(
+      within(footer).getByRole('link', { name: `Call us ${publicContact.phoneDisplay}` }),
+    ).toHaveAttribute('href', `tel:${publicContact.phone}`);
+    expect(
+      within(footer).getByRole('list', { name: 'Supported payment providers' }),
+    ).toHaveTextContent(/Paystack.*OPay/);
+    expect(within(footer).getByRole('button', { name: 'Back to top' })).toBeInTheDocument();
     // No placeholder details, no links to generic social homepages or missing legal pages.
     expect(
       within(footer).queryByText(/Network Drive|Lagos|\+234 800 000 0000/),

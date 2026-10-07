@@ -1,6 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router';
-import { Menu, X, ArrowRight, MapPin, Phone, Mail, ShieldCheck, Sparkles } from 'lucide-react';
+import {
+  Menu,
+  X,
+  ArrowRight,
+  ArrowUp,
+  MapPin,
+  Phone,
+  Mail,
+  ShieldCheck,
+  Sparkles,
+} from 'lucide-react';
 
 const Facebook = ({ className }: { className?: string }) => (
   <svg
@@ -255,91 +265,126 @@ export function PublicLayout({ wide = false }: { wide?: boolean }) {
       </main>
 
       <footer className="public-footer">
-        <div className="public-container public-footer-grid">
-          <div className="public-footer-brand">
-            <Link to="/" aria-label="Yarotech home">
-              <BrandMark inverse size="lg" />
-            </Link>
-            <p className="public-footer-tagline">
-              One workspace for your hotspot business.
-              <br />A simpler way for customers to get connected.
-            </p>
-            <address className="public-footer-contact">
+        <div className="public-container">
+          <ul className="public-footer-cards" aria-label="Contact Yarotech">
+            <li>
+              <a href={`tel:${publicContact.phone}`} className="public-footer-card">
+                <span className="public-footer-card-icon" aria-hidden>
+                  <Phone />
+                </span>
+                <span className="min-w-0">
+                  <span className="public-footer-card-label">Call us</span>{' '}
+                  <span className="public-footer-card-value">{publicContact.phoneDisplay}</span>
+                </span>
+              </a>
+            </li>
+            <li>
+              <a href={`mailto:${publicContact.email}`} className="public-footer-card">
+                <span className="public-footer-card-icon" aria-hidden>
+                  <Mail />
+                </span>
+                <span className="min-w-0">
+                  <span className="public-footer-card-label">Email us</span>{' '}
+                  <span className="public-footer-card-value">{publicContact.email}</span>
+                </span>
+              </a>
+            </li>
+            <li>
               <a
                 href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(publicContact.address)}`}
                 target="_blank"
                 rel="noopener noreferrer"
+                className="public-footer-card"
               >
-                <MapPin className="size-4 shrink-0" aria-hidden />
-                <span>{publicContact.address}</span>
+                <span className="public-footer-card-icon" aria-hidden>
+                  <MapPin />
+                </span>
+                <span className="min-w-0">
+                  <span className="public-footer-card-label">Visit us</span>{' '}
+                  <span className="public-footer-card-value">{publicContact.address}</span>
+                </span>
               </a>
-              <a href={`tel:${publicContact.phone}`}>
-                <Phone className="size-4 shrink-0" aria-hidden />
-                <span>{publicContact.phoneDisplay}</span>
-              </a>
-              <a href={`mailto:${publicContact.email}`}>
-                <Mail className="size-4 shrink-0" aria-hidden />
-                <span>{publicContact.email}</span>
-              </a>
-            </address>
-            <div className="public-footer-payments">
-              <span>
-                <ShieldCheck className="size-4" aria-hidden /> Secure payments
-              </span>
-              <ul aria-label="Supported payment providers">
-                <li>Paystack</li>
-                <li>OPay</li>
-              </ul>
-            </div>
-            {socialLinks.length > 0 && (
-              <div className="public-footer-socials" aria-label="Social media links">
-                {socialLinks.map(({ key, url, label, Icon }) => (
-                  <a
-                    key={key}
-                    href={url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label={label}
-                  >
-                    <Icon className="size-[18px]" />
-                  </a>
-                ))}
+            </li>
+          </ul>
+
+          <div className="public-footer-grid">
+            <div className="public-footer-brand">
+              <Link to="/" aria-label="Yarotech home">
+                <BrandMark inverse size="lg" />
+              </Link>
+              <p className="public-footer-tagline">
+                One workspace for your hotspot business, and a simpler way for customers to get
+                connected.
+              </p>
+              <div className="public-footer-payments">
+                <span>
+                  <ShieldCheck className="size-4" aria-hidden /> Customers pay securely with
+                </span>
+                <ul aria-label="Supported payment providers">
+                  <li>Paystack</li>
+                  <li>OPay</li>
+                </ul>
               </div>
-            )}
+              {socialLinks.length > 0 && (
+                <div className="public-footer-socials" aria-label="Social media links">
+                  {socialLinks.map(({ key, url, label, Icon }) => (
+                    <a
+                      key={key}
+                      href={url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label={label}
+                    >
+                      <Icon className="size-[18px]" />
+                    </a>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <nav aria-label="Product">
+              <h2>Product</h2>
+              <Link to="/#features">Features</Link>
+              <Link to="/pricing">Business plans</Link>
+              <Link to="/guide">Getting started</Link>
+              <Link to="/about">About Yarotech</Link>
+            </nav>
+
+            <nav aria-label="Account">
+              <h2>Your workspace</h2>
+              <Link to="/register">Create workspace</Link>
+              <Link to="/login">Sign in</Link>
+              <Link to="/agent/login">Agent sign in</Link>
+              <Link to="/forgot-password">Password help</Link>
+            </nav>
+
+            <nav aria-label="Support">
+              <h2>Support</h2>
+              <Link to="/contact">Contact us</Link>
+              <Link to="/guide">Setup guide</Link>
+              <a href={`mailto:${publicContact.email}`}>Email support</a>
+              {LEGAL_LINKS.map((item) => (
+                <Link key={item.to} to={item.to}>
+                  {item.label}
+                </Link>
+              ))}
+            </nav>
           </div>
 
-          <nav aria-label="Product">
-            <h2>Product</h2>
-            <Link to="/#features">Features</Link>
-            <Link to="/pricing">Business plans</Link>
-            <Link to="/guide">Getting started</Link>
-            <Link to="/about">About Yarotech</Link>
-          </nav>
-
-          <nav aria-label="Account">
-            <h2>Your workspace</h2>
-            <Link to="/register">Create workspace</Link>
-            <Link to="/login">Sign in</Link>
-            <Link to="/agent/login">Agent sign in</Link>
-            <Link to="/forgot-password">Password help</Link>
-          </nav>
-
-          <nav aria-label="Support">
-            <h2>Support</h2>
-            <Link to="/contact">Contact us</Link>
-            <a href={`mailto:${publicContact.email}`}>Email support</a>
-            <a href={`tel:${publicContact.phone}`}>Call {publicContact.phoneDisplay}</a>
-            {LEGAL_LINKS.map((item) => (
-              <Link key={item.to} to={item.to}>
-                {item.label}
-              </Link>
-            ))}
-          </nav>
-        </div>
-
-        <div className="public-container public-footer-bottom">
-          <span>&copy; {new Date().getFullYear()} Yarotech Network. All rights reserved.</span>
-          <span>Built in Kano, Nigeria · Payments by Paystack &amp; OPay</span>
+          <div className="public-footer-bottom">
+            <span>&copy; {new Date().getFullYear()} Yarotech Network. All rights reserved.</span>
+            <span className="public-footer-made">
+              Built in Kano, Nigeria
+              <button
+                type="button"
+                className="public-footer-top"
+                onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+              >
+                <ArrowUp className="size-4" aria-hidden />
+                Back to top
+              </button>
+            </span>
+          </div>
         </div>
       </footer>
     </div>
