@@ -81,6 +81,45 @@ export interface PlatformStats {
   amount_unit: string;
   successful_wallet_funding_amount: Kobo;
   successful_subscription_amount: Kobo;
+  /** Period-to-date figures (Africa/Lagos calendar). Absent on older backends. */
+  periods?: Record<PlatformPeriod, PlatformPeriodFigures>;
+  /** Operator subscriptions right now. Absent on older backends. */
+  subscription_status?: PlatformSubscriptionStatus;
+}
+
+export type PlatformPeriod = 'today' | 'week' | 'month' | 'quarter' | 'year';
+
+/** Successful payments only, dated by when the payment was created. */
+export interface PlatformMoney {
+  amount: Kobo;
+  count: number;
+}
+
+export interface PlatformPeriodTotals {
+  start: IsoDateTime;
+  end: IsoDateTime;
+  voucher_sales: PlatformMoney;
+  subscriptions: PlatformMoney;
+  wallet_topups: PlatformMoney;
+  new_tenants: number;
+  vouchers_issued: number;
+}
+
+export interface PlatformPeriodFigures extends PlatformPeriodTotals {
+  /** The same elapsed span of the previous period (e.g. 1–15 Sep for 1–15 Oct). */
+  previous: PlatformPeriodTotals;
+}
+
+export interface PlatformSubscriptionStatus {
+  trial: number;
+  /** Paid (non-trial) subscriptions that have not expired. */
+  active_paid: number;
+  /** Active or trial subscriptions ending within 7 days. */
+  expiring_7d: number;
+  expired: number;
+  cancelled: number;
+  /** Active paid subscriptions by plan length. */
+  by_cycle: Record<'monthly' | 'quarterly' | 'annual' | 'other', number>;
 }
 
 export interface AuditEvent {

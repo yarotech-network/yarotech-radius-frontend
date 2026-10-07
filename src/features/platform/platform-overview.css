@@ -83,16 +83,6 @@
   flex-shrink: 0;
   color: var(--color-success-700);
 }
-.platform-payment-card {
-  min-width: 0;
-  border-radius: 1rem;
-  padding: 1.25rem;
-  box-shadow: none;
-}
-.platform-payment-primary {
-  border-color: var(--color-brand-300);
-  background: linear-gradient(120deg, var(--color-brand-50), var(--color-surface));
-}
 .platform-workspace-grid {
   display: grid;
   grid-template-columns: minmax(0, 2.3fr) minmax(15rem, 1fr);

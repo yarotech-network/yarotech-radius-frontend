@@ -7,18 +7,17 @@ import {
   Radio,
   RefreshCw,
   ShieldCheck,
-  Ticket,
   Users,
   Wallet,
 } from 'lucide-react';
 import { KpiTile, MiniBar, Section, StatusBadge } from '@/components/layout';
 import { Badge, Button, ButtonLink, Card, Skeleton } from '@/components/ui';
 import { Alert, EmptyState, ErrorState } from '@/components/feedback';
-import { formatKobo } from '@/lib/formatting/money';
 import { formatDateTime, formatRelative } from '@/lib/formatting/dates';
 import { PLATFORM_RECENT_TENANTS_PARAMS, usePlatformStats, useTenants } from '../queries';
 import type { PlatformStats } from '@/types/api';
 import { TenantSetupBadge } from '../components/TenantSetupBadge';
+import { PlatformPerformance, PlatformSubscriptions } from '../components/PlatformPerformance';
 import '../platform-overview.css';
 
 /** Cross-tenant totals and recent operators, each with independent query feedback. */
@@ -146,40 +145,10 @@ export default function PlatformOverviewPage() {
       )}
 
       {(!stats.isError || s) && (
-        <div className="platform-finance">
-          <Section
-            title="Payment overview"
-            description="All-time successful payments in NGN. These categories are separate and are not added into one revenue total."
-          >
-            <div className="grid gap-4 xl:grid-cols-3">
-              <PaymentCard
-                title="Subscriptions"
-                value={s ? formatKobo(s.successful_subscription_amount) : null}
-                description="Payments for operator platform plans."
-                to="/platform/payments?source=subscriptions"
-                icon={<Building2 />}
-                loading={stats.isPending}
-                prominent
-              />
-              <PaymentCard
-                title="Voucher sales"
-                value={s ? formatKobo(s.successful_payment_amount) : null}
-                description="Customer purchases of internet access."
-                to="/platform/payments?source=vouchers"
-                icon={<Ticket />}
-                loading={stats.isPending}
-              />
-              <PaymentCard
-                title="Agent wallet top-ups"
-                value={s ? formatKobo(s.successful_wallet_funding_amount) : null}
-                description="Successful funding of reseller wallets."
-                to="/platform/payments?source=wallet"
-                icon={<Wallet />}
-                loading={stats.isPending}
-              />
-            </div>
-          </Section>
-        </div>
+        <>
+          <PlatformPerformance stats={s} loading={stats.isPending} />
+          {s && <PlatformSubscriptions stats={s} />}
+        </>
       )}
 
       <div className="platform-workspace-grid">
@@ -347,50 +316,6 @@ export default function PlatformOverviewPage() {
         </Section>
       </div>
     </div>
-  );
-}
-
-function PaymentCard({
-  title,
-  value,
-  description,
-  to,
-  icon,
-  loading,
-  prominent = false,
-}: {
-  title: string;
-  value: string | null;
-  description: string;
-  to: string;
-  icon: ReactNode;
-  loading: boolean;
-  prominent?: boolean;
-}) {
-  return (
-    <Card className={`platform-payment-card ${prominent ? 'platform-payment-primary' : ''}`}>
-      <div className="mb-4 flex items-center gap-2 text-brand-700">
-        <span className="flex size-9 items-center justify-center rounded-xl bg-brand-100/70 [&>svg]:size-4">
-          {icon}
-        </span>
-        <h3 className="text-sm font-medium">{title}</h3>
-      </div>
-      {loading ? (
-        <Skeleton className="h-8 w-36" />
-      ) : (
-        <p className="text-2xl font-semibold tracking-tight [overflow-wrap:anywhere] text-brand-950 tabular-nums">
-          {value ?? '—'}
-        </p>
-      )}
-      <p className="mt-2 text-xs leading-relaxed text-ink-500">{description}</p>
-      <Link
-        to={to}
-        aria-label={`View ${title.toLowerCase()}`}
-        className="mt-5 inline-flex items-center gap-2 rounded text-xs font-semibold text-brand-700 hover:underline focus-visible:outline-brand-600"
-      >
-        View payments <ArrowRight className="size-3.5" aria-hidden />
-      </Link>
-    </Card>
   );
 }
 

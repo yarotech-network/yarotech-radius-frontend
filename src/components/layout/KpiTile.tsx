@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router';
-import { ArrowUpRight } from 'lucide-react';
+import { ArrowUpRight, Minus, TrendingDown, TrendingUp } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Sparkline } from '@/components/charts';
 import { cn } from '@/lib/utilities/cn';
@@ -113,5 +113,29 @@ export function MiniBar({ parts }: { parts: { value: number; color: string }[] }
             />
           ))}
     </div>
+  );
+}
+
+/** "Up 12% vs last month" line for a tile; says so when there is no baseline to compare with. */
+export function KpiDelta({ change, comparison }: { change: number | null; comparison: string }) {
+  if (change === null) {
+    return <p className="text-xs text-ink-500">No earlier figures to compare</p>;
+  }
+  const flat = Math.abs(change) < 0.5;
+  const Icon = flat ? Minus : change > 0 ? TrendingUp : TrendingDown;
+  const size = Math.abs(change);
+  return (
+    <p className="flex flex-wrap items-center gap-x-1.5 text-xs">
+      <span
+        className={cn(
+          'inline-flex items-center gap-1 font-semibold',
+          flat ? 'text-ink-600' : change > 0 ? 'text-success-700' : 'text-danger-700',
+        )}
+      >
+        <Icon aria-hidden className="size-3.5" />
+        {flat ? 'No change' : `${change > 0 ? 'Up' : 'Down'} ${size.toFixed(size < 10 ? 1 : 0)}%`}
+      </span>
+      <span className="text-ink-500">{comparison}</span>
+    </p>
   );
 }

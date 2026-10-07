@@ -1,9 +1,10 @@
 import { useState, type FormEvent, type ReactNode } from 'react';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router';
-import { Download, Minus, RefreshCw, TrendingDown, TrendingUp } from 'lucide-react';
+import { Download, RefreshCw } from 'lucide-react';
 import { usePrincipal } from '@/app/auth/useAuth';
 import { Alert } from '@/components/feedback';
+import { KpiDelta } from '@/components/layout';
 import { Button, Card, CardHeader, SegmentedControl, Skeleton } from '@/components/ui';
 import { formatKobo } from '@/lib/formatting/money';
 import { formatDateTime } from '@/lib/formatting/dates';
@@ -177,29 +178,6 @@ function wholeNaira(kobo: number) {
   return formatKobo(Math.round(kobo / 100) * 100, { compact: true });
 }
 
-function Delta({ change, comparison }: { change: number | null; comparison: string }) {
-  if (change === null) {
-    return <p className="text-xs text-ink-500">No earlier figures to compare</p>;
-  }
-  const flat = Math.abs(change) < 0.5;
-  const Icon = flat ? Minus : change > 0 ? TrendingUp : TrendingDown;
-  const size = Math.abs(change);
-  return (
-    <p className="flex flex-wrap items-center gap-x-1.5 text-xs">
-      <span
-        className={cn(
-          'inline-flex items-center gap-1 font-semibold',
-          flat ? 'text-ink-600' : change > 0 ? 'text-success-700' : 'text-danger-700',
-        )}
-      >
-        <Icon aria-hidden className="size-3.5" />
-        {flat ? 'No change' : `${change > 0 ? 'Up' : 'Down'} ${size.toFixed(size < 10 ? 1 : 0)}%`}
-      </span>
-      <span className="text-ink-500">{comparison}</span>
-    </p>
-  );
-}
-
 function KpiTile({
   label,
   value,
@@ -247,7 +225,7 @@ function KpiRow({
         value={wholeNaira(report.totals.activated_value)}
         trend={report.rows.map((row) => row.activated_value)}
         footer={
-          <Delta
+          <KpiDelta
             change={percentChange(report.totals.activated_value, previous?.totals.activated_value)}
             comparison={comparison}
           />
@@ -258,7 +236,7 @@ function KpiRow({
         value={wholeNaira(report.totals.collections)}
         trend={report.rows.map((row) => row.collections)}
         footer={
-          <Delta
+          <KpiDelta
             change={percentChange(report.totals.collections, previous?.totals.collections)}
             comparison={comparison}
           />
@@ -276,7 +254,7 @@ function KpiRow({
         trend={report.accounting_available ? usage : undefined}
         footer={
           report.accounting_available && activeAverage !== null ? (
-            <Delta
+            <KpiDelta
               change={percentChange(activeAverage, previous?.averages.active_vouchers)}
               comparison={`per completed ${noun}, ${comparison}`}
             />

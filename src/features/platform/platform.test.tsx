@@ -178,7 +178,7 @@ describe('PlatformOverviewPage', () => {
     );
     renderPage(<PlatformOverviewPage />, { path: '/platform', role: 'platform_admin' });
     expect(await screen.findByText('Could not load tenants')).toBeInTheDocument();
-    expect(await screen.findByText('₦1,000.00')).toBeInTheDocument();
+    expect(await screen.findByText('₦1,000')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'View agent wallet top-ups' })).toHaveAttribute(
       'href',
       '/platform/payments?source=wallet',
@@ -231,7 +231,7 @@ describe('PlatformOverviewPage', () => {
     const refresh = await screen.findByRole('button', { name: 'Refresh overview' });
     await userEvent.click(refresh);
     expect(await screen.findByText('Figures could not be refreshed')).toBeInTheDocument();
-    expect(screen.getByText('₦1,000.00')).toBeInTheDocument();
+    expect(screen.getByText('₦1,000')).toBeInTheDocument();
     expect(await screen.findByRole('link', { name: 'Updated operator' })).toBeInTheDocument();
     expect(tenantCalls).toBe(2);
     expect(statsCalls).toBe(2);
@@ -244,7 +244,7 @@ describe('PlatformOverviewPage', () => {
     );
     renderPage(<PlatformOverviewPage />, { path: '/platform', role: 'platform_admin' });
     expect(await screen.findByText('3 active')).toBeInTheDocument();
-    expect(screen.getByText('₦1,000.00')).toBeInTheDocument();
+    expect(screen.getByText('₦1,000')).toBeInTheDocument();
     expect(screen.getByText('2 pending')).toBeInTheDocument();
     const table = await screen.findByRole('table', { name: 'Newest tenants' });
     for (const name of ['Business', 'Status', 'Members', 'Vouchers', 'Joined']) {
@@ -312,6 +312,85 @@ describe('PlatformOverviewPage', () => {
       await screen.findByText('Nothing needs attention in the last retrieved figures.'),
     ).toBeInTheDocument();
     expect(screen.queryByRole('region', { name: 'Needs attention' })).not.toBeInTheDocument();
+  });
+
+  it('tracks money by period with changes vs the same point last period', async () => {
+    const money = (amount: number, count: number) => ({ amount, count });
+    const totals = (voucher: number, subscriptions: number, tenants: number) => ({
+      start: '2026-10-01T00:00:00+01:00',
+      end: '2026-10-15T12:00:00+01:00',
+      voucher_sales: money(voucher, 3),
+      subscriptions: money(subscriptions, 1),
+      wallet_topups: money(0, 0),
+      new_tenants: tenants,
+      vouchers_issued: 40,
+    });
+    const period = (current: ReturnType<typeof totals>, previous: ReturnType<typeof totals>) => ({
+      ...current,
+      previous,
+    });
+    server.use(
+      http.get(`${API}/platform/dashboard/`, () =>
+        HttpResponse.json({
+          ...stats,
+          periods: {
+            today: period(totals(5000, 0, 0), totals(5000, 0, 0)),
+            week: period(totals(20000, 0, 1), totals(10000, 0, 1)),
+            month: period(totals(300000, 1000000, 2), totals(200000, 500000, 1)),
+            quarter: period(totals(300000, 2700000, 2), totals(0, 2700000, 1)),
+            year: period(totals(900000, 9000000, 4), totals(450000, 9000000, 2)),
+          },
+          subscription_status: {
+            trial: 1,
+            active_paid: 4,
+            expiring_7d: 2,
+            expired: 3,
+            cancelled: 1,
+            by_cycle: { monthly: 2, quarterly: 1, annual: 1, other: 0 },
+          },
+        }),
+      ),
+      ...tenantHandlers(),
+    );
+    renderPage(<PlatformOverviewPage />, { path: '/platform', role: 'platform_admin' });
+
+    // This month is selected by default.
+    const switcher = await screen.findByRole('radiogroup', { name: 'Period' });
+    expect(within(switcher).getByRole('radio', { name: 'This month' })).toBeChecked();
+    expect(screen.getByText('₦3,000')).toBeInTheDocument();
+    expect(screen.getAllByText('Up 50%').length).toBeGreaterThan(0);
+    expect(screen.getByRole('link', { name: 'View voucher sales' })).toHaveAttribute(
+      'href',
+      '/platform/payments?source=vouchers',
+    );
+
+    await userEvent.click(within(switcher).getByRole('radio', { name: 'This week' }));
+    expect(screen.getByText('₦200')).toBeInTheDocument();
+    expect(screen.getAllByText('vs same point last week').length).toBeGreaterThan(0);
+
+    await userEvent.click(within(switcher).getByRole('radio', { name: 'All time' }));
+    expect(screen.getByText('₦1,000')).toBeInTheDocument();
+    expect(screen.queryByText('vs same point last week')).not.toBeInTheDocument();
+
+    // Subscription status, plan-length mix and the month/quarter/year revenue strip.
+    expect(screen.getByText('Expiring in 7 days')).toBeInTheDocument();
+    expect(screen.getByText('1 cancelled')).toBeInTheDocument();
+    expect(
+      screen.getByRole('img', { name: 'Monthly: 2, Quarterly: 1, Annual: 1, Other lengths: 0' }),
+    ).toBeInTheDocument();
+    expect(screen.getByText('₦27,000')).toBeInTheDocument();
+    expect(screen.getByText('₦90,000')).toBeInTheDocument();
+  });
+
+  it('falls back to all-time totals without a period switcher on an older backend', async () => {
+    server.use(
+      http.get(`${API}/platform/dashboard/`, () => HttpResponse.json(stats)),
+      ...tenantHandlers(),
+    );
+    renderPage(<PlatformOverviewPage />, { path: '/platform', role: 'platform_admin' });
+    expect(await screen.findByText('₦1,000')).toBeInTheDocument();
+    expect(screen.queryByRole('radiogroup', { name: 'Period' })).not.toBeInTheDocument();
+    expect(screen.queryByText('Subscribers by plan length')).not.toBeInTheDocument();
   });
 
   it('shows an error state when the stats endpoint fails', async () => {
