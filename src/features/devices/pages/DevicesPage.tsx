@@ -1,29 +1,30 @@
-import { formatBytes } from '@/lib/formatting/units';
-import '../devices.css';
 import { useEffect, useMemo, useState } from 'react';
-import { Check, Copy, Cpu, MonitorSmartphone, MoreHorizontal, Pencil, Plus, RefreshCw, Trash2, Wifi } from 'lucide-react';
-import { BooleanBadge } from '@/components/layout';
-import { Button, Card, ConfirmDialog, Menu, Select } from '@/components/ui';
-import { Alert, EmptyState, useToast } from '@/components/feedback';
 import {
-  DataTable,
-  FilterBar,
-  Pagination,
-  SearchInput,
-  useListParams,
-  type Column,
-} from '@/components/data';
+  MonitorSmartphone,
+  MoreHorizontal,
+  Pencil,
+  Plus,
+  RefreshCw,
+  RotateCcw,
+  Trash2,
+  X,
+} from 'lucide-react';
+import { KpiTile, MiniBar } from '@/components/layout';
+import { Badge, Button, Card, ConfirmDialog, CopyButton, Menu, Select } from '@/components/ui';
+import { Alert, EmptyState, useToast } from '@/components/feedback';
+import { DataTable, Pagination, SearchInput, useListParams, type Column } from '@/components/data';
 import { usePrincipal } from '@/app/auth/useAuth';
-import { formatDateTime, formatRelative, isPast } from '@/lib/formatting/dates';
+import { formatDateTime, formatRelative } from '@/lib/formatting/dates';
+import { formatBytes, formatNumber } from '@/lib/formatting/units';
 import { useDebouncedValue } from '@/lib/utilities/useDebouncedValue';
+import { cn } from '@/lib/utilities/cn';
 import { can } from '@/services/auth/principal';
 import { errorMessage } from '@/services/api/errors';
-import { useDeviceRouters } from '../queries';
-import { useDevicePlans } from '../queries';
 import type { DeviceListParams, MacDevice } from '@/types/api';
-import { useDeleteDevice, useDevices } from '../queries';
+import { useDeleteDevice, useDevicePlans, useDeviceRouters, useDevices } from '../queries';
 import { DeviceLifecycleDialog } from '../components/DeviceLifecycleDialog';
 import { DeviceDialog } from '../components/DeviceDialog';
+import { STATUS_BADGE, accessText, effectiveStatus, sessionText } from '../deviceStatus';
 
 const FILTERS = ['is_active', 'plan', 'router', 'include_deleted'] as const;
 
@@ -40,7 +41,7 @@ export default function DevicesPage() {
 
 function DeviceDirectory() {
   useEffect(() => {
-    document.title = 'IoT / MAC Devices | Yarotech RADIUS';
+    document.title = 'IoT & MAC devices | Yarotech RADIUS';
   }, []);
   const principal = usePrincipal();
   const canManage = can(principal, 'devices.manage');
@@ -53,14 +54,6 @@ function DeviceDirectory() {
   const [dialog, setDialog] = useState<{ open: boolean; device?: MacDevice }>({ open: false });
   const [managing, setManaging] = useState<MacDevice | null>(null);
   const [deleting, setDeleting] = useState<MacDevice | null>(null);
-  const [copiedMac, setCopiedMac] = useState<string | null>(null);
-
-  const copyMac = (mac: string) => {
-    void navigator.clipboard.writeText(mac);
-    setCopiedMac(mac);
-    toast.success('MAC address copied', mac);
-    setTimeout(() => setCopiedMac(null), 2000);
-  };
 
   const params = useMemo(() => {
     const p: DeviceListParams = { page: list.state.page, page_size: list.state.page_size };
@@ -72,289 +65,327 @@ function DeviceDirectory() {
     return p;
   }, [list.state, debouncedSearch]);
   const query = useDevices(params);
+  const summary = query.data?.summary;
+  const open = (d: MacDevice) =>
+    d.status === 'deleted' ? setManaging(d) : setDialog({ open: true, device: d });
 
   const columns: Column<MacDevice>[] = [
     {
       key: 'device',
-      header: 'Device Name',
+      header: 'Device',
       primary: true,
       cell: (d) => (
-        <div className="min-w-0">
-          {canManage ? (
-            <button
-              type="button"
-              className="dashboard-data-link text-left font-semibold break-all"
-              onClick={(event) => {
-                event.stopPropagation();
-                if (d.status === 'deleted') setManaging(d);
-                else setDialog({ open: true, device: d });
-              }}
-            >
-              {d.device_name}
-            </button>
-          ) : (
-            <div className="font-semibold break-all text-ink-900">{d.device_name}</div>
-          )}
-
-          <p className="mt-1 text-xs text-ink-500 md:hidden">
-            {d.expires_at
-              ? `${isPast(d.expires_at) ? 'Expired' : 'Access until'} ${formatDateTime(d.expires_at)}`
-              : 'Permanent access'}
-          </p>
+        <div className="flex min-w-52 items-center gap-3">
+          <span
+            aria-hidden
+            className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-700"
+          >
+            <MonitorSmartphone className="size-4.5" />
+          </span>
+          <div className="min-w-0">
+            {canManage ? (
+              <button
+                type="button"
+                className="dashboard-data-link text-left font-semibold break-all"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  open(d);
+                }}
+              >
+                {d.device_name}
+              </button>
+            ) : (
+              <p className="font-semibold break-all text-ink-900">{d.device_name}</p>
+            )}
+            <span className="mt-0.5 flex items-center gap-0.5">
+              <code className="font-mono text-xs text-ink-600">{d.mac_address}</code>
+              <CopyButton
+                value={d.mac_address}
+                label={`Copy MAC address of ${d.device_name}`}
+                size="icon"
+                onClickCapture={(event) => event.stopPropagation()}
+              />
+            </span>
+          </div>
         </div>
       ),
     },
     {
-      key: 'mac',
-      header: 'MAC Address',
-      cell: (d) => (
-        <div className="inline-flex items-center gap-1.5 font-mono text-xs font-bold text-ink-800">
-          <span>{d.mac_address}</span>
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              copyMac(d.mac_address);
-            }}
-            title="Copy MAC address"
-            className="inline-flex size-5 shrink-0 items-center justify-center rounded text-ink-400 hover:bg-surface-muted hover:text-ink-700 transition"
-          >
-            {copiedMac === d.mac_address ? (
-              <Check className="size-3 text-emerald-600" />
-            ) : (
-              <Copy className="size-3" />
-            )}
-          </button>
-        </div>
-      ),
+      key: 'status',
+      header: 'Access',
+      cell: (d) => {
+        const status = effectiveStatus(d);
+        const badge = STATUS_BADGE[status];
+        return (
+          <div className="space-y-1">
+            <Badge tone={badge.tone} size="sm" dot={status === 'active'}>
+              {badge.text}
+            </Badge>
+            <p
+              className={cn(
+                'text-xs whitespace-nowrap',
+                status === 'expired' ? 'font-medium text-warning-700' : 'text-ink-500',
+              )}
+              title={d.expires_at ? formatDateTime(d.expires_at) : undefined}
+            >
+              {accessText(d)}
+            </p>
+          </div>
+        );
+      },
     },
     {
       key: 'plan',
-      header: 'Plan / Policy',
-      cell: (d) => <span className="break-words text-ink-700 font-medium">{d.plan_name}</span>,
-    },
-    {
-      key: 'expires',
-      header: 'Expiration',
+      header: 'Plan & site',
       hideBelow: 'md',
       cell: (d) => (
-        <span
-          className={isPast(d.expires_at) ? 'text-xs font-semibold text-danger-700 dark:text-danger-400' : 'text-xs font-medium text-ink-700'}
-          title={formatDateTime(d.expires_at)}
-        >
-          {!d.expires_at
-            ? 'Permanent'
-            : isPast(d.expires_at)
-              ? `Expired ${formatRelative(d.expires_at)}`
-              : formatRelative(d.expires_at)}
-        </span>
-      ),
-    },
-    {
-      key: 'active',
-      header: 'Status',
-      cell: (d) => (
-        <BooleanBadge
-          value={(d.status ?? (d.is_active ? 'active' : 'suspended')) === 'active'}
-          trueLabel={isPast(d.expires_at) ? 'Expired' : 'Active'}
-          falseLabel={d.status ?? 'Suspended'}
-        />
-      ),
-    },
-    {
-      key: 'router',
-      header: 'Router / Site',
-      cell: (d) => (
-        <div className="text-xs">
-          <span className="font-semibold text-ink-800">{d.router_name ?? 'Unassigned'}</span>
-          {d.router_location && <p className="text-ink-500">{d.router_location}</p>}
+        <div className="min-w-0 text-sm">
+          <p className="font-medium text-ink-900">{d.plan_name ?? 'No plan'}</p>
+          <p className="text-xs text-ink-500">
+            {d.router_name ?? 'No router'}
+            {d.router_location ? ` · ${d.router_location}` : ''}
+          </p>
         </div>
       ),
     },
     {
-      key: 'session',
-      header: 'Session',
-      cell: (d) => (
-        <span
-          className="text-xs font-medium text-ink-600"
-          title="Based on recorded MAC authentication sessions; an open record does not guarantee current connectivity."
-        >
-          {!d.accounting?.available
-            ? 'Unavailable'
-            : !d.accounting.session_count
-              ? 'Not observed'
-              : d.accounting.open_sessions
-                ? `${d.accounting.open_sessions} open`
-                : 'Closed'}
-        </span>
-      ),
-    },
-    {
-      key: 'usage',
-      header: 'Usage',
-      cell: (d) => (
-        <span className="text-xs font-medium text-ink-600">
-          {d.accounting?.bytes_total == null
-            ? 'Not observed'
-            : formatBytes(d.accounting.bytes_total)}
-        </span>
-      ),
+      key: 'activity',
+      header: 'Activity',
+      hideBelow: 'lg',
+      cell: (d) => {
+        const session = sessionText(d);
+        const last = d.accounting?.last_connected_at;
+        return (
+          <div
+            className="text-xs whitespace-nowrap"
+            title="From recorded MAC sessions; an open record does not guarantee the device is online right now."
+          >
+            <p className="text-ink-800 flex items-center gap-1.5 font-medium">
+              <span
+                aria-hidden
+                className={cn(
+                  'size-1.5 rounded-full',
+                  session.open ? 'bg-success-600' : 'bg-ink-300',
+                )}
+              />
+              {session.text}
+              {d.accounting?.bytes_total != null && (
+                <>
+                  <span aria-hidden className="text-ink-300">
+                    ·
+                  </span>
+                  <span className="font-normal text-ink-500">
+                    {formatBytes(d.accounting.bytes_total)}
+                  </span>
+                </>
+              )}
+            </p>
+            {last && (
+              <p className="mt-0.5 text-ink-500" title={formatDateTime(last)}>
+                Last seen {formatRelative(last)}
+              </p>
+            )}
+          </div>
+        );
+      },
     },
   ];
 
-  const order = ['device', 'mac', 'router', 'active', 'plan', 'expires', 'session', 'usage'];
-  columns.sort((a, b) => order.indexOf(a.key) - order.indexOf(b.key));
+  const attention = (summary?.expired ?? 0) + (summary?.suspended ?? 0);
 
   return (
     <div className="space-y-6">
-      {/* Premium Hero Header */}
-      <div className="router-page-hero">
-        <div className="router-page-hero-inner">
-          <div className="router-page-hero-text">
-            <span className="router-page-hero-eyebrow">
-              <Cpu className="size-3" aria-hidden /> Hardware Authentication
-            </span>
-            <h1 className="router-page-hero-title">IoT & MAC Devices</h1>
-            <p className="router-page-hero-desc">
-              Router-bound hardware equipment access managed directly by MAC address bypass.
-            </p>
-          </div>
-          <div className="router-page-hero-actions">
+      <header className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <p className="text-sm text-ink-500">Network access</p>
+          <h1 className="text-2xl font-bold text-ink-900">IoT &amp; MAC devices</h1>
+          <p className="mt-1 max-w-2xl text-sm text-ink-500">
+            Cameras, TVs, POS terminals and other equipment that connect by MAC address, without a
+            voucher login.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant="secondary"
+            size="sm"
+            aria-label="Refresh devices"
+            disabled={query.isFetching}
+            onClick={() => void query.refetch()}
+            leadingIcon={
+              <RefreshCw
+                className={query.isFetching ? 'animate-spin motion-reduce:animate-none' : ''}
+                aria-hidden
+              />
+            }
+          >
+            {query.isFetching ? 'Refreshing…' : 'Refresh'}
+          </Button>
+          {canManage && (
             <Button
-              variant="secondary"
-              disabled={query.isFetching}
-              onClick={() => void query.refetch()}
-              leadingIcon={
-                <RefreshCw
-                  className={query.isFetching ? 'size-4 animate-spin motion-reduce:animate-none' : 'size-4'}
-                  aria-hidden
-                />
-              }
+              size="sm"
+              leadingIcon={<Plus className="size-4" aria-hidden />}
+              onClick={() => setDialog({ open: true })}
             >
-              {query.isFetching ? 'Refreshing...' : 'Refresh'}
+              Add device
             </Button>
-            {canManage && (
-              <Button
-                leadingIcon={<Plus className="size-4" aria-hidden />}
-                onClick={() => setDialog({ open: true })}
-              >
-                Add device
-              </Button>
-            )}
-          </div>
+          )}
         </div>
+      </header>
 
-        {/* Hero Stats Strip */}
-        <div className="router-page-hero-strip">
-          <div className="router-page-hero-stat">
-            <MonitorSmartphone className="size-4" aria-hidden />
-            <span>
-              {query.data
-                ? `${query.data.count} registered device${query.data.count !== 1 ? 's' : ''}`
-                : 'Loading devices...'}
-            </span>
-          </div>
-          <div className="router-page-hero-divider" />
-          <div className="router-page-hero-stat">
-            <Wifi className="size-4 text-emerald-400" aria-hidden />
-            <span>RADIUS MAC Authentication Bypass</span>
-          </div>
-        </div>
-      </div>
+      {(query.isPending || summary) && (
+        <section aria-label="Device summary" className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+          <KpiTile
+            label="Registered devices"
+            value={summary ? formatNumber(summary.total) : '—'}
+            detail={
+              summary
+                ? `${formatNumber(summary.active)} active · ${formatNumber(attention)} need attention`
+                : 'Current registrations'
+            }
+            extra={
+              summary && summary.total > 0 ? (
+                <MiniBar
+                  parts={[
+                    { value: summary.active, color: 'var(--color-success-600)' },
+                    { value: summary.expired, color: 'var(--color-warning-600)' },
+                    { value: summary.suspended, color: 'var(--color-ink-300)' },
+                  ]}
+                />
+              ) : undefined
+            }
+            loading={query.isPending}
+          />
+          <KpiTile
+            label="Active"
+            value={summary ? formatNumber(summary.active) : '—'}
+            detail={
+              summary
+                ? `${formatNumber(summary.permanent)} with permanent access`
+                : 'Allowed onto the network'
+            }
+            loading={query.isPending}
+          />
+          <KpiTile
+            label="Expiring in 7 days"
+            value={summary ? formatNumber(summary.expiring_7d) : '—'}
+            detail={
+              summary && summary.expiring_7d > 0
+                ? 'Renew to avoid a cut-off'
+                : 'Nothing due this week'
+            }
+            extra={
+              summary && summary.expiring_7d > 0 ? (
+                <span aria-hidden className="block h-1 rounded-full bg-warning-600" />
+              ) : undefined
+            }
+            loading={query.isPending}
+          />
+          <KpiTile
+            label="Expired or suspended"
+            value={summary ? formatNumber(attention) : '—'}
+            detail={
+              summary
+                ? `${formatNumber(summary.expired)} expired · ${formatNumber(summary.suspended)} suspended`
+                : 'Not allowed onto the network'
+            }
+            loading={query.isPending}
+          />
+        </section>
+      )}
 
-      <Alert tone="info">
-        Connection and usage figures reflect recorded MAC sessions. Saving a device does not confirm
-        network access. Access enforcement requires the configured RADIUS service and a successful router test.
-      </Alert>
-
-      {/* Directory Container Card */}
-      <Card className="p-5 md:p-6 border-border/70 space-y-5 shadow-sm">
-        <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-border/60 pb-4">
+      <Card padded={false} className="space-y-4 p-4 md:p-5">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
           <div>
-            <h2 id="device-directory-title" className="text-xl font-bold tracking-tight text-ink-900">
-              Registered Devices
-            </h2>
-            <p className="mt-0.5 text-xs text-ink-500">
-              Active and retained MAC device registrations across your routers.
+            <h2 className="text-lg font-semibold text-ink-900">Device directory</h2>
+            <p className="text-xs text-ink-500">
+              Activity comes from recorded MAC sessions. Saving a device does not by itself confirm
+              network access; the router must be connected to Yarotech RADIUS.
             </p>
           </div>
-          <p role="status" className="text-xs font-medium text-ink-500 rounded-full bg-surface-muted px-3 py-1 border border-border/50">
+          <p role="status" className="text-sm text-ink-500">
             {query.isPlaceholderData
-              ? 'Updating results...'
+              ? 'Updating results…'
               : query.data
-                ? `${query.data.count} matching ${query.data.count === 1 ? 'device' : 'devices'}`
-                : 'Device directory'}
+                ? `${formatNumber(query.data.count)} matching ${query.data.count === 1 ? 'device' : 'devices'}`
+                : 'Loading devices…'}
           </p>
         </div>
 
-        <FilterBar
-          className="iot-filters"
-          search={
+        <section aria-label="Device filters" className="flex flex-wrap items-center gap-2">
+          <div className="w-full sm:w-72">
             <SearchInput
               value={list.state.search}
               onChange={list.setSearch}
-              placeholder="Search device name or MAC address"
+              placeholder="Search name or MAC address"
               ariaLabel="Search devices"
             />
-          }
-          filters={
-            <>
-              <Select
-                aria-label="Retained registrations"
-                value={list.state.filters.include_deleted ?? ''}
-                onChange={(e) => list.setFilter('include_deleted', e.target.value || undefined)}
-                options={[
-                  { value: '', label: 'Current registrations' },
-                  { value: 'true', label: 'Include removed registrations' },
-                ]}
-              />
-              <Select
-                aria-label="Router"
-                size="sm"
-                value={list.state.filters.router ?? ''}
-                onChange={(e) => list.setFilter('router', e.target.value || undefined)}
-                disabled={routers.isPending}
-                options={[
-                  { value: '', label: 'All routers' },
-                  ...(routers.data ?? []).map((r) => ({ value: r.id, label: r.name })),
-                ]}
-              />
-              <Select
-                aria-label="Status"
-                size="sm"
-                value={list.state.filters.is_active ?? ''}
-                onChange={(e) => list.setFilter('is_active', e.target.value || undefined)}
-                options={[
-                  { value: '', label: 'Active and inactive' },
-                  { value: 'true', label: 'Active only' },
-                  { value: 'false', label: 'Inactive only' },
-                ]}
-              />
-              <Select
-                aria-label="Plan"
-                size="sm"
-                value={list.state.filters.plan ?? ''}
-                onChange={(e) => list.setFilter('plan', e.target.value || undefined)}
-                disabled={plans.isPending}
-                options={[
-                  { value: '', label: plans.isPending ? 'Loading plans...' : 'All plans' },
-                  ...(list.state.filters.plan &&
-                  !plans.data?.some((plan) => String(plan.id) === list.state.filters.plan)
-                    ? [
-                        {
-                          value: list.state.filters.plan,
-                          label: 'Selected plan unavailable',
-                        },
-                      ]
-                    : []),
-                  ...(plans.data ?? []).map((p) => ({ value: String(p.id), label: p.name })),
-                ]}
-              />
-            </>
-          }
-          activeCount={list.activeFilterCount}
-          onClear={list.clearFilters}
-        />
+          </div>
+          <div className="w-full sm:w-44">
+            <Select
+              aria-label="Status"
+              size="sm"
+              value={list.state.filters.is_active ?? ''}
+              onChange={(e) => list.setFilter('is_active', e.target.value || undefined)}
+              options={[
+                { value: '', label: 'Any status' },
+                { value: 'true', label: 'Switched on' },
+                { value: 'false', label: 'Switched off' },
+              ]}
+            />
+          </div>
+          <div className="w-full sm:w-44">
+            <Select
+              aria-label="Router"
+              size="sm"
+              value={list.state.filters.router ?? ''}
+              onChange={(e) => list.setFilter('router', e.target.value || undefined)}
+              disabled={routers.isPending}
+              options={[
+                { value: '', label: 'All routers' },
+                ...(routers.data ?? []).map((r) => ({ value: r.id, label: r.name })),
+              ]}
+            />
+          </div>
+          <div className="w-full sm:w-44">
+            <Select
+              aria-label="Plan"
+              size="sm"
+              value={list.state.filters.plan ?? ''}
+              onChange={(e) => list.setFilter('plan', e.target.value || undefined)}
+              disabled={plans.isPending}
+              options={[
+                { value: '', label: plans.isPending ? 'Loading plans…' : 'All plans' },
+                ...(list.state.filters.plan &&
+                !plans.data?.some((plan) => String(plan.id) === list.state.filters.plan)
+                  ? [{ value: list.state.filters.plan, label: 'Selected plan unavailable' }]
+                  : []),
+                ...(plans.data ?? []).map((p) => ({ value: String(p.id), label: p.name })),
+              ]}
+            />
+          </div>
+          <div className="w-full sm:w-44">
+            <Select
+              aria-label="Retained registrations"
+              size="sm"
+              value={list.state.filters.include_deleted ?? ''}
+              onChange={(e) => list.setFilter('include_deleted', e.target.value || undefined)}
+              options={[
+                { value: '', label: 'Current registrations' },
+                { value: 'true', label: 'Include removed' },
+              ]}
+            />
+          </div>
+          {list.activeFilterCount > 0 && (
+            <Button
+              variant="ghost"
+              size="sm"
+              leadingIcon={<X className="size-4" aria-hidden />}
+              onClick={list.clearFilters}
+            >
+              Clear filters
+            </Button>
+          )}
+        </section>
 
         {routers.isError && (
           <Alert
@@ -368,7 +399,6 @@ function DeviceDirectory() {
             Router filters could not be loaded.
           </Alert>
         )}
-
         {plans.isError && (
           <Alert
             tone="warning"
@@ -382,7 +412,6 @@ function DeviceDirectory() {
             Search and status filters are still available.
           </Alert>
         )}
-
         {query.isError && query.data && (
           <Alert tone="warning" title="Devices could not be refreshed">
             Showing the last loaded devices. Refresh to try again.
@@ -401,8 +430,7 @@ function DeviceDirectory() {
           onRetry={() => void query.refetch()}
           {...(canManage
             ? {
-                onRowClick: (d: MacDevice) =>
-                  d.status === 'deleted' ? setManaging(d) : setDialog({ open: true, device: d }),
+                onRowClick: open,
                 rowActions: (d: MacDevice) => (
                   <Menu
                     trigger={(props) => (
@@ -419,31 +447,32 @@ function DeviceDirectory() {
                         <MoreHorizontal className="size-4" />
                       </Button>
                     )}
-                    items={[
-                      {
-                        key: 'manage',
-                        label: 'Manage lifecycle',
-                        onSelect: () => setManaging(d),
-                      },
-                      ...(d.status === 'deleted'
-                        ? []
+                    items={
+                      d.status === 'deleted'
+                        ? [{ key: 'history', label: 'History', onSelect: () => setManaging(d) }]
                         : [
                             {
+                              key: 'manage',
+                              label: 'Manage access / Renew',
+                              icon: <RotateCcw className="h-4 w-4" aria-hidden />,
+                              onSelect: () => setManaging(d),
+                            },
+                            {
                               key: 'edit',
-                              label: 'Edit registration',
+                              label: 'Edit',
                               icon: <Pencil className="h-4 w-4" aria-hidden />,
                               onSelect: () => setDialog({ open: true, device: d }),
                             },
                             'separator' as const,
                             {
                               key: 'delete',
-                              label: 'Remove registration',
+                              label: 'Remove',
                               icon: <Trash2 className="h-4 w-4" aria-hidden />,
                               tone: 'danger' as const,
                               onSelect: () => setDeleting(d),
                             },
-                          ]),
-                    ]}
+                          ]
+                    }
                   />
                 ),
               }
@@ -466,7 +495,7 @@ function DeviceDirectory() {
                 title="No devices registered yet"
                 description={
                   canManage
-                    ? 'Register equipment by MAC address to grant access.'
+                    ? 'Add a camera, TV or other equipment by its MAC address to let it online without a voucher.'
                     : 'Registered devices will show up here once a manager adds them.'
                 }
                 action={
@@ -480,17 +509,15 @@ function DeviceDirectory() {
         />
 
         {query.data && query.data.count > 0 && (
-          <div className="border-t border-border/60 pt-4">
-            <Pagination
-              count={query.data.count}
-              page={list.state.page}
-              totalPages={query.data.total_pages}
-              pageSize={list.state.page_size}
-              onPageChange={list.setPage}
-              onPageSizeChange={list.setPageSize}
-              itemLabel="devices"
-            />
-          </div>
+          <Pagination
+            count={query.data.count}
+            page={list.state.page}
+            totalPages={query.data.total_pages}
+            pageSize={list.state.page_size}
+            onPageChange={list.setPage}
+            onPageSizeChange={list.setPageSize}
+            itemLabel="devices"
+          />
         )}
       </Card>
 
@@ -507,10 +534,7 @@ function DeviceDirectory() {
       )}
 
       {canManage && managing !== null && (
-        <DeviceLifecycleDialog
-          device={managing}
-          onClose={() => setManaging(null)}
-        />
+        <DeviceLifecycleDialog device={managing} onClose={() => setManaging(null)} />
       )}
 
       {canManage && deleting !== null && (
@@ -519,13 +543,13 @@ function DeviceDirectory() {
           onClose={() => setDeleting(null)}
           tone="danger"
           title={`Remove ${deleting.device_name}?`}
-          description="Deletes the registration and revokes MAC authentication access."
-          confirmLabel="Remove registration"
+          description="The device loses network access straight away. Its history is kept and can be viewed under “Include removed”."
+          confirmLabel="Remove device"
           onConfirm={async () => {
             try {
               await remove.mutateAsync({ id: deleting.id, version: deleting.version ?? 0 });
               setDeleting(null);
-              toast.success('Registration removed', deleting.device_name);
+              toast.success('Device removed', deleting.device_name);
               void query.refetch();
             } catch (error) {
               toast.error('Could not remove device', errorMessage(error));

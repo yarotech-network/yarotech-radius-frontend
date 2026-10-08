@@ -42,6 +42,16 @@ export interface MacDeviceWrite {
   description?: string;
 }
 
+/** Current registrations by effective status across the workspace (filters do not apply). */
+export interface MacDeviceSummary {
+  total: number;
+  active: number;
+  expiring_7d: number;
+  permanent: number;
+  expired: number;
+  suspended: number;
+}
+
 export interface DeviceListParams extends PageParams {
   include_deleted?: boolean;
   router?: string;

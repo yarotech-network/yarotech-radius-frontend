@@ -1,11 +1,20 @@
 import { http } from '@/services/api/http';
 import { newIdempotencyKey } from '@/lib/utilities/idempotency';
-import type { DeviceListParams, MacDevice, MacDeviceWrite, Paginated } from '@/types/api';
+import type {
+  DeviceListParams,
+  MacDevice,
+  MacDeviceSummary,
+  MacDeviceWrite,
+  Paginated,
+} from '@/types/api';
+
+/** `summary` is absent on older backends. */
+export type DeviceListResponse = Paginated<MacDevice> & { summary?: MacDeviceSummary };
 
 /** MAC-authenticated devices (`iot-devices/`): list/retrieve for any member, writes for managers. */
 export const devicesApi = {
   list(params: DeviceListParams) {
-    return http.get<Paginated<MacDevice>>('/iot-devices/', { ...params });
+    return http.get<DeviceListResponse>('/iot-devices/', { ...params });
   },
   get(id: number) {
     return http.get<MacDevice>(`/iot-devices/${id}/`);

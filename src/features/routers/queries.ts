@@ -78,10 +78,11 @@ export function useRouter(id: string) {
   });
 }
 
-export function useRouterChecks(id: string) {
+export function useRouterChecks(id: string, { poll = false }: { poll?: number | false } = {}) {
   return useQuery({
     queryKey: routerKeys.checks(id),
     queryFn: () => routersApi.checks(id),
+    refetchInterval: poll,
     enabled: Boolean(id),
   });
 }

@@ -71,9 +71,11 @@ describe('RoutersPage', () => {
     expect(
       screen.getByRole('heading', { name: 'Set up a MikroTik HotSpot router' }),
     ).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: '1. Before you add it' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: '2. Create it in Yarotech' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: '3. After import' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: '1. Add the router' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: '2. Paste one command' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: '3. Log in with a test voucher' }),
+    ).toBeInTheDocument();
     expect(screen.getByText(/Ask an owner or router manager/)).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Add router' })).not.toBeInTheDocument();
 
@@ -338,16 +340,38 @@ describe('Add router popup', () => {
     }
   });
 
+  /** Step 1 → 2: name the router and its customer port. */
+  async function fillRouter(
+    user: ReturnType<typeof userEvent.setup>,
+    dialog: HTMLElement,
+    name = 'Branch router',
+  ) {
+    await user.type(within(dialog).getByLabelText(/Router name/), name);
+    await user.type(within(dialog).getByLabelText(/Customer port/), 'bridge-lan');
+    await user.click(within(dialog).getByRole('button', { name: 'Next' }));
+    await within(dialog).findByText('Step 2 of 3: Network');
+  }
+
+  /** Step 2 → 3 with the suggested customer network, then confirm and create. */
+  async function reviewAndCreate(user: ReturnType<typeof userEvent.setup>, dialog: HTMLElement) {
+    await user.click(within(dialog).getByRole('button', { name: 'Next' }));
+    await within(dialog).findByText('Step 3 of 3: Review');
+    await user.click(within(dialog).getByLabelText(/are correct for this router/));
+    await user.click(within(dialog).getByRole('button', { name: 'Create router' }));
+  }
+
   it('displays the fleet with the popup open on a direct URL', async () => {
     server.use(...fleetHandlers());
     renderPage(<NewRouterPage />, { path: '/routers/new', route: '/routers/new', role: 'owner' });
     expect(await screen.findByRole('heading', { name: 'Router Fleet' })).toBeInTheDocument();
     const dialog = await screen.findByRole('dialog', { name: 'Add router' });
     expect(
-      within(dialog).getByText(/Tunnel addresses, keys and the RADIUS secret are generated/),
+      within(dialog).getByText(/generates its VPN keys and RADIUS secret/),
     ).toBeInTheDocument();
-    expect(screen.getByText('Step 1 of 2: Router identity')).toBeInTheDocument();
-    expect(screen.getByText(/Leave blank to let the server generate one/)).toBeInTheDocument();
+    expect(screen.getByText('Step 1 of 3: Router')).toBeInTheDocument();
+    // Technical fields are tucked away until asked for.
+    expect(within(dialog).getByText('More router details (optional)')).toBeInTheDocument();
+    expect(within(dialog).getByLabelText(/NAS identifier/)).not.toBeVisible();
   });
 
   it('focuses the first field on open and the first invalid field on Next', async () => {
@@ -355,77 +379,75 @@ describe('Add router popup', () => {
     server.use(...fleetHandlers());
     renderPage(<NewRouterPage />, { path: '/routers/new', role: 'owner' });
     const dialog = await screen.findByRole('dialog', { name: 'Add router' });
-    await waitFor(() =>
-      expect(within(dialog).getByLabelText(/Router name/)).toHaveFocus(),
-    );
+    await waitFor(() => expect(within(dialog).getByLabelText(/Router name/)).toHaveFocus());
     await user.click(within(dialog).getByRole('button', { name: 'Next' }));
     expect(await within(dialog).findByText(/Give the router a name/)).toBeInTheDocument();
-    await waitFor(() =>
-      expect(within(dialog).getByLabelText(/Router name/)).toHaveFocus(),
-    );
-    expect(
-      within(dialog).getByText('Router identity', { selector: 'span' }),
-    ).toBeInTheDocument();
+    await waitFor(() => expect(within(dialog).getByLabelText(/Router name/)).toHaveFocus());
+    expect(screen.getByText('Step 1 of 3: Router')).toBeInTheDocument();
   });
 
-  it('preserves values across Back/Next and validates each step', async () => {
+  it('preserves values across steps, suggests a network and previews customer addresses', async () => {
     const user = userEvent.setup({ delay: null });
     server.use(...fleetHandlers());
     renderPage(<NewRouterPage />, { path: '/routers/new', role: 'owner' });
     const dialog = await screen.findByRole('dialog', { name: 'Add router' });
-    await user.type(within(dialog).getByLabelText(/Router name/), 'Branch router');
-    await user.type(within(dialog).getByLabelText(/HotSpot LAN interface/), 'bridge-lan');
+    await fillRouter(user, dialog);
+    const gateway = within(dialog).getByLabelText(/Customer network/);
+    expect(gateway).toHaveValue('10.20.0.1/24');
+    expect(within(dialog).getByText('10.20.0.2')).toBeInTheDocument();
+    await user.clear(gateway);
+    await user.type(gateway, '8.8.8.1/24');
     await user.click(within(dialog).getByRole('button', { name: 'Next' }));
-    expect(await within(dialog).findByText('Step 2 of 2: HotSpot network')).toBeInTheDocument();
+    expect(await within(dialog).findByText(/Use a private network/)).toBeInTheDocument();
     await user.click(within(dialog).getByRole('button', { name: 'Back' }));
     expect(within(dialog).getByLabelText(/Router name/)).toHaveValue('Branch router');
-    expect(within(dialog).getByLabelText(/HotSpot LAN interface/)).toHaveValue('bridge-lan');
+    expect(within(dialog).getByLabelText(/Customer port/)).toHaveValue('bridge-lan');
+  });
+
+  it('connects an existing HotSpot with only its profile name', async () => {
+    const user = userEvent.setup({ delay: null });
+    let received: Record<string, unknown> | undefined;
+    server.use(
+      ...fleetHandlers(),
+      http.post(`${API}/routers/register/`, async ({ request }) => {
+        received = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json(router(), { status: 201 });
+      }),
+    );
+    renderPage(<NewRouterPage />, {
+      path: '/routers/new',
+      role: 'owner',
+      extraRoutes: <Route path="/routers/:id" element={<div>router detail setup</div>} />,
+    });
+    const dialog = await screen.findByRole('dialog', { name: 'Add router' });
+    await fillRouter(user, dialog, 'Existing router');
+    await user.click(within(dialog).getByRole('radio', { name: /Connect an existing HotSpot/ }));
+    expect(within(dialog).queryByLabelText(/Customer network/)).not.toBeInTheDocument();
     await user.click(within(dialog).getByRole('button', { name: 'Next' }));
-    // Step 2 requires gateway + confirmation.
-    await user.click(within(dialog).getByRole('button', { name: 'Create router' }));
     expect(
-      await within(dialog).findByText(/Enter the LAN gateway with its prefix/),
+      await within(dialog).findByText(/Enter the name of the HotSpot profile/),
     ).toBeInTheDocument();
-    expect(await within(dialog).findByText(/Confirm the router network settings/)).toBeInTheDocument();
-  });
+    await user.type(within(dialog).getByLabelText(/Existing HotSpot profile/), 'hsprof1');
+    await reviewAndCreate(user, dialog);
+    await waitFor(() => expect(received).toBeDefined(), { timeout: 5000 });
+    expect(received).toMatchObject({ complete_hotspot_setup: false, hotspot_profile: 'hsprof1' });
+    expect(received).not.toHaveProperty('gateway_cidr');
+  }, 15000);
 
-  it('supports manual HotSpot mode and requires the existing profile', async () => {
+  it('keeps DHCP reuse, custom range and NAT under advanced network settings', async () => {
     const user = userEvent.setup({ delay: null });
     server.use(...fleetHandlers());
     renderPage(<NewRouterPage />, { path: '/routers/new', role: 'owner' });
     const dialog = await screen.findByRole('dialog', { name: 'Add router' });
-    await user.type(within(dialog).getByLabelText(/Router name/), 'Manual router');
-    await user.type(within(dialog).getByLabelText(/HotSpot LAN interface/), 'bridge-lan');
-    await user.click(within(dialog).getByRole('button', { name: 'Next' }));
-    const auto = await within(dialog).findByLabelText(/Set up HotSpot automatically/);
-    expect(auto).toBeChecked();
-    await user.click(auto);
-    expect(within(dialog).queryByLabelText(/LAN gateway/)).not.toBeInTheDocument();
-    expect(within(dialog).getByText(/Manual HotSpot/)).toBeInTheDocument();
-    // Missing existing profile blocks progress on final submit (jumps back).
-    await user.click(within(dialog).getByLabelText(/I confirm this router/));
-    await user.click(within(dialog).getByRole('button', { name: 'Create router' }));
-    expect(await screen.findByText(/Enter the existing HotSpot profile/)).toBeInTheDocument();
-  });
-
-  it('shows conditional DHCP reuse, custom range and NAT fields', async () => {
-    const user = userEvent.setup({ delay: null });
-    server.use(...fleetHandlers());
-    renderPage(<NewRouterPage />, { path: '/routers/new', role: 'owner' });
-    const dialog = await screen.findByRole('dialog', { name: 'Add router' });
-    await user.type(within(dialog).getByLabelText(/Router name/), 'Branch router');
-    await user.type(within(dialog).getByLabelText(/HotSpot LAN interface/), 'bridge-lan');
-    await user.click(within(dialog).getByRole('button', { name: 'Next' }));
-    await within(dialog).findByLabelText(/LAN gateway/);
-    expect(within(dialog).queryByLabelText(/Existing DHCP pool/)).not.toBeInTheDocument();
-    expect(within(dialog).queryByLabelText(/DHCP address range/)).not.toBeInTheDocument();
-    expect(within(dialog).queryByLabelText(/WAN interface/)).not.toBeInTheDocument();
+    await fillRouter(user, dialog);
+    expect(within(dialog).getByLabelText(/DHCP setup/)).not.toBeVisible();
+    await user.click(within(dialog).getByText('Advanced network settings'));
     await user.selectOptions(within(dialog).getByLabelText(/DHCP setup/), 'reuse');
-    expect(await within(dialog).findByLabelText(/Existing DHCP pool/)).toBeInTheDocument();
-    await user.click(within(dialog).getByLabelText(/Use custom DHCP range/));
-    expect(await within(dialog).findByLabelText(/DHCP address range/)).toBeInTheDocument();
-    await user.selectOptions(within(dialog).getByLabelText(/NAT configuration/), 'interface');
-    expect(await within(dialog).findByLabelText(/WAN interface/)).toBeInTheDocument();
+    expect(await within(dialog).findByLabelText(/Existing address pool/)).toBeInTheDocument();
+    await user.click(within(dialog).getByLabelText(/Use my own DHCP address range/));
+    expect(await within(dialog).findByLabelText(/^DHCP address range/)).toBeInTheDocument();
+    await user.selectOptions(within(dialog).getByLabelText(/Internet sharing/), 'interface');
+    expect(await within(dialog).findByLabelText(/Internet \(WAN\) interface/)).toBeInTheDocument();
   });
 
   it('registers through POST /routers/register/ without client-side secrets', async () => {
@@ -447,12 +469,8 @@ describe('Add router popup', () => {
     });
     const dialog = await screen.findByRole('dialog', { name: 'Add router' });
     expect(within(dialog).queryByLabelText(/RADIUS secret/i)).not.toBeInTheDocument();
-    await user.type(within(dialog).getByLabelText(/Router name/), 'Branch router');
-    await user.type(within(dialog).getByLabelText(/HotSpot LAN interface/), 'bridge-lan');
-    await user.click(within(dialog).getByRole('button', { name: 'Next' }));
-    await user.type(await within(dialog).findByLabelText(/LAN gateway/), '192.168.50.1/24');
-    await user.click(within(dialog).getByLabelText(/I confirm this router/));
-    await user.click(within(dialog).getByRole('button', { name: 'Create router' }));
+    await fillRouter(user, dialog);
+    await reviewAndCreate(user, dialog);
     await waitFor(() => expect(received).toBeDefined(), { timeout: 5000 });
     expect(key).toMatch(/^[A-Za-z0-9_.:-]{16,128}$/);
     expect(received).toMatchObject({
@@ -460,12 +478,16 @@ describe('Add router popup', () => {
       hotspot_interface: 'bridge-lan',
       complete_hotspot_setup: true,
       network_reviewed: true,
+      gateway_cidr: '10.20.0.1/24',
       dhcp_range_mode: 'automatic',
+      nat_mode: 'existing',
     });
     expect(received).not.toHaveProperty('nas_secret');
     expect(received).not.toHaveProperty('wireguard_ip');
     expect(received).not.toHaveProperty('wireguard_public_key');
-    expect(await screen.findByText('router detail setup', {}, { timeout: 5000 })).toBeInTheDocument();
+    expect(
+      await screen.findByText('router detail setup', {}, { timeout: 5000 }),
+    ).toBeInTheDocument();
   }, 15000);
 
   it('retains entered details when server preparation rejects the request', async () => {
@@ -478,42 +500,31 @@ describe('Add router popup', () => {
     );
     renderPage(<NewRouterPage />, { path: '/routers/new', role: 'owner' });
     const dialog = await screen.findByRole('dialog', { name: 'Add router' });
-    await user.type(within(dialog).getByLabelText(/Router name/), 'Keep my details');
-    await user.type(within(dialog).getByLabelText(/HotSpot LAN interface/), 'bridge-lan');
-    await user.click(within(dialog).getByRole('button', { name: 'Next' }));
-    await user.type(await within(dialog).findByLabelText(/LAN gateway/), '192.168.50.1/24');
-    await user.click(within(dialog).getByLabelText(/I confirm this router/));
-    await user.click(within(dialog).getByRole('button', { name: 'Create router' }));
+    await fillRouter(user, dialog, 'Keep my details');
+    await reviewAndCreate(user, dialog);
     expect(
       await within(dialog).findByText('Router capacity reached.', {}, { timeout: 5000 }),
     ).toBeInTheDocument();
-    // The draft stays on step 2 after a form-level error; Back reveals step 1 values.
-    expect(within(dialog).getByLabelText(/LAN gateway/)).toHaveValue('192.168.50.1/24');
+    await user.click(within(dialog).getByRole('button', { name: 'Back' }));
     await user.click(within(dialog).getByRole('button', { name: 'Back' }));
     expect(within(dialog).getByLabelText(/Router name/)).toHaveValue('Keep my details');
   }, 15000);
 
-  it('maps API field errors onto inputs without losing the draft', async () => {
+  it('maps API field errors onto inputs and returns to their step', async () => {
     const user = userEvent.setup({ delay: null });
     server.use(
       ...fleetHandlers(),
       http.post(`${API}/routers/register/`, () =>
-        HttpResponse.json({ nas_identifier: ['This NAS identifier is already in use.'] }, { status: 400 }),
+        HttpResponse.json({ name: ['A router with this name already exists.'] }, { status: 400 }),
       ),
     );
     renderPage(<NewRouterPage />, { path: '/routers/new', role: 'owner' });
     const dialog = await screen.findByRole('dialog', { name: 'Add router' });
-    await user.type(within(dialog).getByLabelText(/Router name/), 'Branch router');
-    await user.type(within(dialog).getByLabelText(/NAS identifier/), 'unique-router');
-    await user.type(within(dialog).getByLabelText(/HotSpot LAN interface/), 'bridge-lan');
-    await user.click(within(dialog).getByRole('button', { name: 'Next' }));
-    await user.type(await within(dialog).findByLabelText(/LAN gateway/), '192.168.50.1/24');
-    await user.click(within(dialog).getByLabelText(/I confirm this router/));
-    await user.click(within(dialog).getByRole('button', { name: 'Create router' }));
-    expect(
-      await screen.findByText('This NAS identifier is already in use.'),
-    ).toBeInTheDocument();
-    expect(screen.getByLabelText(/Router name/)).toHaveValue('Branch router');
+    await fillRouter(user, dialog);
+    await reviewAndCreate(user, dialog);
+    expect(await screen.findByText('A router with this name already exists.')).toBeInTheDocument();
+    expect(screen.getByText('Step 1 of 3: Router')).toBeInTheDocument();
+    expect(within(dialog).getByLabelText(/Router name/)).toHaveValue('Branch router');
   }, 15000);
 
   it('guards duplicate submissions with a single idempotency key', async () => {
@@ -535,16 +546,15 @@ describe('Add router popup', () => {
       extraRoutes: <Route path="/routers/:id" element={<div>router detail setup</div>} />,
     });
     const dialog = await screen.findByRole('dialog', { name: 'Add router' });
-    await user.type(within(dialog).getByLabelText(/Router name/), 'Branch router');
-    await user.type(within(dialog).getByLabelText(/HotSpot LAN interface/), 'bridge-lan');
-    await user.click(within(dialog).getByRole('button', { name: 'Next' }));
-    await user.type(await within(dialog).findByLabelText(/LAN gateway/), '192.168.50.1/24');
-    await user.click(within(dialog).getByLabelText(/I confirm this router/));
-    const create = within(dialog).getByRole('button', { name: 'Create router' });
-    await user.click(create);
+    await fillRouter(user, dialog);
+    await reviewAndCreate(user, dialog);
     // Second click lands while the first submission is in flight and must be ignored.
-    await user.click(create).catch(() => undefined);
-    expect(await screen.findByText('router detail setup', {}, { timeout: 5000 })).toBeInTheDocument();
+    await user
+      .click(within(dialog).getByRole('button', { name: /Create router/ }))
+      .catch(() => undefined);
+    expect(
+      await screen.findByText('router detail setup', {}, { timeout: 5000 }),
+    ).toBeInTheDocument();
     await waitFor(() => expect(calls).toBe(1), { timeout: 5000 });
     expect(keys[0]).toMatch(/^[A-Za-z0-9_.:-]{16,128}$/);
   }, 20000);
@@ -620,12 +630,12 @@ describe('Add router popup', () => {
     });
     const dialog = await screen.findByRole('dialog', { name: 'Add router' });
     await user.type(within(dialog).getByLabelText(/Router name/), 'Branch router');
-    await user.type(within(dialog).getByLabelText(/HotSpot LAN interface/), 'bridge-lan');
+    await user.type(within(dialog).getByLabelText(/Customer port/), 'bridge-lan');
     await user.click(within(dialog).getByRole('button', { name: 'Next' }));
-    await user.type(await within(dialog).findByLabelText(/LAN gateway/), '192.168.50.1/24');
-    await user.click(within(dialog).getByLabelText(/I confirm this router/));
-    await user.click(within(dialog).getByRole('button', { name: 'Create router' }));
-    expect(await screen.findByText(`setup tab for ${saved.id}`, {}, { timeout: 5000 })).toBeInTheDocument();
+    await reviewAndCreate(user, dialog);
+    expect(
+      await screen.findByText(`setup tab for ${saved.id}`, {}, { timeout: 5000 }),
+    ).toBeInTheDocument();
   }, 15000);
 
   it('uses keyboard operation: Enter advances steps', async () => {
@@ -634,9 +644,9 @@ describe('Add router popup', () => {
     renderPage(<NewRouterPage />, { path: '/routers/new', role: 'owner' });
     const dialog = await screen.findByRole('dialog', { name: 'Add router' });
     await user.type(within(dialog).getByLabelText(/Router name/), 'Branch router');
-    await user.type(within(dialog).getByLabelText(/HotSpot LAN interface/), 'bridge-lan');
+    await user.type(within(dialog).getByLabelText(/Customer port/), 'bridge-lan');
     await user.keyboard('{Enter}');
-    expect(await within(dialog).findByText('Step 2 of 2: HotSpot network')).toBeInTheDocument();
+    expect(await within(dialog).findByText('Step 2 of 3: Network')).toBeInTheDocument();
   });
 });
 
@@ -679,9 +689,9 @@ describe('Router portal styling', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Add router' });
     expect(dialog.querySelector('.rv-add-dialog, .rv-add-review') ?? dialog).toBeInTheDocument();
     await user.type(within(dialog).getByLabelText(/Router name/), 'Branch router');
-    await user.type(within(dialog).getByLabelText(/HotSpot LAN interface/), 'bridge-lan');
+    await user.type(within(dialog).getByLabelText(/Customer port/), 'bridge-lan');
     await user.click(within(dialog).getByRole('button', { name: 'Next' }));
-    expect(await within(dialog).findByText('Step 2 of 2: HotSpot network')).toBeInTheDocument();
+    expect(await within(dialog).findByText('Step 2 of 3: Network')).toBeInTheDocument();
   });
 });
 

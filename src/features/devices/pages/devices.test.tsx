@@ -184,6 +184,32 @@ describe('DevicesPage', () => {
     await waitFor(() => expect(deleted).toEqual(['2']));
   }, 15000);
 
+  it('summarises the whole fleet and shows each device’s effective access', async () => {
+    server.use(
+      http.get(`${API}/plans/`, () => HttpResponse.json(paginated([plan]))),
+      http.get(`${API}/iot-devices/`, () =>
+        HttpResponse.json({
+          ...paginated([
+            device(),
+            device({ id: 2, device_name: 'Gate camera', status: 'revoked' }),
+          ]),
+          summary: { total: 9, active: 6, expiring_7d: 2, permanent: 3, expired: 2, suspended: 1 },
+        }),
+      ),
+    );
+    renderPage(<DevicesPage />, { path: '/devices' });
+    const summary = await screen.findByRole('region', { name: 'Device summary' });
+    expect(await within(summary).findByText('9')).toBeInTheDocument();
+    expect(within(summary).getByText('6 active · 3 need attention')).toBeInTheDocument();
+    expect(within(summary).getByText('3 with permanent access')).toBeInTheDocument();
+    expect(within(summary).getByText('2 expired · 1 suspended')).toBeInTheDocument();
+    const table = screen.getByRole('table', { name: 'Devices' });
+    expect(within(table).getByText('Revoked')).toBeInTheDocument();
+    expect(
+      within(table).getByRole('button', { name: 'Copy MAC address of Lobby TV' }),
+    ).toBeInTheDocument();
+  });
+
   it('is read-only for staff', async () => {
     server.use(
       http.get(`${API}/plans/`, () => HttpResponse.json(paginated([plan]))),

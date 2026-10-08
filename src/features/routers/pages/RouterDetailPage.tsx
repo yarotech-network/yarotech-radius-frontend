@@ -28,7 +28,7 @@ import { ChecksPanel } from '../components/ChecksPanel';
 import { VpnPanel } from '../components/VpnPanel';
 import { SecretsPanel } from '../components/SecretsPanel';
 import { RadiusTestPanel } from '../components/RadiusTestPanel';
-import { RouterSetupScript } from '../components/RouterSetupScript';
+import { RouterSetup } from '../components/setup/RouterSetup';
 import { HotspotSetupPanel } from '../components/HotspotSetupPanel';
 import { HistoryPanel } from '../components/HistoryPanel';
 
@@ -285,8 +285,8 @@ function RouterDetail({
       </div>
       <Card className="router-section-content rv-portal-card">
         {tab === 'setup' && router.registration && (
-          <RouterSetupScript
-            key={`${router.id}:${router.is_active}:${router.onboarding_state}:${router.registration.script_sha256}`}
+          <RouterSetup
+            key={`${router.id}:${router.is_active}:${router.registration.script_sha256}`}
             router={router}
             refresh={onReload}
           />
