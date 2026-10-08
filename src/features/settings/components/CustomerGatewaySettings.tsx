@@ -2,7 +2,8 @@ import { useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { usePrincipal } from '@/app/auth/useAuth';
 import { http } from '@/services/api/http';
-import { Button, FormField, Input, PasswordInput, Select } from '@/components/ui';
+import { CreditCard } from 'lucide-react';
+import { Badge, Button, FormField, Input, PasswordInput, Select } from '@/components/ui';
 import { Alert, ErrorState } from '@/components/feedback';
 import { SettingsCard } from './SettingsCard';
 
@@ -33,10 +34,12 @@ function GatewayForm({ tenantId }: { tenantId: number }) {
   const queryKey = ['settings', 'customer-gateway', tenantId];
   const query = useQuery({ queryKey, queryFn: () => http.get<Gateway>(path), retry: false });
   const [provider, setProvider] = useState<Gateway['provider']>('paystack');
-  const [mode, setMode] = useState<'test' | 'live'>('test');
+  // Until the owner picks a mode, keep the active one so re-saving keys never flips live to test.
+  const [modeChoice, setMode] = useState<'test' | 'live' | null>(null);
   const [secret, setSecret] = useState('');
   const [publicKey, setPublicKey] = useState('');
   const [merchant, setMerchant] = useState('');
+  const mode = modeChoice ?? query.data?.mode ?? 'test';
   const submitting = useRef(false);
   const save = useMutation({
     mutationFn: (data: GatewayWrite) => http.put<Gateway>(path, data),
@@ -51,7 +54,8 @@ function GatewayForm({ tenantId }: { tenantId: number }) {
     <SettingsCard
       id="customer-gateway"
       title="Customer payment gateway"
-      description="Choose one gateway for new storefront, WhatsApp and device purchases. Earlier purchases keep their original payment account. Only the workspace owner can change this setting."
+      icon={<CreditCard />}
+      description="Where customers pay when they buy access codes on your storefront, WhatsApp or for devices. Only the workspace owner can change it."
     >
       {query.isPending ? (
         <p role="status">Loading payment settings…</p>
@@ -82,34 +86,45 @@ function GatewayForm({ tenantId }: { tenantId: number }) {
             }
           }}
         >
-          <p className="text-sm text-ink-600">
-            Current:{' '}
-            {query.data?.legacy
-              ? 'Existing Paystack configuration'
-              : `${query.data?.provider === 'opay' ? 'OPay' : 'Paystack'} (${query.data?.mode})`}
-            . Saved credentials are never displayed.
-          </p>
+          <div className="flex flex-wrap items-center gap-2 rounded-control bg-surface-muted px-3 py-2.5 text-sm">
+            <span className="text-ink-600">Active now:</span>
+            <strong className="text-ink-900">
+              {query.data?.legacy
+                ? 'Paystack (existing setup)'
+                : query.data?.provider === 'opay'
+                  ? 'OPay'
+                  : 'Paystack'}
+            </strong>
+            {!query.data?.legacy && query.data?.mode && (
+              <Badge tone={query.data.mode === 'live' ? 'success' : 'warning'} size="sm">
+                {query.data.mode === 'live' ? 'Live' : 'Test mode'}
+              </Badge>
+            )}
+            <span className="text-xs text-ink-500">Saved keys are never shown.</span>
+          </div>
           <fieldset disabled={save.isPending} className="space-y-4">
-            <FormField label="New active gateway">
-              <Select
-                value={provider}
-                onChange={(e) => {
-                  setProvider(e.target.value as Gateway['provider']);
-                  setSecret('');
-                  setPublicKey('');
-                  save.reset();
-                }}
-              >
-                <option value="paystack">Paystack</option>
-                <option value="opay">OPay</option>
-              </Select>
-            </FormField>
-            <FormField label="Payment mode">
-              <Select value={mode} onChange={(e) => setMode(e.target.value as 'test' | 'live')}>
-                <option value="test">Test / sandbox</option>
-                <option value="live">Live</option>
-              </Select>
-            </FormField>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <FormField label="New active gateway">
+                <Select
+                  value={provider}
+                  onChange={(e) => {
+                    setProvider(e.target.value as Gateway['provider']);
+                    setSecret('');
+                    setPublicKey('');
+                    save.reset();
+                  }}
+                >
+                  <option value="paystack">Paystack</option>
+                  <option value="opay">OPay</option>
+                </Select>
+              </FormField>
+              <FormField label="Payment mode">
+                <Select value={mode} onChange={(e) => setMode(e.target.value as 'test' | 'live')}>
+                  <option value="test">Test / sandbox</option>
+                  <option value="live">Live</option>
+                </Select>
+              </FormField>
+            </div>
             {provider === 'opay' && (
               <>
                 <FormField label="OPay merchant ID" required>

@@ -111,7 +111,6 @@ export default function TeamSettingsPage() {
                 <span className="ml-2 text-xs font-normal text-ink-500">(you)</span>
               )}
             </div>
-
           </div>
         </div>
       ),
@@ -158,7 +157,7 @@ export default function TeamSettingsPage() {
 
   return (
     <div className="space-y-6">
-      <Card className="border-brand-100 bg-gradient-to-br from-brand-50 via-white to-sky-50">
+      <Card className="border-brand-100 bg-brand-50/60">
         <div className="flex items-start gap-4">
           <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-brand-600 text-white">
             <Users className="size-5" aria-hidden />
@@ -180,7 +179,7 @@ export default function TeamSettingsPage() {
           </summary>
           <dl className="mt-4 grid gap-4 sm:grid-cols-3">
             {ROLE_OPTIONS.map((role) => (
-              <div key={role.value} className="rounded-xl border border-brand-100 bg-white p-3">
+              <div key={role.value} className="rounded-xl border border-brand-100 bg-surface p-3">
                 <dt className="font-semibold text-brand-950">{role.label}</dt>
                 <dd className="mt-1 text-xs leading-relaxed text-ink-600">{role.description}</dd>
               </div>

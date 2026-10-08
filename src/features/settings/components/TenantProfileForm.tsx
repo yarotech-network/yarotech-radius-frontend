@@ -62,14 +62,31 @@ export function TenantProfileForm({ profile }: { profile: TenantProfile }) {
       {message && <Alert tone="danger">{message}</Alert>}
       <fieldset disabled={update.isPending} className="flex min-w-0 flex-col gap-4">
         <legend className="sr-only">Business contact details</legend>
-        <FormField label="Workspace name" required error={errors.name?.message}>
-          <Input autoComplete="organization" {...form.register('name')} />
-        </FormField>
-        <FormField label="Business display name" error={errors.business_name?.message}>
-          <Input {...form.register('business_name')} />
-        </FormField>
         <div className="grid gap-4 sm:grid-cols-2">
-          <FormField label="Contact email" optionalLabel error={errors.email?.message}>
+          <FormField
+            label="Workspace name"
+            required
+            hint="Customers see this on your storefront, receipts and emails."
+            error={errors.name?.message}
+          >
+            <Input autoComplete="organization" {...form.register('name')} />
+          </FormField>
+          <FormField
+            label="Business display name"
+            optionalLabel
+            hint="Your full registered or trading name, if different."
+            error={errors.business_name?.message}
+          >
+            <Input {...form.register('business_name')} />
+          </FormField>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <FormField
+            label="Contact email"
+            optionalLabel
+            hint="Used as the support contact when no phone is set."
+            error={errors.email?.message}
+          >
             <Input
               type="email"
               inputMode="email"
@@ -77,7 +94,12 @@ export function TenantProfileForm({ profile }: { profile: TenantProfile }) {
               {...form.register('email')}
             />
           </FormField>
-          <FormField label="Contact phone" optionalLabel error={errors.phone?.message}>
+          <FormField
+            label="Contact phone"
+            optionalLabel
+            hint="Shown to customers as your support line on access-code emails."
+            error={errors.phone?.message}
+          >
             <Input
               type="tel"
               inputMode="tel"
@@ -90,26 +112,20 @@ export function TenantProfileForm({ profile }: { profile: TenantProfile }) {
         <FormField
           label="Address"
           optionalLabel
-          hint="Business location or correspondence address."
+          hint="Your shop or office address."
           error={errors.address?.message}
         >
           <Textarea rows={3} autoComplete="street-address" {...form.register('address')} />
         </FormField>
       </fieldset>
-      <p role="status" className="text-xs text-ink-500">
-        {update.isPending
-          ? 'Saving business details...'
-          : form.formState.isDirty
-            ? 'You have unsaved changes.'
-            : 'No unsaved changes.'}
-      </p>
-      <div className="flex flex-col-reverse gap-2 border-t border-border pt-4 sm:flex-row sm:items-center sm:justify-between">
-        <dl className="text-xs text-ink-500">
-          <span className="inline-flex min-w-0 flex-wrap gap-1">
-            <dt>Storefront slug:</dt>
-            <dd className="font-mono break-all text-ink-700">{profile.slug}</dd>
-          </span>
-        </dl>
+      <div className="flex flex-col-reverse gap-3 border-t border-border pt-4 sm:flex-row sm:items-center sm:justify-between">
+        <p role="status" className="text-xs text-ink-500">
+          {update.isPending
+            ? 'Saving business details...'
+            : form.formState.isDirty
+              ? 'You have unsaved changes.'
+              : 'No unsaved changes.'}
+        </p>
         <div className="flex gap-2 sm:justify-end">
           <Button
             type="button"

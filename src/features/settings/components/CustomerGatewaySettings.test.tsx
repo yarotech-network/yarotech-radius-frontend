@@ -60,7 +60,7 @@ describe('Customer gateway settings', () => {
       expect(screen.getByText(/The gateway could not be saved/)).toBeInTheDocument(),
     );
     expect(screen.getByLabelText(/Paystack secret key/)).toHaveValue('sk_test_draft');
-    expect(screen.getByText(/Current: Existing Paystack/)).toBeInTheDocument();
+    expect(screen.getByText('Paystack (existing setup)')).toBeInTheDocument();
   });
 
   it('does not show credential controls to managers', () => {

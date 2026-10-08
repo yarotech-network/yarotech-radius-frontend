@@ -442,9 +442,12 @@ describe('SubscriptionSettingsPage', () => {
     expect(screen.getAllByText('Business').length).toBeGreaterThan(0);
     expect(screen.getByText('Purchased Business')).toBeInTheDocument();
     expect(screen.getByText('5 active routers')).toBeInTheDocument();
-    expect(
-      screen.getByText(/3 active routers. 12 vouchers prepared today/),
-    ).toBeInTheDocument();
+    expect(screen.getByRole('meter', { name: 'Active routers' })).toHaveAttribute(
+      'aria-valuenow',
+      '3',
+    );
+    expect(screen.getByText('3 of 5')).toBeInTheDocument();
+    expect(screen.getByText('12 of 100')).toBeInTheDocument();
     expect(
       screen.queryByRole('button', { name: /Subscribe|Renew|Switch/ }),
     ).not.toBeInTheDocument();

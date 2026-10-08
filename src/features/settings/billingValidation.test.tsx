@@ -44,7 +44,7 @@ it('saves decimal fees, preserves Naira after saving, and clears replacement key
   const fee = await screen.findByLabelText('Agent funding percentage fee (%)');
   const flat = screen.getByLabelText('Agent funding flat fee (Naira)');
   const commission = screen.getByLabelText('Agent commission rate (%)');
-  expect(flat).toHaveValue(10.5);
+  expect(flat).toHaveValue('10.50');
   for (const [input, value] of [
     [fee, '2.50'],
     [flat, '25.75'],
@@ -53,23 +53,23 @@ it('saves decimal fees, preserves Naira after saving, and clears replacement key
     await user.clear(input);
     await user.type(input, value);
   }
-  await user.type(screen.getByLabelText('Paystack secret key'), 'sk_test_replacement');
-  await user.click(screen.getByRole('button', { name: 'Save preferences' }));
+  await user.type(screen.getByLabelText(/Secret key/), 'sk_test_replacement');
+  await user.click(screen.getByRole('button', { name: 'Save changes' }));
   await waitFor(() =>
     expect(patches).toEqual([
       {
-        agent_funding_fee_percent: '2.5',
+        agent_funding_fee_percent: '2.50',
         agent_funding_flat_fee: 2575,
-        agent_commission_percent: '12.5',
+        agent_commission_percent: '12.50',
         paystack_secret_key: 'sk_test_replacement',
       },
     ]),
   );
-  await waitFor(() => expect(screen.getByLabelText('Paystack secret key')).toHaveValue(''));
-  expect(flat).toHaveValue(25.75);
+  await waitFor(() => expect(screen.getByLabelText(/Secret key/)).toHaveValue(''));
+  expect(flat).toHaveValue('25.75');
   await user.clear(screen.getByLabelText('Voucher prefix'));
   await user.type(screen.getByLabelText('Voucher prefix'), 'NEW');
-  await user.click(screen.getByRole('button', { name: 'Save preferences' }));
+  await user.click(screen.getByRole('button', { name: 'Save changes' }));
   await waitFor(() => expect(patches[1]).toEqual({ voucher_prefix: 'NEW' }));
   expect(screen.queryByText(/expected string/)).not.toBeInTheDocument();
 });
@@ -78,7 +78,7 @@ it('saves an unrelated edit without resubmitting untouched numeric values', asyn
   const patches = setup();
   const user = userEvent.setup();
   await user.type(await screen.findByLabelText('Voucher prefix'), 'X');
-  await user.click(screen.getByRole('button', { name: 'Save preferences' }));
+  await user.click(screen.getByRole('button', { name: 'Save changes' }));
   await waitFor(() => expect(patches).toEqual([{ voucher_prefix: 'WHX' }]));
 });
 
@@ -90,7 +90,7 @@ it('rejects empty fees and percentages above 100 with useful validation messages
   const commission = screen.getByLabelText('Agent commission rate (%)');
   await user.clear(commission);
   await user.type(commission, '101');
-  await user.click(screen.getByRole('button', { name: 'Save preferences' }));
+  await user.click(screen.getByRole('button', { name: 'Save changes' }));
   expect(await screen.findByText('At most 100%')).toBeInTheDocument();
   expect(screen.getAllByText('Required').length).toBeGreaterThanOrEqual(2);
   expect(patches).toEqual([]);

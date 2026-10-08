@@ -1,12 +1,13 @@
-import { voucherCodeFormatOptions } from '@/lib/voucherCodeFormats';
 import { useEffect } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch, type Control } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Link } from 'react-router';
-import { CreditCard, RefreshCw } from 'lucide-react';
-import { Button, Card, FormField, Input, Select, Skeleton } from '@/components/ui';
+import { Percent, RefreshCw, Ticket, Wallet } from 'lucide-react';
+import { Button, FormField, Input, PasswordInput, Select, Skeleton } from '@/components/ui';
 import { Alert, ErrorState, useToast } from '@/components/feedback';
 import { useFormSubmit } from '@/lib/forms/useFormSubmit';
+import { formatDateTime } from '@/lib/formatting/dates';
+import { formatKobo, parseNairaToKobo } from '@/lib/formatting/money';
+import { voucherCodeFormatOptions } from '@/lib/voucherCodeFormats';
 import type { TenantSetting } from '@/types/api';
 import { useTenantSettings, useUpdateTenantSettings } from '../queries';
 import { SettingsCard } from '../components/SettingsCard';
@@ -20,6 +21,10 @@ import {
   type BillingSettingsOutput,
 } from '../settingsSchemas';
 
+/** Example used to show what the fee settings mean in naira. */
+const EXAMPLE_TOP_UP = 1_000_000; // ₦10,000 in kobo
+const EXAMPLE_SALE = 50_000; // ₦500 in kobo
+
 export default function BillingSettingsPage() {
   useEffect(() => {
     document.title = 'Billing and payouts | Yarotech RADIUS';
@@ -27,63 +32,20 @@ export default function BillingSettingsPage() {
   const settings = useTenantSettings();
   return (
     <div className="space-y-6">
-      <Card className="border-brand-200 bg-gradient-to-br from-brand-50/70 via-surface to-sky-50/50 dark:from-brand-950/40 dark:via-surface dark:to-slate-900/40">
-        <div className="flex items-start gap-4">
-          <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-brand-600 text-white shadow-md">
-            <CreditCard className="size-5" aria-hidden />
-          </span>
-          <div className="min-w-0 flex-1">
-            <h2 className="text-lg font-semibold text-ink-900">
-              Payment preferences for your business
-            </h2>
-            <p className="mt-1 text-sm leading-relaxed text-ink-600">
-              Manage customer-payment credentials, voucher defaults and agent wallet funding limits.
-            </p>
-            <nav
-              aria-label="Billing settings shortcuts"
-              className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-sm font-semibold text-brand-600 dark:text-brand-400"
-            >
-              <a href="#paystack" className="hover:underline">
-                Paystack credentials
-              </a>
-              <a href="#vouchers" className="hover:underline">
-                Voucher and agent rules
-              </a>
-              <Link to="/settings/subscription" className="hover:underline">
-                Business subscription
-              </Link>
-            </nav>
-          </div>
-        </div>
-      </Card>
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-ink-500">Changes apply after you save.</p>
-        <Button
-          variant="secondary"
-          size="sm"
-          disabled={settings.isFetching}
-          onClick={() => void settings.refetch()}
-          leadingIcon={
-            <RefreshCw
-              className={
-                settings.isFetching ? 'size-4 animate-spin motion-reduce:animate-none' : 'size-4'
-              }
-              aria-hidden
-            />
-          }
-        >
-          {settings.isFetching ? 'Refreshing...' : 'Refresh billing settings'}
-        </Button>
-      </div>
+      <CustomerGatewaySettings />
+      <PortalSettings />
       {settings.isError && settings.data && (
         <Alert tone="warning" title="Billing settings could not be refreshed">
           Your unsaved entries are preserved. Showing the last loaded settings.
         </Alert>
       )}
-      <CustomerGatewaySettings />
-      <PortalSettings />
       {settings.data ? (
-        <BillingForm key={settings.data.id} settings={settings.data} />
+        <BillingForm
+          key={settings.data.id}
+          settings={settings.data}
+          refreshing={settings.isFetching}
+          onRefresh={() => void settings.refetch()}
+        />
       ) : settings.isPending ? (
         <Skeleton className="h-96 w-full rounded-xl" />
       ) : (
@@ -103,10 +65,20 @@ const FIELDS = [
   'agent_commission_percent',
   'voucher_prefix',
   'default_voucher_code_format',
+  'max_funding_amount',
+  'paystack_public_key',
   'paystack_secret_key',
 ] as const;
 
-function BillingForm({ settings }: { settings: TenantSetting }) {
+function BillingForm({
+  settings,
+  refreshing,
+  onRefresh,
+}: {
+  settings: TenantSetting;
+  refreshing: boolean;
+  onRefresh: () => void;
+}) {
   const toast = useToast();
   const update = useUpdateTenantSettings();
   const form = useForm<BillingSettingsInput, unknown, BillingSettingsOutput>({
@@ -115,17 +87,23 @@ function BillingForm({ settings }: { settings: TenantSetting }) {
     mode: 'onTouched',
   });
   const { message, reset: resetErrors, captureError } = useFormSubmit(form.setError, FIELDS);
+  const errors = form.formState.errors;
+  const dirty = form.formState.isDirty;
 
   async function onSubmit(data: BillingSettingsOutput) {
     resetErrors();
     const patch = settingsFormToPatch(data, settings);
+    // A background refresh must not turn untouched fields into writes.
+    for (const field of FIELDS) {
+      if (!form.formState.dirtyFields[field]) delete patch[field];
+    }
     if (Object.keys(patch).length === 0) {
       toast.info('No changes to save');
       return;
     }
     try {
       const saved = await update.mutateAsync(patch);
-      toast.success('Billing preferences saved');
+      toast.success('Billing settings saved');
       form.reset(settingsToForm(saved));
     } catch (error) {
       captureError(error);
@@ -133,99 +111,195 @@ function BillingForm({ settings }: { settings: TenantSetting }) {
   }
 
   return (
-    <form onSubmit={(e) => void form.handleSubmit(onSubmit)(e)} noValidate className="space-y-6">
+    <form
+      aria-label="Billing and payouts"
+      onSubmit={(e) => void form.handleSubmit(onSubmit)(e)}
+      noValidate
+      className="space-y-6"
+    >
       {message && <Alert tone="danger">{message}</Alert>}
-      {/* <SettingsCard
-        id="paystack"
-        title="Paystack credentials"
-        description="Used for agent wallet funding and existing customer checkout until an owner selects a customer gateway above. Updating this does not change a selected customer gateway."
-      >
-        <div className="space-y-4">
-          <FormField
-            label="Paystack secret key"
-            hint="Enter your secret key from your Paystack API keys dashboard. Keys are write-only and never displayed."
-            error={form.formState.errors.paystack_secret_key?.message}
-          >
-            <PasswordInput
-              {...form.register('paystack_secret_key')}
-              placeholder="sk_live_... or sk_test_..."
-              autoComplete="off"
-            />
-          </FormField>
-          <p className="text-xs text-ink-500">
-            Last settings update: {formatDateTime(settings.updated_at)}
-          </p>
-        </div>
-      </SettingsCard> */}
 
       <SettingsCard
-        id="vouchers"
-        title="Voucher and agent rules"
-        description="Set global voucher code formatting and agent funding fees for your workspace."
+        id="agent-paystack"
+        title="Agent wallet Paystack account"
+        icon={<Wallet />}
+        description="Agents top up their wallets through this Paystack account. Until you add your keys, top-ups use Yarotech's default Paystack account."
+        actions={
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            disabled={refreshing}
+            onClick={onRefresh}
+            leadingIcon={
+              <RefreshCw
+                className={refreshing ? 'animate-spin motion-reduce:animate-none' : undefined}
+                aria-hidden
+              />
+            }
+          >
+            {refreshing ? 'Refreshing...' : 'Refresh billing settings'}
+          </Button>
+        }
       >
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <FormField
-            label="Voucher prefix"
-            hint="Default prefix added to generated codes."
-            error={form.formState.errors.voucher_prefix?.message}
-          >
-            <Input {...form.register('voucher_prefix')} placeholder="e.g. HOTSPOT" />
-          </FormField>
-          <FormField
-            label="Code format"
-            hint="Character set for access codes."
-            error={form.formState.errors.default_voucher_code_format?.message}
-          >
-            <Select
-              {...form.register('default_voucher_code_format')}
-              options={voucherCodeFormatOptions}
+        <div className="grid gap-4 sm:grid-cols-2">
+          <FormField label="Public key" optionalLabel error={errors.paystack_public_key?.message}>
+            <PasswordInput
+              autoComplete="off"
+              placeholder="pk_live_..."
+              {...form.register('paystack_public_key')}
             />
+          </FormField>
+          <FormField label="Secret key" optionalLabel error={errors.paystack_secret_key?.message}>
+            <PasswordInput
+              autoComplete="off"
+              placeholder="sk_live_..."
+              {...form.register('paystack_secret_key')}
+            />
+          </FormField>
+        </div>
+        <p className="mt-3 text-xs text-ink-500">
+          Keys are write-only: they are never shown again after saving. Blank fields do not confirm
+          whether keys are configured; leave them blank to keep the saved keys. Find them in
+          Paystack under Settings → API Keys &amp; Webhooks.
+        </p>
+      </SettingsCard>
+
+      <SettingsCard
+        id="agent-funding"
+        title="Agent wallet top-ups"
+        icon={<Wallet />}
+        description="Limits and fees when agents add money to their wallets. Fees are added on top of the amount the agent tops up."
+      >
+        <div className="grid gap-4 sm:grid-cols-3">
+          <FormField
+            label="Max wallet top-up (₦)"
+            hint="Largest single top-up. The minimum is ₦500."
+            error={errors.max_funding_amount?.message}
+          >
+            <Input inputMode="decimal" {...form.register('max_funding_amount')} />
           </FormField>
           <FormField
             label="Agent funding percentage fee (%)"
-            hint="Fee percentage deducted on agent wallet deposits."
-            error={form.formState.errors.agent_funding_fee_percent?.message}
+            error={errors.agent_funding_fee_percent?.message}
           >
-            <Input
-              type="number"
-              step="0.01"
-              {...form.register('agent_funding_fee_percent')}
-            />
+            <Input inputMode="decimal" {...form.register('agent_funding_fee_percent')} />
           </FormField>
           <FormField
             label="Agent funding flat fee (Naira)"
-            hint="Enter Naira; converted to Kobo when saved. For example, ₦10.50 is 1,050 Kobo."
-            error={form.formState.errors.agent_funding_flat_fee?.message}
+            error={errors.agent_funding_flat_fee?.message}
           >
-            <Input
-              type="number"
-              step="0.01"
-              {...form.register('agent_funding_flat_fee')}
-            />
+            <Input inputMode="decimal" {...form.register('agent_funding_flat_fee')} />
           </FormField>
+        </div>
+        <FundingExample control={form.control} />
+      </SettingsCard>
+
+      <SettingsCard
+        id="agent-commission"
+        title="Agent commission"
+        icon={<Percent />}
+        description="The share of each voucher sale an agent keeps. New agents start with this rate; you can change it for each agent."
+      >
+        <div className="grid gap-4 sm:grid-cols-[minmax(0,14rem)_minmax(0,1fr)] sm:items-start">
           <FormField
             label="Agent commission rate (%)"
-            hint="Default commission percentage for sales."
-            error={form.formState.errors.agent_commission_percent?.message}
+            error={errors.agent_commission_percent?.message}
           >
-            <Input
-              type="number"
-              step="0.01"
-              {...form.register('agent_commission_percent')}
+            <Input inputMode="decimal" {...form.register('agent_commission_percent')} />
+          </FormField>
+          <CommissionExample control={form.control} />
+        </div>
+      </SettingsCard>
+
+      <SettingsCard
+        id="vouchers"
+        title="Voucher codes"
+        icon={<Ticket />}
+        description="Defaults for new access codes. Individual plans can use their own format."
+      >
+        <div className="grid gap-4 sm:grid-cols-2">
+          <FormField
+            label="Voucher prefix"
+            hint="Letters and numbers added to the start of new codes."
+            error={errors.voucher_prefix?.message}
+          >
+            <Input placeholder="e.g. WH" {...form.register('voucher_prefix')} />
+          </FormField>
+          <FormField
+            label="Code format"
+            hint="Characters used in new codes."
+            error={errors.default_voucher_code_format?.message}
+          >
+            <Select
+              options={voucherCodeFormatOptions}
+              {...form.register('default_voucher_code_format')}
             />
           </FormField>
         </div>
       </SettingsCard>
 
-      <div className="flex justify-end gap-3 border-t border-border/60 pt-4">
-        <Button
-          type="submit"
-          loading={form.formState.isSubmitting}
-          disabled={!form.formState.isDirty}
-        >
-          Save preferences
-        </Button>
+      <div className="sticky bottom-3 z-10 flex flex-col gap-3 rounded-card border border-border bg-surface/95 px-4 py-3 shadow-lg backdrop-blur sm:flex-row sm:items-center sm:justify-between">
+        <p role="status" className="text-sm text-ink-600">
+          {update.isPending
+            ? 'Saving…'
+            : dirty
+              ? 'You have unsaved changes.'
+              : `All changes saved · last updated ${formatDateTime(settings.updated_at)}`}
+        </p>
+        <div className="flex gap-2">
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={!dirty || update.isPending}
+            onClick={() => {
+              resetErrors();
+              form.reset(settingsToForm(settings));
+            }}
+          >
+            Discard
+          </Button>
+          <Button type="submit" loading={update.isPending} disabled={!dirty}>
+            Save changes
+          </Button>
+        </div>
       </div>
     </form>
+  );
+}
+
+const asNumber = (value: unknown) => {
+  const parsed = Number(String(value ?? '').trim());
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
+function FundingExample({ control }: { control: Control<BillingSettingsInput, unknown, BillingSettingsOutput> }) {
+  const [percentRaw, flatRaw] = useWatch({
+    control,
+    name: ['agent_funding_fee_percent', 'agent_funding_flat_fee'],
+  });
+  const percent = asNumber(percentRaw);
+  const flat = parseNairaToKobo(String(flatRaw ?? ''));
+  if (percent === null || flat === null) return null;
+  const fee = Math.round((EXAMPLE_TOP_UP * percent) / 100) + flat;
+  return (
+    <p className="mt-4 rounded-control bg-surface-muted px-3 py-2.5 text-sm text-ink-700">
+      Example: to add <strong>{formatKobo(EXAMPLE_TOP_UP, { compact: true })}</strong> to their
+      wallet, an agent pays <strong>{formatKobo(EXAMPLE_TOP_UP + fee)}</strong>
+      {fee > 0 ? ` (${formatKobo(fee)} fee)` : ' (no fee)'}.
+    </p>
+  );
+}
+
+function CommissionExample({ control }: { control: Control<BillingSettingsInput, unknown, BillingSettingsOutput> }) {
+  const rate = asNumber(useWatch({ control, name: 'agent_commission_percent' }));
+  if (rate === null || rate < 0 || rate > 100) return null;
+  const earned = Math.round((EXAMPLE_SALE * rate) / 100);
+  return (
+    <p className="rounded-control bg-surface-muted px-3 py-2.5 text-sm text-ink-700 sm:mt-7">
+      Example: on a <strong>{formatKobo(EXAMPLE_SALE, { compact: true })}</strong> voucher, the
+      agent keeps <strong>{formatKobo(earned)}</strong> and pays you{' '}
+      <strong>{formatKobo(EXAMPLE_SALE - earned)}</strong>.
+    </p>
   );
 }
