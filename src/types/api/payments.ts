@@ -1,4 +1,10 @@
-import type { IsoDateTime, Kobo, PageParams, PaymentDisplayStatus, ReconciliationState } from './common';
+import type {
+  IsoDateTime,
+  Kobo,
+  PageParams,
+  PaymentDisplayStatus,
+  ReconciliationState,
+} from './common';
 import type { PaymentStatus } from './vouchers';
 
 export type FulfillmentStatus = 'fulfilled' | 'paid_unfulfilled' | 'unverified';
@@ -28,9 +34,22 @@ export interface PaymentRecovery {
   reconciliation_error?: string | null;
 }
 
+export type RecoveryAttention = 'any' | 'unfulfilled' | 'email';
+
 export interface RecoveryListParams extends PageParams {
   status?: PaymentStatus;
   plan?: number;
+  /** Server-side: any problem, paid but nothing issued, or credentials email failed. */
+  attention?: RecoveryAttention;
+}
+
+/** Workspace-wide counts that ignore list filters (absent on older backends). */
+export interface RecoverySummary {
+  needs_attention: number;
+  unfulfilled: number;
+  unfulfilled_amount: Kobo;
+  email_failed: number;
+  pending: number;
 }
 
 export interface PaymentDelivery {

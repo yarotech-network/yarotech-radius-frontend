@@ -9,6 +9,7 @@ import type {
   PaymentRecovery,
   PaymentTransaction,
   RecoveryListParams,
+  RecoverySummary,
 } from '@/types/api';
 
 /** Customer purchases (`payments/transactions/`, read-only for every member) and the manager-only recovery board. */
@@ -20,7 +21,10 @@ export const paymentsApi = {
     return http.get<PaymentTransaction>(`/payments/transactions/${id}/`);
   },
   recoveryList(params: RecoveryListParams) {
-    return http.get<Paginated<PaymentRecovery>>('/payment-recovery/', { ...params });
+    return http.get<Paginated<PaymentRecovery> & { summary?: RecoverySummary }>(
+      '/payment-recovery/',
+      { ...params },
+    );
   },
   recovery(id: number) {
     return http.get<PaymentRecovery>(`/payment-recovery/${id}/`);

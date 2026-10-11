@@ -270,32 +270,43 @@ describe('PaymentsPage', () => {
 });
 
 describe('RecoveryPage', () => {
-  it('keeps page-scoped attention clear and retains unresolved payments after refresh failure', async () => {
+  it('filters attention on the server, shows workspace-wide counts and keeps rows after a refresh failure', async () => {
     const user = userEvent.setup();
+    const requests: URLSearchParams[] = [];
+    const summary = {
+      needs_attention: 1,
+      unfulfilled: 1,
+      unfulfilled_amount: 150000,
+      email_failed: 0,
+      pending: 1,
+    };
     server.use(
       http.get(`${API}/plans/`, () => HttpResponse.json(paginated([]))),
-      http.get(`${API}/payment-recovery/`, () =>
-        HttpResponse.json(
-          paginated([
-            recovery(),
-            recovery({
-              id: 3,
-              reference: 'PENDING-003',
-              status: 'pending',
-              fulfillment_status: 'unverified',
-            }),
-          ]),
-        ),
-      ),
+      http.get(`${API}/payment-recovery/`, ({ request }) => {
+        const params = new URL(request.url).searchParams;
+        requests.push(params);
+        const pending = recovery({
+          id: 3,
+          reference: 'PENDING-003',
+          status: 'pending',
+          fulfillment_status: 'unverified',
+        });
+        const rows = params.get('attention') === 'any' ? [recovery()] : [recovery(), pending];
+        return HttpResponse.json({ ...paginated(rows), summary });
+      }),
     );
     renderPage(<RecoveryPage />, { path: '/payments/recovery', role: 'manager' });
     const table = await screen.findByRole('table', { name: 'Payment recovery' });
     await within(table).findByRole('button', { name: 'PAY-UNFULFILLED-002' });
-    await user.selectOptions(screen.getByLabelText('Needs attention'), '1');
-    expect(within(table).queryByText('PENDING-003')).not.toBeInTheDocument();
-    expect(
-      screen.getByText('1 shown on this page; 2 total before attention filtering'),
-    ).toBeInTheDocument();
+    const tiles = screen.getByRole('region', { name: 'Recovery summary' });
+    expect(within(tiles).getByText('₦1,500 waiting to be issued')).toBeInTheDocument();
+
+    const show = screen.getByRole('radiogroup', { name: 'Show' });
+    await user.click(within(show).getByRole('radio', { name: /^Needs attention/ }));
+    await waitFor(() => expect(requests.at(-1)?.get('attention')).toBe('any'));
+    await waitFor(() => expect(within(table).queryByText('PENDING-003')).not.toBeInTheDocument());
+    expect(screen.getByText('1 payment')).toBeInTheDocument();
+
     server.use(
       http.get(`${API}/payment-recovery/`, () =>
         HttpResponse.json({ detail: 'Unavailable' }, { status: 503 }),
@@ -304,6 +315,24 @@ describe('RecoveryPage', () => {
     await user.click(screen.getByRole('button', { name: 'Refresh recovery' }));
     expect(await screen.findByText('Recovery queue could not be refreshed')).toBeInTheDocument();
     expect(within(table).getByText('Payment received; voucher not issued')).toBeInTheDocument();
+  });
+
+  it('opens earlier attention=1 links as the needs-attention view', async () => {
+    const requests: URLSearchParams[] = [];
+    server.use(
+      http.get(`${API}/plans/`, () => HttpResponse.json(paginated([]))),
+      http.get(`${API}/payment-recovery/`, ({ request }) => {
+        requests.push(new URL(request.url).searchParams);
+        return HttpResponse.json(paginated([]));
+      }),
+    );
+    renderPage(<RecoveryPage />, {
+      path: '/payments/recovery',
+      route: '/payments/recovery?attention=1',
+      role: 'manager',
+    });
+    expect(await screen.findByText('Nothing needs attention')).toBeInTheDocument();
+    expect(requests.at(-1)?.get('attention')).toBe('any');
   });
 
   it('highlights payments needing attention, retries with idempotency and explains a 503', async () => {
@@ -351,7 +380,9 @@ describe('RecoveryPage', () => {
       }),
     );
     renderPage(<RecoveryPage />, { path: '/payments/recovery', role: 'manager' });
-    expect(await screen.findByText(/1 payment needs attention/)).toBeInTheDocument();
+    expect(
+      (await screen.findAllByText('Payment received; voucher not issued')).length,
+    ).toBeGreaterThan(0);
     const table = await screen.findByRole('table', { name: 'Payment recovery' });
     await userEvent.click(within(table).getByText('PAY-UNFULFILLED-002'));
     const dialog = await screen.findByRole('dialog', { name: 'Recover payment' });
