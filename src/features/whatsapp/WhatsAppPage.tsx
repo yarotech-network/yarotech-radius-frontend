@@ -1,11 +1,14 @@
-import { useRef, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { MessageSquare, Phone, RefreshCw, Zap } from 'lucide-react';
+import { CheckCircle2, Circle, KeyRound, MessageSquare, RefreshCw } from 'lucide-react';
 import { usePrincipal } from '@/app/auth/useAuth';
 import { can } from '@/services/auth/principal';
 import { http } from '@/services/api/http';
 import { Alert, QueryBoundary } from '@/components/feedback';
-import { Button, Card, Checkbox, FormField, Input, Skeleton } from '@/components/ui';
+import { KpiTile, SectionCard } from '@/components/layout';
+import { Button, Checkbox, FormField, Input, Skeleton } from '@/components/ui';
+import { formatDate } from '@/lib/formatting/dates';
+import { cn } from '@/lib/utilities/cn';
 import type { Paginated } from '@/types/api';
 import { TenantEntryLink } from './SharedRouting';
 import { WorkflowControls } from './WorkflowControls';
@@ -21,89 +24,178 @@ export interface WhatsAppConnection {
 }
 
 export default function WhatsAppPage() {
+  useEffect(() => {
+    document.title = 'WhatsApp · Yarotech RADIUS';
+  }, []);
   const principal = usePrincipal();
-  const scope = principal.kind === 'member' ? principal.tenantId : principal.kind === 'platform_staff' ? principal.activeTenantId : null;
+  const scope =
+    principal.kind === 'member'
+      ? principal.tenantId
+      : principal.kind === 'platform_staff'
+        ? principal.activeTenantId
+        : null;
+  const canManage = can(principal, 'whatsapp.manage');
   const query = useQuery({
     queryKey: ['whatsapp-connections', scope],
     queryFn: () => http.get<Paginated<WhatsAppConnection>>('/whatsapp/routes/'),
     enabled: scope !== null && can(principal, 'whatsapp.view'),
   });
-
-  const activeConnection = query.data?.results[0];
+  const connection = query.data?.results[0];
+  const loading = query.isPending && query.fetchStatus !== 'idle';
 
   return (
     <div className="space-y-6">
-      {/* Premium Hero Header */}
-      <div className="router-page-hero">
-        <div className="router-page-hero-inner">
-          <div className="router-page-hero-text">
-            <span className="router-page-hero-eyebrow">
-              <MessageSquare className="size-3" aria-hidden /> Messaging Integration
-            </span>
-            <h1 className="router-page-hero-title">WhatsApp Business</h1>
-            <p className="router-page-hero-desc">
-              Manage your business connection details, Meta Cloud API settings, and automated voucher delivery.
-            </p>
-          </div>
-          <div className="router-page-hero-actions">
-            <Button
-              variant="secondary"
-              disabled={query.isFetching}
-              onClick={() => void query.refetch()}
-              leadingIcon={
-                <RefreshCw
-                  className={query.isFetching ? 'size-4 animate-spin motion-reduce:animate-none' : 'size-4'}
-                  aria-hidden
-                />
-              }
-            >
-              {query.isFetching ? 'Refreshing...' : 'Refresh'}
-            </Button>
-          </div>
+      <header className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <p className="text-sm text-ink-500">Messaging</p>
+          <h1 className="text-2xl font-bold text-ink-900">WhatsApp</h1>
+          <p className="mt-1 max-w-2xl text-sm text-ink-500">
+            Connect your WhatsApp Business number, share a business link and manage voucher orders
+            and reminders sent over WhatsApp.
+          </p>
         </div>
+        <Button
+          variant="secondary"
+          size="sm"
+          aria-label="Refresh WhatsApp settings"
+          disabled={query.isFetching}
+          onClick={() => void query.refetch()}
+          leadingIcon={
+            <RefreshCw
+              className={query.isFetching ? 'animate-spin motion-reduce:animate-none' : ''}
+              aria-hidden
+            />
+          }
+        >
+          {query.isFetching ? 'Refreshing…' : 'Refresh'}
+        </Button>
+      </header>
 
-        {/* Hero Stats Strip */}
-        <div className="router-page-hero-strip">
-          <div className="router-page-hero-stat">
-            <Phone className="size-4" aria-hidden />
-            <span>
-              {activeConnection?.display_number
-                ? `Active Number: ${activeConnection.display_number}`
-                : 'No display number set'}
-            </span>
-          </div>
-          <div className="router-page-hero-divider" />
-          <div className="router-page-hero-stat">
-            <Zap className="size-4 text-emerald-400" aria-hidden />
-            <span>{activeConnection?.is_active ? 'Routing active' : 'Routing disabled'}</span>
-          </div>
+      {!query.isError && (
+        <section aria-label="Connection summary" className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+          <KpiTile
+            label="Business number"
+            value={connection?.display_number || 'Not set'}
+            detail={
+              connection?.phone_number_id
+                ? `Meta phone number ID ${connection.phone_number_id}`
+                : 'Add your connection details below'
+            }
+            loading={loading}
+          />
+          <KpiTile
+            label="Access token"
+            value={connection?.token_saved ? 'Saved' : 'Not saved'}
+            detail={
+              connection?.token_saved
+                ? 'Stored encrypted and never shown again'
+                : 'Needed before messages can be sent'
+            }
+            extra={<StatusLine on={Boolean(connection?.token_saved)} />}
+            loading={loading}
+          />
+          <KpiTile
+            label="Routing record"
+            value={connection?.is_active ? 'Allowed' : 'Off'}
+            detail="Does not by itself start WhatsApp sales"
+            extra={<StatusLine on={Boolean(connection?.is_active)} />}
+            loading={loading}
+          />
+          <KpiTile
+            label="First saved"
+            value={connection ? formatDate(connection.created_at) : 'Not yet'}
+            detail="No provider check is made when saving"
+            loading={loading}
+          />
+        </section>
+      )}
+
+      <div className="grid gap-6 lg:grid-cols-3 lg:items-start">
+        <div className="lg:col-span-2">
+          <QueryBoundary
+            query={query}
+            skeleton={<Skeleton className="h-80 w-full rounded-card" />}
+            errorTitle="Could not load WhatsApp settings"
+          >
+            {(data) => (
+              <ConnectionForm
+                key={`${principal.user.id}:${scope}:${data.results[0]?.id ?? 'new'}`}
+                connection={data.results[0] ?? null}
+                canManage={canManage}
+                scope={scope}
+              />
+            )}
+          </QueryBoundary>
         </div>
+        <ActivationChecklist connection={connection} />
       </div>
 
-      <Alert tone="info" title="WhatsApp activation">
-        Shared-number purchases require a verified platform connection, an active business link
-        and a running worker. Reminders start disabled and require customer consent.
-        Saving your individual connection details does not activate shared-number sales.
-      </Alert>
-
-      {can(principal, 'whatsapp.manage') && <TenantEntryLink key={`${principal.user.id}:${scope}`} scope={scope} />}
-      {can(principal, 'whatsapp.manage') && <WorkflowControls key={`workflow:${principal.user.id}:${scope}`} scope={scope} />}
-
-      <QueryBoundary
-        query={query}
-        skeleton={<Skeleton className="h-48 w-full rounded-2xl" />}
-        errorTitle="Could not load WhatsApp settings"
-      >
-        {(data) => (
-          <ConnectionForm
-            key={`${principal.user.id}:${scope}:${data.results[0]?.id ?? 'new'}`}
-            connection={data.results[0] ?? null}
-            canManage={can(principal, 'whatsapp.manage')}
-            scope={scope}
-          />
-        )}
-      </QueryBoundary>
+      {canManage && <TenantEntryLink key={`${principal.user.id}:${scope}`} scope={scope} />}
+      {canManage && (
+        <WorkflowControls key={`workflow:${principal.user.id}:${scope}`} scope={scope} />
+      )}
     </div>
+  );
+}
+
+function StatusLine({ on }: { on: boolean }) {
+  return (
+    <span
+      aria-hidden
+      className={cn('block h-1 rounded-full', on ? 'bg-success-600' : 'bg-fill-strong')}
+    />
+  );
+}
+
+/** What has to be true before customers can buy over WhatsApp; only the first step is known here. */
+function ActivationChecklist({ connection }: { connection: WhatsAppConnection | undefined }) {
+  const steps = [
+    {
+      title: 'Save your connection details',
+      detail: 'Your Meta phone number ID, public number and access token.',
+      done: Boolean(connection?.token_saved),
+    },
+    {
+      title: 'Create a business link',
+      detail: 'Customers start a chat on the shared platform number from your link.',
+    },
+    {
+      title: 'Platform verification',
+      detail: 'Yarotech verifies the shared number and runs the message worker.',
+    },
+    {
+      title: 'Customers opt in to reminders',
+      detail: 'Reminders start switched off and need each customer’s consent.',
+    },
+  ];
+  return (
+    <aside
+      aria-labelledby="whatsapp-activation"
+      className="rounded-card border border-border bg-surface-muted p-5"
+    >
+      <h2 id="whatsapp-activation" className="text-base font-semibold text-ink-900">
+        WhatsApp activation
+      </h2>
+      <p className="mt-1 text-sm text-ink-500">
+        Saving connection details does not start WhatsApp sales. Sales go live once every step below
+        is in place.
+      </p>
+      <ol className="mt-4 space-y-3">
+        {steps.map((step) => (
+          <li key={step.title} className="flex gap-3">
+            {step.done ? (
+              <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-success-600" aria-label="Done" />
+            ) : (
+              <Circle className="mt-0.5 size-4 shrink-0 text-ink-300" aria-hidden />
+            )}
+            <div>
+              <p className="text-sm font-medium text-ink-900">{step.title}</p>
+              <p className="text-xs text-ink-500">{step.detail}</p>
+            </div>
+          </li>
+        ))}
+      </ol>
+    </aside>
   );
 }
 
@@ -160,66 +252,83 @@ function ConnectionForm({
   }
 
   return (
-    <Card className="max-w-2xl space-y-4 border-border/70">
-      <div className="flex items-center gap-3">
-        <span className="flex size-10 items-center justify-center rounded-xl bg-emerald-500 text-white shadow-md">
-          <MessageSquare className="size-5" />
-        </span>
-        <div>
-          <h2 className="text-lg font-bold text-ink-900">Business Connection</h2>
-          <p className="text-xs text-ink-500">
-            {connection
-              ? 'Connection details saved. Provider connection has not been verified.'
-              : 'No connection details saved yet.'}
-          </p>
-        </div>
-      </div>
+    <SectionCard
+      id="whatsapp-connection"
+      icon={<MessageSquare />}
+      title="Business connection"
+      description={
+        connection
+          ? 'Details saved. The provider connection has not been checked.'
+          : 'No connection details saved yet.'
+      }
+    >
+      <form onSubmit={(event) => void save(event)} className="space-y-5">
+        {!canManage && (
+          <Alert tone="warning">Only a workspace administrator can change these settings.</Alert>
+        )}
+        {error && <Alert tone="danger">{error}</Alert>}
+        {saved && (
+          <Alert tone="success">
+            Connection details saved. No provider check or message was sent.
+          </Alert>
+        )}
 
-      <div className="rounded-lg bg-surface-muted p-3 text-xs font-medium text-ink-600">
-        Access token status: <span className="font-semibold text-ink-900">{connection?.token_saved ? 'Saved securely' : 'Not saved'}</span>
-      </div>
+        <fieldset disabled={!canManage || busy} className="space-y-5">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <FormField
+              label="Meta phone number ID"
+              hint="From your Meta app settings. This is not your public number."
+            >
+              <Input
+                value={phoneId}
+                onChange={(event) => setPhoneId(event.target.value)}
+                required
+                inputMode="numeric"
+                pattern="[0-9]{1,100}"
+                maxLength={100}
+                placeholder="e.g. 104829384029"
+                className="font-mono"
+              />
+            </FormField>
+            <FormField
+              label="Public WhatsApp number"
+              hint="Include the country code, for example +2348012345678."
+            >
+              <Input
+                value={displayNumber}
+                onChange={(event) => setDisplayNumber(event.target.value)}
+                type="tel"
+                pattern="\+?[1-9][0-9]{6,14}"
+                maxLength={16}
+                placeholder="+2348012345678"
+              />
+            </FormField>
+          </div>
 
-      {!canManage && <Alert tone="warning">Only a workspace administrator can change these settings.</Alert>}
-      {error && <Alert tone="danger">{error}</Alert>}
-      {saved && (
-        <Alert tone="success">
-          Connection details saved. No provider check or message was sent.
-        </Alert>
-      )}
-
-      <form onSubmit={(event) => void save(event)} className="space-y-4">
-        <fieldset disabled={!canManage || busy} className="space-y-4">
-          <FormField
-            label="Meta phone number ID"
-            hint="The identifier from your Meta configuration. This is different from your public WhatsApp number."
-          >
-            <Input
-              value={phoneId}
-              onChange={(event) => setPhoneId(event.target.value)}
-              required
-              inputMode="numeric"
-              pattern="[0-9]{1,100}"
-              maxLength={100}
-              placeholder="e.g. 104829384029"
+          <div className="flex items-center gap-3 rounded-lg border border-border bg-surface-muted px-3 py-2.5 text-sm">
+            <KeyRound
+              className={cn(
+                'size-4 shrink-0',
+                connection?.token_saved ? 'text-success-600' : 'text-ink-400',
+              )}
+              aria-hidden
             />
-          </FormField>
-          <FormField
-            label="Public WhatsApp number"
-            hint="Include the country code, for example +2348012345678. Existing records are not guessed from Meta IDs."
-          >
-            <Input
-              value={displayNumber}
-              onChange={(event) => setDisplayNumber(event.target.value)}
-              type="tel"
-              pattern="\+?[1-9][0-9]{6,14}"
-              maxLength={16}
-              placeholder="+2348012345678"
-            />
-          </FormField>
+            <span className="text-ink-600">
+              Access token:{' '}
+              <span className="font-medium text-ink-900">
+                {connection?.token_saved ? 'Saved securely' : 'Not saved'}
+              </span>
+            </span>
+          </div>
+
           {canManage && (
             <FormField
               label={connection ? 'Replace access token (optional)' : 'Access token'}
-              hint="Saved tokens are never displayed. Leave blank to keep the existing token."
+              hint={
+                connection
+                  ? 'Saved tokens are never displayed. Leave blank to keep the saved token.'
+                  : 'From Meta. It is stored encrypted and never displayed again.'
+              }
             >
               <Input
                 type="password"
@@ -228,7 +337,7 @@ function ConnectionForm({
                 onChange={(event) => setToken(event.target.value)}
                 required={!connection}
                 maxLength={500}
-                placeholder="EAAG..."
+                placeholder="EAAG…"
               />
             </FormField>
           )}
@@ -239,12 +348,14 @@ function ConnectionForm({
             onChange={(event) => setActive(event.target.checked)}
           />
           {canManage && (
-            <Button type="submit" loading={busy} disabled={busy}>
-              {busy ? 'Saving...' : 'Save connection details'}
-            </Button>
+            <div className="flex justify-end border-t border-border pt-4">
+              <Button type="submit" loading={busy} disabled={busy}>
+                {busy ? 'Saving…' : 'Save connection details'}
+              </Button>
+            </div>
           )}
         </fieldset>
       </form>
-    </Card>
+    </SectionCard>
   );
 }

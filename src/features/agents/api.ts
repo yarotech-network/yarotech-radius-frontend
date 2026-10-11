@@ -5,13 +5,17 @@ import type {
   AgentEditRequest,
   AgentListParams,
   AgentProfile,
+  AgentSummary,
   Paginated,
 } from '@/types/api';
+
+/** `summary` is absent on older backends. */
+export type AgentListResponse = Paginated<AgentProfile> & { summary?: AgentSummary };
 
 /** Manager-side agent (reseller) administration: `tenant/agents/` (IsTenantManager). */
 export const agentsApi = {
   list(params: AgentListParams) {
-    return http.get<Paginated<AgentProfile>>('/tenant/agents/', { ...params });
+    return http.get<AgentListResponse>('/tenant/agents/', { ...params });
   },
   get(id: number) {
     return http.get<AgentProfile>(`/tenant/agents/${id}/`);

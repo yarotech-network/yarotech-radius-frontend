@@ -15,6 +15,7 @@ import {
   editFormToPatch,
   agentEditSchema,
   formatCommission,
+  initials,
 } from '../agentSchemas';
 
 const agent = (extra: Partial<AgentProfile> = {}): AgentProfile => ({
@@ -58,6 +59,14 @@ describe('agent schemas', () => {
     expect(editFormToPatch(parsed, agent())).toEqual({ shop_name: 'Chidi Phones & More' });
     expect(formatCommission('12.50')).toBe('12.5');
     expect(formatCommission('10.00')).toBe('10');
+  });
+});
+
+describe('initials', () => {
+  it('uses two words when there are two, otherwise the first two letters', () => {
+    expect(initials('Chidi Phones & More')).toBe('CP');
+    expect(initials('agent')).toBe('AG');
+    expect(initials('  ')).toBe('?');
   });
 });
 
@@ -140,6 +149,25 @@ describe('AgentsPage', () => {
       password: 'Passw0rd!2026',
       phone: '+2348040000003',
     });
+  });
+
+  it('shows workspace totals from the list summary and links the pending tile to the filter', async () => {
+    server.use(
+      http.get(`${API}/tenant/agents/`, () =>
+        HttpResponse.json({
+          ...paginated([agent()]),
+          summary: { total: 7, active: 4, pending: 2, suspended: 1, wallet_total: 1250000 },
+        }),
+      ),
+    );
+    renderPage(<AgentsPage />, { path: '/agents' });
+    const summary = await screen.findByRole('region', { name: 'Agent summary' });
+    expect(await within(summary).findByText('7')).toBeInTheDocument();
+    expect(within(summary).getByText('4 active · 2 pending · 1 suspended')).toBeInTheDocument();
+    expect(within(summary).getByText('₦12,500.00')).toBeInTheDocument();
+    expect(
+      within(summary).getByRole('link', { name: 'Show agents awaiting approval' }),
+    ).toHaveAttribute('href', '/agents?status=pending');
   });
 
   it('maps field errors from the API onto the form', async () => {

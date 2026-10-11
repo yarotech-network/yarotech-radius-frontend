@@ -1,25 +1,18 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router';
-import { CheckCircle2, PauseCircle, Pencil, RefreshCw, Store, Ticket } from 'lucide-react';
-import { PageHeader, StatusBadge } from '@/components/layout';
-import {
-  Button,
-  Card,
-  ConfirmDialog,
-  DescriptionList,
-  Skeleton,
-  Stat,
-  Tabs,
-} from '@/components/ui';
+import { CheckCircle2, PauseCircle, Pencil, Phone, RefreshCw, Store, Ticket } from 'lucide-react';
+import { KpiTile, PageHeader, StatusBadge } from '@/components/layout';
+import { Button, Card, ConfirmDialog, DescriptionList, Skeleton, Tabs } from '@/components/ui';
 import { Alert, EmptyState, QueryBoundary, useToast } from '@/components/feedback';
 import { DataTable, Pagination, type Column } from '@/components/data';
-import { formatDateTime } from '@/lib/formatting/dates';
+import { formatDate, formatDateTime, formatRelative } from '@/lib/formatting/dates';
 import { formatKobo } from '@/lib/formatting/money';
+import { cn } from '@/lib/utilities/cn';
 import type { AgentProfile, Voucher } from '@/types/api';
 import { useVouchers } from '@/features/vouchers/queries';
 import { useAgent, useApproveAgent, useSuspendAgent } from '../queries';
 import { AGENT_STATUS_LABELS, canApprove, canSuspend } from '../agentRules';
-import { formatCommission } from '../agentSchemas';
+import { formatCommission, initials } from '../agentSchemas';
 import { EditAgentDialog } from '../components/AgentForms';
 import { AgentCreditPanel } from '../components/AgentCreditPanel';
 import { usePrincipal } from '@/app/auth/useAuth';
@@ -97,21 +90,26 @@ function AgentDetail({
               onClick={onRefresh}
               disabled={refreshing}
               leadingIcon={
-                <RefreshCw className={refreshing ? 'size-4 animate-spin' : 'size-4'} aria-hidden />
+                <RefreshCw
+                  className={
+                    refreshing ? 'size-4 animate-spin motion-reduce:animate-none' : 'size-4'
+                  }
+                  aria-hidden
+                />
               }
             >
               Refresh agent
             </Button>
             <Button
               variant="secondary"
-              leadingIcon={<Pencil className="h-4 w-4" aria-hidden />}
+              leadingIcon={<Pencil className="size-4" aria-hidden />}
               onClick={() => setEditing(true)}
             >
               Edit
             </Button>
             {canApprove(agent.status) && (
               <Button
-                leadingIcon={<CheckCircle2 className="h-4 w-4" aria-hidden />}
+                leadingIcon={<CheckCircle2 className="size-4" aria-hidden />}
                 onClick={() => setConfirm('approve')}
               >
                 {agent.status === 'suspended' ? 'Re-activate' : 'Approve'}
@@ -120,7 +118,7 @@ function AgentDetail({
             {canSuspend(agent.status) && (
               <Button
                 variant="danger"
-                leadingIcon={<PauseCircle className="h-4 w-4" aria-hidden />}
+                leadingIcon={<PauseCircle className="size-4" aria-hidden />}
                 onClick={() => setConfirm('suspend')}
               >
                 Suspend
@@ -130,93 +128,127 @@ function AgentDetail({
         }
       />
 
-      <Card className="router-page-hero border-brand-100 dark:border-slate-800 bg-gradient-to-br from-brand-50 via-white to-sky-50 dark:from-slate-900 dark:via-slate-900 dark:to-brand-950/40 p-6">
-        <div className="flex items-start gap-4">
-          <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-brand-600 dark:bg-brand-500 text-white shadow-md shadow-brand-500/20">
-            <Store className="size-6" aria-hidden />
-          </span>
-          <div className="min-w-0">
-            <h2 className="text-xl font-bold text-brand-950 dark:text-slate-100">Reseller Account Overview</h2>
-            <p className="mt-1 text-sm leading-relaxed text-ink-600 dark:text-slate-400">
-              Review this agent's profile, prepaid wallet balance, and commission rate. Monitor real-time voucher sales and credit transaction history below.
-            </p>
-            <div className="mt-3 inline-flex items-center gap-2 rounded-lg bg-brand-100/60 dark:bg-slate-800/80 px-3 py-1 text-xs font-medium text-brand-800 dark:text-brand-300">
-              <span>Member since {formatDateTime(agent.created_at)}</span>
-              <span>•</span>
-              <span>Status updates directly affect agent portal access</span>
-            </div>
-          </div>
-        </div>
-      </Card>
       {refreshFailed && (
         <Alert tone="warning" title="Agent could not be refreshed">
           Showing the last loaded profile and wallet balance. Refresh again to check for changes.
         </Alert>
       )}
       {agent.status === 'pending' && (
-        <Alert tone="info" className="mb-4" title="Awaiting approval">
-          This agent cannot sign in to the agent portal until you approve them.
+        <Alert tone="info" title="Awaiting approval">
+          This agent cannot sign in to the agent portal or sell vouchers until you approve them.
         </Alert>
       )}
       {agent.status === 'suspended' && (
-        <Alert tone="warning" className="mb-4" title="Suspended">
-          The agent is locked out of the portal. Their wallet balance is preserved.
+        <Alert tone="warning" title="Suspended">
+          The agent is locked out of the portal. Their wallet balance is kept.
         </Alert>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-3">
-        <div className="rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-sm transition-all hover:shadow-md">
-          <Stat
-            label="Wallet Balance"
-            value={agent.wallet_balance === null ? 'Unavailable' : formatKobo(agent.wallet_balance)}
-            hint="Prepaid credit for voucher sales"
-          />
-        </div>
-        <div className="rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-sm transition-all hover:shadow-md">
-          <Stat
-            label="Commission Rate"
-            value={`${formatCommission(agent.commission_rate)}%`}
-            hint="Percentage earned per voucher sold"
-          />
-        </div>
-        <div className="rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-sm transition-all hover:shadow-md">
-          <Stat
-            label="Account Status"
-            value={AGENT_STATUS_LABELS[agent.status]}
-            hint={`Joined ${formatDateTime(agent.created_at)}`}
-          />
-        </div>
-      </div>
+      <section aria-label="Agent summary" className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+        <KpiTile
+          label="Wallet balance"
+          value={agent.wallet_balance === null ? 'Unavailable' : formatKobo(agent.wallet_balance)}
+          detail="Prepaid credit for voucher sales"
+        />
+        <KpiTile
+          label="Commission"
+          value={`${formatCommission(agent.commission_rate)}%`}
+          detail="Earned on each voucher sold"
+        />
+        <KpiTile
+          label="Portal access"
+          value={agent.status === 'active' ? 'Can sell' : 'Blocked'}
+          detail={
+            agent.status === 'active'
+              ? 'Signs in and sells from their wallet'
+              : agent.status === 'pending'
+                ? 'Approve to let them sign in'
+                : 'Re-activate to restore access'
+          }
+          extra={
+            <span
+              aria-hidden
+              className={cn(
+                'block h-1 rounded-full',
+                agent.status === 'active'
+                  ? 'bg-success-600'
+                  : agent.status === 'pending'
+                    ? 'bg-warning-600'
+                    : 'bg-ink-300',
+              )}
+            />
+          }
+        />
+        <KpiTile
+          label="Member since"
+          value={formatDate(agent.created_at)}
+          detail={`Joined ${formatRelative(agent.created_at)}`}
+        />
+      </section>
 
-      <div className="overflow-x-auto border-b border-slate-200 dark:border-slate-800 pb-2">
+      <Card padded={false} className="space-y-4 p-4 md:p-5">
         <Tabs
           items={[
-            { value: 'overview', label: 'Profile Details' },
-            { value: 'sales', label: 'Vouchers Sold' },
-            ...(canManageCredit ? [{ value: 'credit' as const, label: 'Credit Management' }] : []),
+            { value: 'overview', label: 'Profile' },
+            { value: 'sales', label: 'Vouchers sold' },
+            ...(canManageCredit ? [{ value: 'credit' as const, label: 'Credit' }] : []),
           ]}
           value={tab}
           onChange={setTab}
           ariaLabel="Agent sections"
         />
-      </div>
-      <Card className="border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-sm">
         {tab === 'overview' && (
-          <DescriptionList
-            columns={2}
-            items={[
-              { label: 'Username', value: agent.username, mono: true },
-              { label: 'Phone', value: agent.phone, mono: true },
-              { label: 'Shop name', value: agent.shop_name || null },
-              { label: 'Commission rate', value: `${formatCommission(agent.commission_rate)}%` },
-              { label: 'Joined', value: formatDateTime(agent.created_at) },
-              {
-                label: 'Wallet',
-                value:
-                  agent.wallet_balance === null ? 'Unavailable' : formatKobo(agent.wallet_balance),
-              },
-            ]}
-          />
+          <div className="space-y-4">
+            <div className="flex flex-wrap items-center gap-4 rounded-card border border-border bg-surface-muted p-4">
+              <span
+                aria-hidden
+                className="flex size-12 shrink-0 items-center justify-center rounded-full bg-brand-600 text-base font-semibold text-white"
+              >
+                {initials(agent.shop_name || agent.username)}
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-semibold text-ink-900">
+                  {agent.shop_name || agent.username}
+                </p>
+                <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-ink-500">
+                  <span className="inline-flex items-center gap-1">
+                    <Phone className="size-3.5" aria-hidden />
+                    <span className="font-mono">{agent.phone || '—'}</span>
+                  </span>
+                  <span className="inline-flex items-center gap-1">
+                    <Store className="size-3.5" aria-hidden />
+                    {agent.shop_name ? `@${agent.username}` : 'No shop name yet'}
+                  </span>
+                </p>
+              </div>
+              <Button
+                variant="secondary"
+                size="sm"
+                leadingIcon={<Pencil className="size-4" aria-hidden />}
+                onClick={() => setEditing(true)}
+              >
+                Edit profile
+              </Button>
+            </div>
+            <DescriptionList
+              columns={2}
+              items={[
+                { label: 'Username', value: agent.username, mono: true },
+                { label: 'Phone', value: agent.phone, mono: true },
+                { label: 'Shop name', value: agent.shop_name || null },
+                { label: 'Status', value: AGENT_STATUS_LABELS[agent.status] },
+                { label: 'Commission rate', value: `${formatCommission(agent.commission_rate)}%` },
+                {
+                  label: 'Wallet',
+                  value:
+                    agent.wallet_balance === null
+                      ? 'Unavailable'
+                      : formatKobo(agent.wallet_balance),
+                },
+                { label: 'Joined', value: formatDateTime(agent.created_at) },
+              ]}
+            />
+          </div>
         )}
         {tab === 'sales' && <AgentSales agent={agent} />}
         {tab === 'credit' && canManageCredit && <AgentCreditPanel agent={agent} />}
@@ -323,15 +355,15 @@ function AgentSales({ agent }: { agent: AgentProfile }) {
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-lg font-semibold text-brand-950">Voucher history</h2>
+          <h2 className="text-lg font-semibold text-ink-900">Voucher history</h2>
           <p role="status" className="mt-1 text-sm text-ink-600">
             {query.isPlaceholderData
-              ? 'Updating results...'
+              ? 'Updating results…'
               : query.data
                 ? `${query.data.count} vouchers generated by this agent`
                 : query.isError
                   ? 'Voucher count unavailable'
-                  : 'Loading vouchers...'}
+                  : 'Loading vouchers…'}
           </p>
         </div>
         <Button
@@ -362,7 +394,7 @@ function AgentSales({ agent }: { agent: AgentProfile }) {
         empty={
           <EmptyState
             compact
-            icon={<Ticket className="h-6 w-6" aria-hidden />}
+            icon={<Ticket className="size-6" aria-hidden />}
             title="No sales yet"
             description="Vouchers the agent generates will be listed here."
           />

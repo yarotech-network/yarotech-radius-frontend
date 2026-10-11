@@ -78,3 +78,10 @@ export function formatCommission(value: string): string {
   const n = Number(value);
   return Number.isFinite(n) ? String(Number(n.toFixed(2))) : value;
 }
+
+/** Two letters for the avatar: first letters of the first two words, else the first two letters. */
+export function initials(name: string) {
+  const words = name.trim().split(/\s+/).filter(Boolean);
+  const [first = '?', second] = words;
+  return (second ? first.charAt(0) + second.charAt(0) : first.slice(0, 2)).toUpperCase();
+}

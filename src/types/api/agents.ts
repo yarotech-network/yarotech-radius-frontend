@@ -35,6 +35,16 @@ export interface AgentProfile {
   created_at: IsoDateTime;
 }
 
+/** Workspace-wide counts returned beside the agent list; filters do not change it. */
+export interface AgentSummary {
+  total: number;
+  active: number;
+  pending: number;
+  suspended: number;
+  /** Sum of agent wallet balances, in kobo. */
+  wallet_total: Kobo;
+}
+
 export interface AgentListParams extends PageParams {
   status?: AgentStatus;
 }

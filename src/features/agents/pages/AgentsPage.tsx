@@ -1,24 +1,18 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { Plus, RefreshCw, Store, Users, Wallet } from 'lucide-react';
-import { StatusBadge } from '@/components/layout';
+import { Plus, RefreshCw, Store, X } from 'lucide-react';
+import { KpiTile, MiniBar, StatusBadge } from '@/components/layout';
 import { Button, Card, Select } from '@/components/ui';
 import { Alert, EmptyState, useToast } from '@/components/feedback';
-import {
-  DataTable,
-  FilterBar,
-  Pagination,
-  SearchInput,
-  useListParams,
-  type Column,
-} from '@/components/data';
+import { DataTable, Pagination, SearchInput, useListParams, type Column } from '@/components/data';
 import { formatDateTime, formatRelative } from '@/lib/formatting/dates';
 import { formatKobo } from '@/lib/formatting/money';
+import { formatNumber } from '@/lib/formatting/units';
 import { useDebouncedValue } from '@/lib/utilities/useDebouncedValue';
 import type { AgentListParams, AgentProfile, AgentStatus } from '@/types/api';
 import { useAgents } from '../queries';
 import { AGENT_STATUS_FILTERS } from '../agentRules';
-import { formatCommission } from '../agentSchemas';
+import { formatCommission, initials } from '../agentSchemas';
 import { CreateAgentDialog } from '../components/AgentForms';
 
 const FILTERS = ['status'] as const;
@@ -47,15 +41,20 @@ export default function AgentsPage() {
       header: 'Agent',
       primary: true,
       cell: (a) => (
-        <div className="min-w-0">
-          <Link
-            to={`/agents/${a.id}`}
-            className="dashboard-data-link font-bold break-all"
+        <div className="flex min-w-0 items-center gap-3">
+          <span
+            aria-hidden
+            className="flex size-9 shrink-0 items-center justify-center rounded-full bg-brand-50 text-xs font-semibold text-brand-700"
           >
-            {a.username}
-          </Link>
-          <div className="mt-0.5 text-xs text-ink-500">
-            {a.shop_name || 'No shop name'}
+            {initials(a.shop_name || a.username)}
+          </span>
+          <div className="min-w-0">
+            <Link to={`/agents/${a.id}`} className="dashboard-data-link font-semibold break-all">
+              {a.username}
+            </Link>
+            <div className="mt-0.5 truncate text-xs text-ink-500">
+              {a.shop_name || 'No shop name'}
+            </div>
           </div>
         </div>
       ),
@@ -70,23 +69,31 @@ export default function AgentsPage() {
         </span>
       ),
     },
-    { key: 'status', header: 'Status', cell: (a) => <StatusBadge status={a.status} size="sm" dot /> },
+    {
+      key: 'status',
+      header: 'Status',
+      cell: (a) => <StatusBadge status={a.status} size="sm" dot />,
+    },
     {
       key: 'commission',
       header: 'Commission',
       align: 'right',
       hideBelow: 'lg',
-      cell: (a) => <span className="font-medium tabular-nums text-ink-800">{formatCommission(a.commission_rate)}%</span>,
+      cell: (a) => (
+        <span className="text-ink-800 font-medium tabular-nums">
+          {formatCommission(a.commission_rate)}%
+        </span>
+      ),
     },
     {
       key: 'wallet',
-      header: 'Wallet Balance',
+      header: 'Wallet balance',
       align: 'right',
       cell: (a) =>
         a.wallet_balance === null ? (
           <span className="text-xs text-ink-500">Unavailable</span>
         ) : (
-          <span className="font-bold text-ink-900 tabular-nums">
+          <span className="font-semibold text-ink-900 tabular-nums">
             {formatKobo(a.wallet_balance)}
           </span>
         ),
@@ -97,134 +104,162 @@ export default function AgentsPage() {
       hideBelow: 'xl',
       sortField: 'created_at',
       cell: (a) => (
-        <time dateTime={a.created_at} title={formatDateTime(a.created_at)} className="text-xs text-ink-600">
+        <time
+          dateTime={a.created_at}
+          title={formatDateTime(a.created_at)}
+          className="text-xs text-ink-600"
+        >
           {formatRelative(a.created_at)}
         </time>
       ),
     },
   ];
 
+  const summary = query.data?.summary;
+
   return (
     <div className="space-y-6">
-      {/* Premium Hero Header */}
-      <div className="router-page-hero">
-        <div className="router-page-hero-inner">
-          <div className="router-page-hero-text">
-            <span className="router-page-hero-eyebrow">
-              <Users className="size-3" aria-hidden /> Reseller Network
-            </span>
-            <h1 className="router-page-hero-title">Agents & Resellers</h1>
-            <p className="router-page-hero-desc">
-              Manage your reseller network, prepaid wallets, commissions, and voucher sales.
-            </p>
-          </div>
-          <div className="router-page-hero-actions">
-            <Button
-              variant="secondary"
-              disabled={query.isFetching}
-              onClick={() => void query.refetch()}
-              leadingIcon={
-                <RefreshCw
-                  className={query.isFetching ? 'size-4 animate-spin motion-reduce:animate-none' : 'size-4'}
-                  aria-hidden
+      <header className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <p className="text-sm text-ink-500">Reseller network</p>
+          <h1 className="text-2xl font-bold text-ink-900">Agents</h1>
+          <p className="mt-1 max-w-2xl text-sm text-ink-500">
+            Resellers who sell your vouchers from a prepaid wallet. New agents need your approval
+            before they can sell.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant="secondary"
+            size="sm"
+            aria-label="Refresh agents"
+            disabled={query.isFetching}
+            onClick={() => void query.refetch()}
+            leadingIcon={
+              <RefreshCw
+                className={query.isFetching ? 'animate-spin motion-reduce:animate-none' : ''}
+                aria-hidden
+              />
+            }
+          >
+            {query.isFetching ? 'Refreshing…' : 'Refresh'}
+          </Button>
+          <Button
+            size="sm"
+            leadingIcon={<Plus className="size-4" aria-hidden />}
+            onClick={() => setCreating(true)}
+          >
+            Add agent
+          </Button>
+        </div>
+      </header>
+
+      {(query.isPending || summary) && (
+        <section aria-label="Agent summary" className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+          <KpiTile
+            label="Agents"
+            value={summary ? formatNumber(summary.total) : '—'}
+            detail={
+              summary
+                ? `${formatNumber(summary.active)} active · ${formatNumber(summary.pending)} pending · ${formatNumber(summary.suspended)} suspended`
+                : 'Everyone in your network'
+            }
+            extra={
+              summary && summary.total > 0 ? (
+                <MiniBar
+                  parts={[
+                    { value: summary.active, color: 'var(--color-success-600)' },
+                    { value: summary.pending, color: 'var(--color-warning-600)' },
+                    { value: summary.suspended, color: 'var(--color-ink-300)' },
+                  ]}
                 />
-              }
-            >
-              {query.isFetching ? 'Refreshing...' : 'Refresh'}
-            </Button>
-            <Button
-              leadingIcon={<Plus className="size-4" aria-hidden />}
-              onClick={() => setCreating(true)}
-            >
-              Add agent
-            </Button>
-          </div>
-        </div>
+              ) : undefined
+            }
+            loading={query.isPending}
+          />
+          <KpiTile
+            label="Active"
+            value={summary ? formatNumber(summary.active) : '—'}
+            detail="Approved and able to sell"
+            to="/agents?status=active"
+            link="Show active agents"
+            loading={query.isPending}
+          />
+          <KpiTile
+            label="Awaiting approval"
+            value={summary ? formatNumber(summary.pending) : '—'}
+            detail={
+              summary && summary.pending > 0
+                ? 'Review and approve to let them sell'
+                : 'Nobody is waiting'
+            }
+            extra={
+              summary && summary.pending > 0 ? (
+                <span aria-hidden className="block h-1 rounded-full bg-warning-600" />
+              ) : undefined
+            }
+            to="/agents?status=pending"
+            link="Show agents awaiting approval"
+            loading={query.isPending}
+          />
+          <KpiTile
+            label="Wallet float"
+            value={summary ? formatKobo(summary.wallet_total) : '—'}
+            detail="Prepaid balance held by all agents"
+            loading={query.isPending}
+          />
+        </section>
+      )}
 
-        {/* Hero Stats Strip */}
-        <div className="router-page-hero-strip">
-          <div className="router-page-hero-stat">
-            <Users className="size-4" aria-hidden />
-            <span>
-              {query.data
-                ? `${query.data.count} registered agent${query.data.count !== 1 ? 's' : ''}`
-                : 'Loading agents...'}
-            </span>
-          </div>
-          <div className="router-page-hero-divider" />
-          <div className="router-page-hero-stat">
-            <Wallet className="size-4 text-emerald-400" aria-hidden />
-            <span>Prepaid Wallet Funding & Sales</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Intro Banner Card */}
-      <Card className="border-brand-200 bg-gradient-to-br from-brand-50/70 via-surface to-sky-50/50 dark:from-brand-950/40 dark:via-surface dark:to-slate-900/40">
-        <div className="flex items-start gap-4">
-          <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-brand-600 text-white shadow-md">
-            <Store className="size-5" aria-hidden />
-          </span>
-          <div className="min-w-0">
-            <h2 className="text-lg font-semibold text-ink-900">Manage your reseller network</h2>
-            <p className="mt-1 text-sm leading-relaxed text-ink-600">
-              Find agents by username, shop or phone. Open a profile to review their account,
-              commission rate and voucher activity.
-            </p>
-            <p className="mt-3 text-xs font-semibold text-brand-600 dark:text-brand-400">
-              New agents need approval before selling. Wallet balances are shown in naira;
-              commission rates are percentages.
-            </p>
-          </div>
-        </div>
-      </Card>
-
-      {/* Agent Directory Container Card */}
-      <Card className="p-5 md:p-6 border-border/70 space-y-5 shadow-sm">
-        <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-border/60 pb-4">
+      <Card padded={false} className="space-y-4 p-4 md:p-5">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
           <div>
-            <h2 id="agent-directory-title" className="text-xl font-bold tracking-tight text-ink-900">
-              Agent Directory
-            </h2>
-            <p className="mt-0.5 text-xs text-ink-500">
-              Active, pending, and suspended reseller accounts.
+            <h2 className="text-lg font-semibold text-ink-900">Agent directory</h2>
+            <p className="text-xs text-ink-500">
+              Open an agent to change their commission, approve or suspend them, and see their
+              sales.
             </p>
           </div>
-          <p role="status" className="text-xs font-medium text-ink-500 rounded-full bg-surface-muted px-3 py-1 border border-border/50">
+          <p role="status" className="text-sm text-ink-500">
             {query.isPlaceholderData
-              ? 'Updating results...'
+              ? 'Updating results…'
               : query.data
-                ? `${query.data.count} agents in this view`
+                ? `${formatNumber(query.data.count)} matching ${query.data.count === 1 ? 'agent' : 'agents'}`
                 : query.isError
                   ? 'Agent count unavailable'
-                  : 'Loading agents...'}
+                  : 'Loading agents…'}
           </p>
         </div>
 
-        <FilterBar
-          inline
-          search={
+        <section aria-label="Agent filters" className="flex flex-wrap items-center gap-2">
+          <div className="w-full sm:w-72">
             <SearchInput
               value={list.state.search}
               onChange={list.setSearch}
               placeholder="Search username, shop or phone"
               ariaLabel="Search agents"
             />
-          }
-          filters={
-            <div className="w-44">
-              <Select
-                aria-label="Status"
-                size="sm"
-                value={list.state.filters.status ?? ''}
-                onChange={(e) => list.setFilter('status', e.target.value || undefined)}
-                options={AGENT_STATUS_FILTERS}
-              />
-            </div>
-          }
-          activeCount={list.activeFilterCount}
-          onClear={list.clearFilters}
-        />
+          </div>
+          <div className="w-full sm:w-44">
+            <Select
+              aria-label="Status"
+              size="sm"
+              value={list.state.filters.status ?? ''}
+              onChange={(e) => list.setFilter('status', e.target.value || undefined)}
+              options={AGENT_STATUS_FILTERS}
+            />
+          </div>
+          {list.activeFilterCount > 0 && (
+            <Button
+              variant="ghost"
+              size="sm"
+              leadingIcon={<X className="size-4" aria-hidden />}
+              onClick={list.clearFilters}
+            >
+              Clear filters
+            </Button>
+          )}
+        </section>
 
         {query.isError && query.data && (
           <Alert tone="warning" title="Agents could not be refreshed">
@@ -268,17 +303,15 @@ export default function AgentsPage() {
         />
 
         {query.data && query.data.count > 0 && (
-          <div className="border-t border-border/60 pt-4">
-            <Pagination
-              count={query.data.count}
-              page={list.state.page}
-              totalPages={query.data.total_pages}
-              pageSize={list.state.page_size}
-              onPageChange={list.setPage}
-              onPageSizeChange={list.setPageSize}
-              itemLabel="agents"
-            />
-          </div>
+          <Pagination
+            count={query.data.count}
+            page={list.state.page}
+            totalPages={query.data.total_pages}
+            pageSize={list.state.page_size}
+            onPageChange={list.setPage}
+            onPageSizeChange={list.setPageSize}
+            itemLabel="agents"
+          />
         )}
       </Card>
 
