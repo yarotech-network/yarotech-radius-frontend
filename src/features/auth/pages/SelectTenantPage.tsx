@@ -5,10 +5,8 @@ import { useAuth } from '@/app/auth/useAuth';
 import { AuthCard } from '@/app/shell/AuthCard';
 import { Alert } from '@/components/feedback/Alert';
 import { Button } from '@/components/ui/Button';
-import { Badge } from '@/components/ui/Badge';
 import { tenantLabel, useAssignedTenantNames } from '@/app/shell/useAssignedTenantNames';
 import { homePathFor } from '@/services/auth/principal';
-import { humanise } from '@/lib/formatting/units';
 
 export default function SelectTenantPage() {
   const { principal, selectTenant, signOut } = useAuth();
@@ -41,7 +39,7 @@ export default function SelectTenantPage() {
         <div className="space-y-4">
           <Alert tone="warning" title="No active assignments">
             Your account has no active tenant assignments. Ask a platform administrator to assign
-            you, or accept a pending invitation link.
+            you to a tenant.
           </Alert>
           <Button variant="secondary" onClick={() => void signOut()}>
             Sign out
@@ -63,13 +61,7 @@ export default function SelectTenantPage() {
                   <span className="block truncate text-sm font-medium text-ink-900">
                     {assignment.tenant_display || tenantLabel(names.data, assignment.tenant)}
                   </span>
-                  <span className="mt-1 flex flex-wrap gap-1">
-                    {assignment.services.map((s) => (
-                      <Badge key={s} tone="outline" size="sm">
-                        {humanise(s)}
-                      </Badge>
-                    ))}
-                  </span>
+                  <span className="mt-1 block text-xs text-ink-500">Account officer · fixed support role</span>
                 </span>
                 <ChevronRight className="size-4 shrink-0 text-ink-400" aria-hidden />
               </button>

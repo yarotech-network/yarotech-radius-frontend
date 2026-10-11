@@ -1,7 +1,7 @@
 /**
  * Phase 8 — platform admin console against the RUNNING backend harness (admin session).
  * Run with: npm run test:integration. Side effects are cleaned up: a probe tenant is created and
- * hard-deleted, one staff invitation is created then revoked (invitations cannot be deleted), and
+ * hard-deleted, and
  * one assignment for `pstaff1` (id 7) on tenant `garki-net` is created then revoked.
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -14,6 +14,7 @@ import { loadPrincipal } from '@/services/auth/session';
 import type { Principal } from '@/services/auth/principal';
 import type { ApiError } from '@/services/api/errors';
 import { platformApi } from '@/features/platform/api';
+import { http as apiHttp } from '@/services/api/http';
 import PlatformOverviewPage from '@/features/platform/pages/PlatformOverviewPage';
 import TenantsPage from '@/features/platform/pages/TenantsPage';
 import StaffPage from '@/features/platform/pages/StaffPage';
@@ -131,36 +132,12 @@ describe.runIf(import.meta.env.LIVE_API === '1')('phase 8 against live API', () 
     expect(remove.status).toBe(400);
   });
 
-  it('staff: invitation token is returned once, revoke is idempotent, delete is not allowed', async () => {
-    const tenants = await platformApi.tenants({ search: 'garki', page_size: 10 });
-    const garki = tenants.results.find((t) => t.slug === 'garki-net')!;
-    const invitation = await platformApi.invite({
-      email: `probe-${stamp}@example.com`,
-      tenant: garki.id,
-      services: ['vouchers.print'],
-    });
-    expect(invitation.token.length).toBeGreaterThan(20);
-    expect(invitation.status).toBe('pending');
-    // Retrieve/list never expose the token again.
-    const listed = await platformApi.invitations({
-      tenant: garki.id,
-      status: 'pending',
-      page_size: 100,
-    });
-    const row = listed.results.find((i) => i.id === invitation.id) as unknown as
-      Record<string, unknown> | undefined;
-    expect(row).toBeDefined();
-    expect(row).not.toHaveProperty('token');
-
-    const invalidService = await fail(
-      platformApi.invite({ email: 'x@example.com', tenant: garki.id, services: ['nope' as never] }),
-    );
-    expect(invalidService.status).toBe(400);
-
-    const revoked = await platformApi.revokeInvitation(invitation.id);
-    expect(revoked.status).toBe('revoked');
-    const again = await platformApi.revokeInvitation(invitation.id);
-    expect(again.status).toBe('revoked');
+  it('staff: officers have a standalone directory and old invitation creation is retired', async () => {
+    const officers = await platformApi.staffAccounts({ page_size: 10 });
+    expect(officers.count).toBeGreaterThanOrEqual(0);
+    const retired = await fail(apiHttp.post('/platform/staff-invitations/',
+      { email: `probe-${stamp}@example.com`, tenant: 1 }, { tenantId: null }));
+    expect(retired.status).toBe(410);
   });
 
   it('staff: assignment create → grants patch → identity immutable → revoke', async () => {

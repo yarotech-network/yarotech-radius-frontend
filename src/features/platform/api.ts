@@ -3,7 +3,6 @@ import { newIdempotencyKey } from '@/lib/utilities/idempotency';
 import type {
   AuditEvent,
   AuditListParams,
-  CreatedStaffInvitation,
   MembershipListParams,
   NasDevice,
   Paginated,
@@ -15,11 +14,12 @@ import type {
   PlatformWalletPaymentListParams,
   RouterListParams,
   StaffAssignment,
+  StaffAccount,
+  StaffAccountCreate,
   StaffAssignmentListParams,
   StaffAssignmentWrite,
   StaffInvitation,
   StaffInvitationListParams,
-  StaffInvitationWrite,
   SubscriptionPaymentListParams,
   Tenant,
   TenantListParams,
@@ -75,14 +75,16 @@ export const platformApi = {
     http.get<Paginated<AuditEvent>>('/platform/audit-events/', { ...params }, opts),
 
   /* staff */
+  staffAccounts: (params: { search?: string; status?: string; page?: number; page_size?: number } = {}) =>
+    http.get<Paginated<StaffAccount>>('/platform/staff-accounts/', { ...params }, opts),
+  createStaffAccount: (payload: StaffAccountCreate) =>
+    http.post<StaffAccount>('/platform/staff-accounts/', payload, opts),
+  resendStaffSetup: (id: number, temporary_password: string) =>
+    http.post<StaffAccount>(`/platform/staff-accounts/${id}/resend-setup/`, { temporary_password }, opts),
+  suspendStaffAccount: (id: number) =>
+    http.post<StaffAccount>(`/platform/staff-accounts/${id}/suspend/`, {}, opts),
   invitations: (params: StaffInvitationListParams = {}) =>
     http.get<Paginated<StaffInvitation>>('/platform/staff-invitations/', { ...params }, opts),
-  /** The plaintext token is in this response ONLY (Cache-Control: no-store). */
-  invite: (payload: StaffInvitationWrite, idempotencyKey = newIdempotencyKey('invite')) =>
-    http.post<CreatedStaffInvitation>('/platform/staff-invitations/', payload, {
-      ...opts,
-      idempotencyKey,
-    }),
   revokeInvitation: (id: string, idempotencyKey = newIdempotencyKey('revoke')) =>
     http.post<StaffInvitation>(`/platform/staff-invitations/${id}/revoke/`, undefined, {
       ...opts,
@@ -97,7 +99,12 @@ export const platformApi = {
     }),
   updateAssignment: (
     id: number,
-    payload: Partial<Pick<StaffAssignmentWrite, 'services' | 'is_active'>>,
+    payload: Partial<Pick<StaffAssignmentWrite, 'services' | 'is_active' | 'is_primary' | 'work_email' | 'work_phone'>>,
   ) => http.patch<StaffAssignment>(`/platform/staff-assignments/${id}/`, payload, opts),
   revokeAssignment: (id: number) => http.delete(`/platform/staff-assignments/${id}/`, opts),
+  officerChangeRequests: () => http.get<Array<{ id: number; tenant: number; tenant_name: string; reason: string; status: string; created_at: string }>>('/platform/officer-change-requests/', undefined, opts),
+  reviewOfficerChange: (id: number, status: 'approved' | 'declined', assignmentId?: number) =>
+    http.post<{ id: number; status: string }>(`/platform/officer-change-requests/${id}/review/`, {
+      status, ...(assignmentId ? { assignment_id: assignmentId } : {}),
+    }, opts),
 };

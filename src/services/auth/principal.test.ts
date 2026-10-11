@@ -58,7 +58,7 @@ describe('derivePrincipal + can()', () => {
     expect(homePathFor(agent)).toBe('/agent');
   });
 
-  it('platform staff capabilities follow the active assignment grants', () => {
+  it('account officers have one fixed support role within an active assignment', () => {
     const assignments = [
       assignment(10, ['routers.view', 'live_sessions.view']),
       assignment(11, ['payments.view', 'payments.support', 'vouchers.generate']),
@@ -67,16 +67,19 @@ describe('derivePrincipal + can()', () => {
     expect(onTen.kind).toBe('platform_staff');
     expect(can(onTen, 'routers.view')).toBe(true);
     expect(can(onTen, 'routers.diagnostics')).toBe(true);
-    expect(can(onTen, 'routers.test')).toBe(false);
+    expect(can(onTen, 'routers.test')).toBe(true);
     expect(can(onTen, 'sessions.view')).toBe(true);
-    expect(can(onTen, 'payments.view')).toBe(false);
-    expect(homePathFor(onTen)).toBe('/dashboard');
+    expect(can(onTen, 'payments.view')).toBe(true);
+    expect(can(onTen, 'dashboard.view')).toBe(false);
+    expect(can(onTen, 'subscription.checkout')).toBe(false);
+    expect(can(onTen, 'agents.manage')).toBe(false);
+    expect(homePathFor(onTen)).toBe('/routers');
 
     const onEleven = derivePrincipal(user('platform_staff', { tenant_id: null }), assignments, 11);
     expect(can(onEleven, 'payments.recovery.act')).toBe(true);
     expect(can(onEleven, 'vouchers.generate')).toBe(true);
     expect(can(onEleven, 'plans.view')).toBe(true);
-    expect(can(onEleven, 'routers.view')).toBe(false);
+    expect(can(onEleven, 'routers.view')).toBe(true);
   });
 
   it('platform staff with an invalid stored tenant fall back to the single assignment or the selector', () => {

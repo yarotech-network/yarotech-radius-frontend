@@ -1,6 +1,6 @@
 import { OwnerSetupNotice } from '../components/OwnerSetupNotice';
 import { useEffect, useState } from 'react';
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
+import { Link, useNavigate, useParams } from 'react-router';
 import {
   ArrowUpRight,
   Building2,
@@ -20,7 +20,6 @@ import {
   CopyButton,
   DescriptionList,
   Skeleton,
-  Tabs,
 } from '@/components/ui';
 import { Alert, ErrorState, useToast } from '@/components/feedback';
 import { NotFoundPage } from '@/app/shell/NotFoundPage';
@@ -29,13 +28,6 @@ import { formatDateTime } from '@/lib/formatting/dates';
 import type { Tenant } from '@/types/api';
 import { useDeleteTenant, useTenant, useUpdateTenant } from '../queries';
 import { TenantDialog } from '../components/TenantDialog';
-import { TenantMembersPanel } from '../components/TenantMembersPanel';
-
-type Tab = 'overview' | 'members';
-const TABS: { value: Tab; label: string }[] = [
-  { value: 'overview', label: 'Overview' },
-  { value: 'members', label: 'Members' },
-];
 
 /** `/platform/tenants/:id` — one operator: profile, activation, members and cross-links. */
 export default function TenantDetailPage() {
@@ -99,20 +91,11 @@ function TenantDetail({
 }) {
   const navigate = useNavigate();
   const toast = useToast();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const tab: Tab = searchParams.get('tab') === 'members' ? 'members' : 'overview';
   const [editing, setEditing] = useState(false);
   const [toggling, setToggling] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const update = useUpdateTenant();
   const remove = useDeleteTenant();
-
-  function setTab(next: Tab) {
-    const params = new URLSearchParams(searchParams);
-    if (next === 'overview') params.delete('tab');
-    else params.set('tab', next);
-    setSearchParams(params, { replace: true });
-  }
 
   const storefront = `/s/${encodeURIComponent(tenant.slug)}`;
   const storefrontUrl = new URL(storefront, window.location.origin).href;
@@ -179,7 +162,7 @@ function TenantDetail({
               </h2>
               <p className="mt-1 text-sm text-ink-600">
                 {tenant.is_active
-                  ? 'Review this workspace, manage its members and open its operational records.'
+                  ? 'Review this workspace and open its operational records.'
                   : 'This workspace is inactive. Review its details before restoring access.'}
               </p>
               <p className="mt-3 text-sm break-all text-brand-700">{storefrontUrl}</p>
@@ -194,7 +177,7 @@ function TenantDetail({
           </div>
           <dl className="grid grid-cols-2 gap-6 rounded-xl border border-brand-100 bg-white p-4">
             <div>
-              <dt className="text-xs text-ink-500">Members</dt>
+              <dt className="text-xs text-ink-500">Owner accounts</dt>
               <dd className="mt-1 text-2xl font-semibold text-brand-950 tabular-nums">
                 {tenant.member_count.toLocaleString()}
               </dd>
@@ -208,17 +191,7 @@ function TenantDetail({
           </dl>
         </div>
       </Card>
-      <Tabs
-        items={TABS}
-        value={tab}
-        onChange={setTab}
-        ariaLabel="Tenant sections"
-        className="mb-5"
-      />
-      {tab === 'members' ? (
-        <TenantMembersPanel tenantId={tenant.id} tenantName={tenant.name} />
-      ) : (
-        <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
           <div className="flex min-w-0 flex-col gap-6 xl:col-span-2">
             <Card>
               <CardHeader
@@ -268,15 +241,6 @@ function TenantDetail({
           </div>
           <div className="flex flex-col gap-6">
             <Card>
-              <CardHeader
-                title="Workspace members"
-                description="Review membership and manage access for this business."
-              />
-              <Button variant="link" size="sm" className="mt-2" onClick={() => setTab('members')}>
-                Manage members
-              </Button>
-            </Card>
-            <Card>
               <CardHeader title={tenant.is_active ? 'Deactivate' : 'Reactivate'} className="mb-2" />
               <p className="text-sm text-ink-600">
                 {tenant.is_active
@@ -320,8 +284,7 @@ function TenantDetail({
               )}
             </Card>
           </div>
-        </div>
-      )}
+      </div>
 
       <TenantDialog open={editing} onClose={() => setEditing(false)} tenant={tenant} />
       <ConfirmDialog

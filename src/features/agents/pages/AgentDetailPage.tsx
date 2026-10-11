@@ -279,7 +279,7 @@ function AgentDetail({
         description={
           confirm === 'suspend'
             ? 'The agent is signed out of the portal and cannot sell vouchers until re-activated. Wallet funds are kept.'
-            : 'The agent can sign in to the agent portal, fund their wallet and sell vouchers.'
+            : 'Review the phone, shop name and commission shown above before approving. Once approved, the agent can sign in, fund their wallet and sell vouchers.'
         }
         confirmLabel={
           confirm === 'suspend'

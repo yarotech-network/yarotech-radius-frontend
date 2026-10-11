@@ -48,6 +48,7 @@ const ResetPasswordPage = lazyRoute(lazy(() => import('@/features/auth/pages/Res
 const AcceptInvitationPage = lazyRoute(
   lazy(() => import('@/features/auth/pages/AcceptInvitationPage')),
 );
+const ActivateOfficerPage = lazyRoute(lazy(() => import('@/features/auth/pages/ActivateOfficerPage')));
 const SelectTenantPage = lazyRoute(lazy(() => import('@/features/auth/pages/SelectTenantPage')));
 const NoAccessPage = lazyRoute(lazy(() => import('@/features/auth/pages/NoAccessPage')));
 
@@ -121,6 +122,7 @@ const BillingSettingsPage = lazyRoute(
 const TeamSettingsPage = lazyRoute(
   lazy(() => import('@/features/settings/pages/TeamSettingsPage')),
 );
+const AcceptOwnershipPage = lazyRoute(lazy(() => import('@/features/settings/pages/AcceptOwnershipPage')));
 const SubscriptionSettingsPage = lazyRoute(
   lazy(() => import('@/features/settings/pages/SubscriptionSettingsPage')),
 );
@@ -140,7 +142,10 @@ const workspaceRoutes: RouteObject[] = [
     element: <RequireCapability capability="whatsapp.view" />,
     children: [{ path: 'whatsapp', Component: WhatsAppPage }],
   },
-  { path: 'dashboard', Component: DashboardPage },
+  {
+    element: <RequireCapability capability="dashboard.view" />,
+    children: [{ path: 'dashboard', Component: DashboardPage }],
+  },
   {
     element: <RequireCapability capability="reports.view" />,
     children: [{ path: 'reports', Component: ReportsPage }],
@@ -317,6 +322,8 @@ export const router = createBrowserRouter([
           { path: '/get-started', element: <Navigate to="/register" replace /> },
           { path: '/contact', Component: ContactPage },
           { path: '/pricing', Component: PricingPage },
+          { path: '/accept-ownership', Component: AcceptOwnershipPage },
+          { path: '/activate-officer', Component: ActivateOfficerPage },
           { path: '/guide', Component: GettingStartedPage },
           ...devRoutes,
         ],

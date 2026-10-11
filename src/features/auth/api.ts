@@ -1,11 +1,9 @@
 import { http } from '@/services/api/http';
 import type {
-  AcceptInvitationRequest,
   ChangePasswordRequest,
   PasswordResetConfirmRequest,
   PasswordResetRequest,
   SimpleMessage,
-  StaffAssignment,
   UpdateUserRequest,
   User,
 } from '@/types/api';
@@ -13,6 +11,9 @@ import type {
 export { authApi } from '@/services/auth/session';
 
 export const accountApi = {
+  activateOfficer(payload: { token: string; temporary_password: string; new_password: string; new_password_confirm: string }) {
+    return http.post<SimpleMessage>('/auth/staff-activate/', payload, { anonymous: true, tenantId: null });
+  },
   updateProfile(payload: UpdateUserRequest) {
     return http.patch<User>('/auth/user/', payload, { tenantId: null });
   },
@@ -28,13 +29,6 @@ export const accountApi = {
   confirmPasswordReset(payload: PasswordResetConfirmRequest) {
     return http.post<SimpleMessage>('/auth/password-reset/confirm/', payload, {
       anonymous: true,
-      tenantId: null,
-    });
-  },
-  /** Works both anonymously (creates an account) and signed-in (links to the current account). */
-  acceptInvitation(payload: AcceptInvitationRequest, anonymous: boolean) {
-    return http.post<StaffAssignment>('/staff-invitations/accept/', payload, {
-      anonymous,
       tenantId: null,
     });
   },

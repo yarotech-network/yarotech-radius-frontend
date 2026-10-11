@@ -125,14 +125,39 @@ export interface StaffAssignment {
   tenant: number;
   services: StaffService[];
   is_active: boolean;
+  is_primary?: boolean;
+  work_email?: string;
+  work_phone?: string;
   created_at: IsoDateTime;
+}
+
+export interface StaffAccount {
+  id: number;
+  user_id: number;
+  username: string;
+  email: string;
+  phone: string;
+  status: 'pending' | 'active' | 'suspended';
+  delivery_status: 'pending' | 'accepted' | 'failed' | 'historical';
+  expires_at: IsoDateTime | null;
+  created_at: IsoDateTime;
+}
+
+export interface StaffAccountCreate {
+  username: string;
+  email: string;
+  phone: string;
+  temporary_password: string;
 }
 
 export interface StaffAssignmentWrite {
   user: number;
   tenant: number;
-  services: StaffService[];
+  services?: StaffService[];
   is_active?: boolean;
+  is_primary?: boolean;
+  work_email?: string;
+  work_phone?: string;
 }
 
 export type StaffInvitationStatus = 'pending' | 'accepted' | 'revoked';
@@ -155,7 +180,7 @@ export interface CreatedStaffInvitation extends StaffInvitation {
 export interface StaffInvitationWrite {
   email: string;
   tenant: number;
-  services: StaffService[];
+  services?: StaffService[];
 }
 
 export interface StaffInvitationListParams extends PageParams {

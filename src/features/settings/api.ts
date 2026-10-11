@@ -29,6 +29,11 @@ export interface CheckoutResult {
 }
 
 export const settingsApi = {
+  officer: () => http.get<{ name: string; email: string; phone: string; assigned: boolean }>('/tenants/officer/'),
+  officerRequests: () => http.get<Array<{ id: number; reason: string; status: string; created_at: string }>>('/tenants/officer/change-requests/'),
+  requestOfficerChange: (reason: string) => http.post<{ id: number; status: string }>('/tenants/officer/change-requests/', { reason }),
+  startOwnerTransfer: (email: string, password: string) => http.post<{ status: string; expires_at: string }>('/tenants/owner-transfer/', { email, password }),
+  acceptOwnerTransfer: (payload: { token: string; username?: string; password?: string }) => http.post<{ status: string; tenant_name: string }>('/tenants/owner-transfer/accept/', payload),
   /* tenants/profile/ and tenants/settings/ — manager+ */
   profile: () => http.get<TenantProfile>('/tenants/profile/'),
   updateProfile: (payload: TenantProfileWrite) =>

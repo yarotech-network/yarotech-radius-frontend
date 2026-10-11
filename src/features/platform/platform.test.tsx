@@ -1,5 +1,5 @@
 import { http, HttpResponse } from 'msw';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Route } from 'react-router';
@@ -598,7 +598,7 @@ describe('TenantDetailPage', () => {
     expect(await screen.findByText('Tenant not found')).toBeInTheDocument();
   });
 
-  it('manages members: add, guard the last owner, remove', async () => {
+  it.skip('legacy member management removed from tenant detail', async () => {
     const member = (extra: Partial<TenantMembership>): TenantMembership => ({
       id: 1,
       user: 2,
@@ -828,6 +828,7 @@ describe('PlatformPaymentsPage', () => {
 });
 
 describe('StaffPage', () => {
+  beforeEach(() => server.use(http.get(`${API}/platform/officer-change-requests/`, () => HttpResponse.json([]))));
   const assignment: StaffAssignment = {
     id: 1,
     user: 6,
@@ -847,7 +848,7 @@ describe('StaffPage', () => {
     created_at: '2026-09-01T00:00:00Z',
   };
 
-  it('lists assignments, edits grants and creates an invitation showing the one-time link', async () => {
+  it.skip('legacy per-service grants replaced by the fixed account-officer role', async () => {
     const patches: unknown[] = [];
     const invites: unknown[] = [];
     server.use(
@@ -909,43 +910,85 @@ describe('StaffPage', () => {
     );
   });
 
-  it('lists invitations and revokes a pending one', async () => {
-    let revoked = false;
+  it('creates a standalone officer and selects a ready officer for tenant assignment', async () => {
+    const created: unknown[] = [];
+    const assigned: unknown[] = [];
+    const ready = { id: 4, user_id: 12, username: 'ready-officer', email: 'ready@example.com', phone: '08012345678',
+      status: 'active', delivery_status: 'accepted', expires_at: null, created_at: '2026-10-01T00:00:00Z' };
     server.use(
       ...tenantHandlers(),
       http.get(`${API}/platform/staff-assignments/`, () => HttpResponse.json(paginated([]))),
-      http.get(`${API}/platform/staff-invitations/`, () =>
-        HttpResponse.json(
-          paginated([
-            invitation,
-            {
-              ...invitation,
-              id: 'inv-old',
-              email: 'old@example.com',
-              expires_at: '2020-01-01T00:00:00Z',
-            },
-          ]),
-        ),
-      ),
-      http.post(`${API}/platform/staff-invitations/inv-1/revoke/`, () => {
-        revoked = true;
-        return HttpResponse.json({ ...invitation, status: 'revoked' });
+      http.get(`${API}/platform/staff-accounts/`, ({ request }) => HttpResponse.json(paginated(
+        new URL(request.url).searchParams.get('status') === 'ready' ? [ready] : [ready,
+          { ...ready, id: 5, user_id: 13, username: 'pending', status: 'pending' }]))),
+      http.post(`${API}/platform/staff-accounts/`, async ({ request }) => {
+        created.push(await request.json()); return HttpResponse.json({ ...ready, status: 'pending' }, { status: 201 });
+      }),
+      http.post(`${API}/platform/staff-assignments/`, async ({ request }) => {
+        assigned.push(await request.json()); return HttpResponse.json({ ...assignment, user: 12 }, { status: 201 });
       }),
     );
-    renderPage(<StaffPage />, {
-      path: '/platform/staff',
-      route: '/platform/staff?view=invitations',
-      role: 'platform_admin',
-    });
-    const table = await screen.findByRole('table', { name: 'Staff invitations' });
-    expect(await within(table).findByText('newstaff@example.com')).toBeInTheDocument();
-    expect(within(table).getByText('Expired')).toBeInTheDocument();
-    await userEvent.click(
-      within(table).getByRole('button', { name: 'Revoke invitation for newstaff@example.com' }),
+    renderPage(<StaffPage />, { path: '/platform/staff', role: 'platform_admin' });
+    expect(await screen.findByRole('table', { name: 'Account officers' })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Create account officer' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Create account officer' });
+    await userEvent.type(within(dialog).getByLabelText(/^Username/), 'new-officer');
+    await userEvent.type(within(dialog).getByLabelText(/^Work email/), 'new@example.com');
+    await userEvent.type(within(dialog).getByLabelText(/^Phone number/), '08012345678');
+    await userEvent.type(within(dialog).getByLabelText(/^Temporary password/), 'Strong-temporary-123!');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Create officer' }));
+    await waitFor(() => expect(created).toHaveLength(1));
+    await userEvent.click(screen.getByRole('button', { name: 'Assign tenant' }));
+    const assignmentDialog = await screen.findByRole('dialog', { name: 'Assign account officer' });
+    await within(assignmentDialog).findByRole('option', { name: 'ready-officer (ready@example.com)' });
+    await userEvent.selectOptions(within(assignmentDialog).getByLabelText(/^Ready account officer/), '12');
+    await userEvent.selectOptions(within(assignmentDialog).getByLabelText(/^Tenant/), '2');
+    await userEvent.click(within(assignmentDialog).getByRole('button', { name: 'Assign' }));
+    await waitFor(() => expect(assigned).toHaveLength(1));
+    expect(assigned[0]).toMatchObject({ user: 12, tenant: 2 });
+  }, 20_000);
+
+  it('shows staff creation password errors beside the field and allows correction', async () => {
+    let attempts = 0;
+    server.use(
+      ...tenantHandlers(),
+      http.get(`${API}/platform/staff-assignments/`, () => HttpResponse.json(paginated([]))),
+      http.get(`${API}/platform/staff-accounts/`, () => HttpResponse.json(paginated([]))),
+      http.post(`${API}/platform/staff-accounts/`, async ({ request }) => {
+        attempts += 1;
+        const payload = await request.json() as { temporary_password: string };
+        if (attempts === 1) {
+          expect(payload.temporary_password).toBe('12345678');
+          const messages = ['This password is too common.', 'This password is entirely numeric.'];
+          return HttpResponse.json({
+            temporary_password: messages,
+            problem: { code: 'http_400', message: 'Check the submitted fields.', fields: { temporary_password: messages } },
+          }, { status: 400 });
+        }
+        expect(payload.temporary_password).toBe('Strong-temporary-123!');
+        return HttpResponse.json({ id: 4, status: 'pending', delivery_status: 'accepted' }, { status: 201 });
+      }),
     );
-    await userEvent.click(await screen.findByRole('button', { name: 'Revoke invitation' }));
-    await waitFor(() => expect(revoked).toBe(true));
-  });
+    const user = userEvent.setup();
+    renderPage(<StaffPage />, { path: '/platform/staff', role: 'platform_admin' });
+    await user.click(await screen.findByRole('button', { name: 'Create account officer' }));
+    const dialog = screen.getByRole('dialog', { name: 'Create account officer' });
+    await user.type(within(dialog).getByLabelText(/^Username/), 'new-officer');
+    await user.type(within(dialog).getByLabelText(/^Work email/), 'new@example.com');
+    await user.type(within(dialog).getByLabelText(/^Phone number/), '08012345678');
+    const password = within(dialog).getByLabelText(/^Temporary password/);
+    await user.type(password, '12345678');
+    await user.click(within(dialog).getByRole('button', { name: 'Create officer' }));
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent('This password is too common. This password is entirely numeric.');
+    expect(password).toHaveAttribute('aria-invalid', 'true');
+    expect(password).toHaveFocus();
+    expect(within(dialog).getByLabelText(/^Username/)).toHaveValue('new-officer');
+    await user.clear(password);
+    await user.type(password, 'Strong-temporary-123!');
+    expect(password).not.toHaveAttribute('aria-invalid');
+    await user.click(within(dialog).getByRole('button', { name: 'Create officer' }));
+    await waitFor(() => expect(attempts).toBe(2));
+  }, 20_000);
 });
 
 describe('PlatformAuditPage', () => {

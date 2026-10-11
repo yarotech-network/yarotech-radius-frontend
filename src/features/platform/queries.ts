@@ -11,7 +11,6 @@ import type {
   StaffAssignmentListParams,
   StaffAssignmentWrite,
   StaffInvitationListParams,
-  StaffInvitationWrite,
   SubscriptionPaymentListParams,
   Tenant,
   TenantListParams,
@@ -39,6 +38,8 @@ export const platformKeys = {
   audit: (params: AuditListParams) => [...platformKeys.all, 'audit', params] as const,
   invitations: (params: StaffInvitationListParams) =>
     [...platformKeys.all, 'invitations', params] as const,
+  staffAccounts: (params: { search?: string; status?: string; page?: number; page_size?: number }) =>
+    [...platformKeys.all, 'staff-accounts', params] as const,
   assignments: (params: StaffAssignmentListParams) =>
     [...platformKeys.all, 'assignments', params] as const,
 };
@@ -265,20 +266,6 @@ export function useInvitations(params: StaffInvitationListParams) {
   });
 }
 
-export function useInvite() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({
-      payload,
-      idempotencyKey,
-    }: {
-      payload: StaffInvitationWrite;
-      idempotencyKey: string;
-    }) => platformApi.invite(payload, idempotencyKey),
-    onSuccess: () => void qc.invalidateQueries({ queryKey: [...platformKeys.all, 'invitations'] }),
-  });
-}
-
 export function useRevokeInvitation() {
   const qc = useQueryClient();
   return useMutation({
@@ -292,6 +279,40 @@ export function useAssignments(params: StaffAssignmentListParams) {
     queryKey: platformKeys.assignments(params),
     queryFn: () => platformApi.assignments(params),
     placeholderData: keepPreviousData,
+  });
+}
+
+export function useStaffAccounts(params: { search?: string; status?: string; page?: number; page_size?: number }, enabled = true) {
+  return useQuery({
+    queryKey: platformKeys.staffAccounts(params),
+    queryFn: () => platformApi.staffAccounts(params),
+    enabled,
+    placeholderData: keepPreviousData,
+  });
+}
+
+export function useCreateStaffAccount() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: platformApi.createStaffAccount,
+    onSuccess: () => void qc.invalidateQueries({ queryKey: [...platformKeys.all, 'staff-accounts'] }),
+  });
+}
+
+export function useResendStaffSetup() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, temporary_password }: { id: number; temporary_password: string }) =>
+      platformApi.resendStaffSetup(id, temporary_password),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: [...platformKeys.all, 'staff-accounts'] }),
+  });
+}
+
+export function useSuspendStaffAccount() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: platformApi.suspendStaffAccount,
+    onSuccess: () => void qc.invalidateQueries({ queryKey: [...platformKeys.all, 'staff-accounts'] }),
   });
 }
 
@@ -322,7 +343,7 @@ export function useUpdateAssignment() {
       payload,
     }: {
       id: number;
-      payload: Partial<Pick<StaffAssignmentWrite, 'services' | 'is_active'>>;
+      payload: Partial<Pick<StaffAssignmentWrite, 'services' | 'is_active' | 'is_primary' | 'work_email' | 'work_phone'>>;
     }) => platformApi.updateAssignment(id, payload),
     onSuccess: () => void invalidate(),
   });

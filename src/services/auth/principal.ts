@@ -1,4 +1,4 @@
-import type { MembershipRole, StaffAssignment, StaffService, User } from '@/types/api';
+import type { MembershipRole, StaffAssignment, User } from '@/types/api';
 
 /**
  * The frontend's view of "who is signed in", derived from `GET auth/user/` (+ staff assignments).
@@ -72,7 +72,7 @@ export function homePathFor(principal: Principal): string {
     case 'member':
       return '/dashboard';
     case 'platform_staff':
-      return principal.activeTenantId ? '/dashboard' : '/select-tenant';
+      return principal.activeTenantId ? '/routers' : '/select-tenant';
     default:
       return '/no-access';
   }
@@ -174,22 +174,15 @@ const MEMBER_CAPS: Record<MembershipRole, Set<Capability>> = (() => {
 })();
 
 /** Platform staff grants → capabilities (apps/core/api.py::assigned_tenant). */
-const GRANT_CAPS: Record<StaffService, Capability[]> = {
-  'routers.view': ['routers.view', 'routers.diagnostics'],
-  'routers.test': ['routers.test'],
-  'live_sessions.view': ['sessions.view'],
-  'live_sessions.disconnect': ['sessions.disconnect'],
-  'payments.view': ['payments.view', 'payments.recovery.view'],
-  'payments.support': ['payments.recovery.act'],
-  'vouchers.generate': ['vouchers.generate', 'plans.view'],
-  'vouchers.print': ['vouchers.view', 'vouchers.print'],
-};
-
-export function activeGrants(principal: Principal): Set<StaffService> {
-  if (principal.kind !== 'platform_staff' || principal.activeTenantId === null) return new Set();
-  const assignment = principal.assignments.find((a) => a.tenant === principal.activeTenantId);
-  return new Set(assignment?.services ?? []);
-}
+const ACCOUNT_OFFICER_CAPS = new Set<Capability>([
+  'pppoe.view', 'pppoe.manage',
+  'customers.view', 'customers.manage', 'plans.view', 'plans.manage',
+  'vouchers.view', 'vouchers.generate', 'vouchers.manage', 'vouchers.print',
+  'payments.view', 'payments.recovery.view', 'payments.recovery.act',
+  'routers.view', 'routers.manage', 'routers.test', 'routers.diagnostics',
+  'sessions.view', 'sessions.disconnect', 'devices.view', 'devices.manage',
+  'whatsapp.view', 'whatsapp.manage', 'audit.view',
+]);
 
 export function can(principal: Principal | null, capability: Capability): boolean {
   if (!principal) return false;
@@ -199,10 +192,7 @@ export function can(principal: Principal | null, capability: Capability): boolea
     case 'member':
       return MEMBER_CAPS[principal.role].has(capability);
     case 'platform_staff': {
-      for (const grant of activeGrants(principal)) {
-        if (GRANT_CAPS[grant].includes(capability)) return true;
-      }
-      return false;
+      return principal.activeTenantId !== null && ACCOUNT_OFFICER_CAPS.has(capability);
     }
     default:
       return false;

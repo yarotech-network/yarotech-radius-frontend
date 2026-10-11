@@ -31,8 +31,8 @@ const SECTIONS: {
   },
   {
     to: '/settings/team',
-    label: 'Team',
-    description: 'Who can sign in to this workspace',
+    label: 'Account & support',
+    description: 'Your account officer, agents and ownership',
     caps: ['team.view'],
     also: 'settings.profile',
     icon: Users,
@@ -79,7 +79,7 @@ export default function SettingsLayout() {
           <p className="text-sm text-ink-500">Workspace</p>
           <h1 className="text-2xl font-bold text-ink-900">Settings</h1>
           <p className="mt-1 max-w-2xl text-sm text-ink-500">
-            Manage your business details, payments, team and Yarotech plan.
+            Manage your business details, support contact, payments and Yarotech plan.
           </p>
         </div>
         <div className="flex items-center gap-3 rounded-card border border-border bg-surface px-3 py-2">

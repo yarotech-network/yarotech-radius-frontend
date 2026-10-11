@@ -76,7 +76,7 @@ export default function PlansPage() {
     return p;
   }, [list.state, debouncedSearch]);
   const query = usePlans(params);
-  const stats = useDashboardStats(can(principal, 'plans.view'));
+  const stats = useDashboardStats(can(principal, 'dashboard.view'));
   const update = useUpdatePlan();
   const remove = useDeletePlan();
   const [editor, setEditor] = useState<{ open: boolean; plan?: InternetPlan }>({ open: false });

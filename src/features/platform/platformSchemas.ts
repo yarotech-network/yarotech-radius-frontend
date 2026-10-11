@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { LIMITS } from '@/app/config/constants';
 import { emailSchema, positiveIntSchema } from '@/lib/validation/schemas';
-import { STAFF_SERVICES, type StaffService, type Tenant, type TenantWrite } from '@/types/api';
+import type { Tenant, TenantWrite } from '@/types/api';
 import { SLUG_PATTERN } from './platformVocabulary';
 
 /* ---------- tenants ---------- */
@@ -78,14 +78,9 @@ export type AdminMembershipOutput = z.output<typeof adminMembershipSchema>;
 
 /* ---------- staff ---------- */
 
-const servicesSchema = z
-  .array(z.enum(STAFF_SERVICES as unknown as [StaffService, ...StaffService[]]))
-  .min(1, 'Pick at least one service');
-
 export const inviteSchema = z.object({
   email: emailSchema,
   tenant: positiveIntSchema('Tenant'),
-  services: servicesSchema,
 });
 export type InviteInput = z.input<typeof inviteSchema>;
 export type InviteOutput = z.output<typeof inviteSchema>;
@@ -93,11 +88,10 @@ export type InviteOutput = z.output<typeof inviteSchema>;
 export const assignmentSchema = z.object({
   user: positiveIntSchema('User ID'),
   tenant: positiveIntSchema('Tenant'),
-  services: servicesSchema,
 });
 export type AssignmentInput = z.input<typeof assignmentSchema>;
 export type AssignmentOutput = z.output<typeof assignmentSchema>;
 
-export const grantsSchema = z.object({ services: servicesSchema, is_active: z.boolean() });
+export const grantsSchema = z.object({ is_active: z.boolean(), is_primary: z.boolean(), work_phone: z.string().max(30) });
 export type GrantsInput = z.input<typeof grantsSchema>;
 export type GrantsOutput = z.output<typeof grantsSchema>;

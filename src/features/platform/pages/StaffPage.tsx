@@ -1,455 +1,145 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Link, useSearchParams } from 'react-router';
-import {
-  Ban,
-  Mail,
-  Pencil,
-  ShieldOff,
-  Trash2,
-  UserPlus,
-  ShieldCheck,
-  RefreshCw,
-  Users,
-} from 'lucide-react';
-import { StatusBadge } from '@/components/layout';
-import { DataTable, FilterBar, Pagination, useListParams, type Column } from '@/components/data';
-import { Button, ConfirmDialog, Select, Tabs } from '@/components/ui';
-import { EmptyState, useToast } from '@/components/feedback';
-import { formatDate, formatDateTime, formatRelative } from '@/lib/formatting/dates';
-import type {
-  StaffAssignment,
-  StaffAssignmentListParams,
-  StaffInvitation,
-  StaffInvitationListParams,
-  StaffInvitationStatus,
-} from '@/types/api';
-import {
-  useAssignments,
-  useInvitations,
-  useRevokeAssignment,
-  useRevokeInvitation,
-  useTenantName,
-} from '../queries';
-import { invitationDisplayStatus } from '../platformRules';
+import { useEffect, useState, type FormEvent } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Link } from 'react-router';
+import { Plus, RefreshCw, ShieldOff, Users } from 'lucide-react';
+import { DataTable, Pagination, type Column } from '@/components/data';
+import { Alert, EmptyState, useToast } from '@/components/feedback';
+import { Button, ConfirmDialog, Dialog, FormField, Input, Tabs } from '@/components/ui';
+import { errorMessage } from '@/services/api/errors';
+import type { StaffAccount, StaffAssignment } from '@/types/api';
+import { platformApi } from '../api';
+import { useAssignments, useRevokeAssignment, useResendStaffSetup, useStaffAccounts,
+  useSuspendStaffAccount, useTenantName } from '../queries';
 import { InviteDialog } from '../components/InviteDialog';
-import { EditGrantsDialog, NewAssignmentDialog } from '../components/AssignmentDialogs';
-import { ServiceChips } from '../components/ServiceChips';
+import { NewAssignmentDialog, EditGrantsDialog } from '../components/AssignmentDialogs';
 import { TenantSelect } from '../components/TenantSelect';
 import '../staff-access.css';
 
-type View = 'assignments' | 'invitations';
-const VIEWS: { value: View; label: string }[] = [
-  { value: 'assignments', label: 'Assignments' },
-  { value: 'invitations', label: 'Invitations' },
-];
-const FILTERS = ['tenant', 'status', 'is_active'] as const;
-const INVITE_STATUSES: readonly string[] = ['pending', 'accepted', 'revoked'];
+type View = 'officers' | 'assignments';
+const VIEWS = [{ value: 'officers', label: 'Account officers' }, { value: 'assignments', label: 'Tenant assignments' }] as const;
 
-/** `/platform/staff` — platform support staff: who can reach which tenant, and pending invitations. */
 export default function StaffPage() {
-  const toast = useToast();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const view: View = searchParams.get('view') === 'invitations' ? 'invitations' : 'assignments';
-  const list = useListParams(FILTERS);
-  const tenantName = useTenantName();
-  const [inviting, setInviting] = useState(false);
+  const [view, setView] = useState<View>('officers');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+  const [search, setSearch] = useState('');
+  const [status, setStatus] = useState('');
+  const [tenant, setTenant] = useState('');
+  const [creating, setCreating] = useState(false);
   const [assigning, setAssigning] = useState(false);
   const [editing, setEditing] = useState<StaffAssignment | null>(null);
-  const [revokingAssignment, setRevokingAssignment] = useState<StaffAssignment | null>(null);
-  const [revokingInvite, setRevokingInvite] = useState<StaffInvitation | null>(null);
-  const [now] = useState(() => Date.now());
-  const revokeAssignment = useRevokeAssignment();
-  const revokeInvitation = useRevokeInvitation();
-  useEffect(() => {
-    document.title = 'Staff access · Platform · Yarotech RADIUS';
-  }, []);
-
-  function setView(next: View) {
-    const params = new URLSearchParams(searchParams);
-    if (next === 'assignments') params.delete('view');
-    else params.set('view', next);
-    params.delete('page');
-    params.delete('status');
-    params.delete('is_active');
-    setSearchParams(params, { replace: true });
-  }
-
-  const tenantRaw = Number(list.state.filters.tenant);
-  const tenantId = Number.isInteger(tenantRaw) && tenantRaw > 0 ? tenantRaw : undefined;
-  const { page, page_size: pageSize } = list.state;
-  const isActive = list.state.filters.is_active;
-  const status = list.state.filters.status;
-
-  const assignmentParams = useMemo<StaffAssignmentListParams>(() => {
-    const p: StaffAssignmentListParams = { page, page_size: pageSize };
-    if (tenantId) p.tenant = tenantId;
-    if (isActive) p.is_active = isActive === 'true';
-    return p;
-  }, [page, pageSize, tenantId, isActive]);
-  const invitationParams = useMemo<StaffInvitationListParams>(() => {
-    const p: StaffInvitationListParams = { page, page_size: pageSize };
-    if (tenantId) p.tenant = tenantId;
-    if (status && INVITE_STATUSES.includes(status)) p.status = status as StaffInvitationStatus;
-    return p;
-  }, [page, pageSize, tenantId, status]);
-
-  const assignments = useAssignments(assignmentParams);
-  const invitations = useInvitations(invitationParams);
-  const active = view === 'assignments' ? assignments : invitations;
-
-  const tenantCell = (id: number) => (
-    <Link to={`/platform/tenants/${id}`} className="dashboard-data-link ">
-      {tenantName(id)}
-    </Link>
-  );
-
+  const [revoking, setRevoking] = useState<StaffAssignment | null>(null);
+  const [resending, setResending] = useState<StaffAccount | null>(null);
+  const [suspending, setSuspending] = useState<StaffAccount | null>(null);
+  const toast = useToast();
+  const tenantName = useTenantName();
+  const revoke = useRevokeAssignment();
+  const suspend = useSuspendStaffAccount();
+  const officers = useStaffAccounts({ search, status, page, page_size: pageSize }, view === 'officers');
+  const assignments = useAssignments({ page, page_size: pageSize, ...(tenant ? { tenant: Number(tenant) } : {}) });
+  const active = view === 'officers' ? officers : assignments;
+  const requests = useQuery({ queryKey: ['platform', 'officer-change-requests'], queryFn: platformApi.officerChangeRequests });
+  useEffect(() => { document.title = 'Account officers · Platform · Yarotech RADIUS'; }, []);
+  const officerColumns: Column<StaffAccount>[] = [
+    { key: 'name', header: 'Account officer', primary: true, cell: (row) => <div><strong>{row.username}</strong><div className="text-sm text-ink-500">{row.email}</div></div> },
+    { key: 'phone', header: 'Phone', cell: (row) => row.phone },
+    { key: 'status', header: 'Status', cell: (row) => row.status === 'active' ? 'Ready' : row.status === 'pending' ? 'Pending setup' : 'Suspended' },
+    { key: 'delivery', header: 'Setup email', cell: (row) => row.delivery_status === 'accepted' ? 'Accepted by provider' : row.delivery_status === 'failed' ? 'Failed' : row.delivery_status === 'historical' ? 'Existing account' : 'Pending' },
+  ];
   const assignmentColumns: Column<StaffAssignment>[] = [
-    {
-      key: 'user',
-      header: 'Staff account',
-      primary: true,
-      cell: (a) => (
-        <div className="staff-identity">
-          <span className="staff-avatar" aria-hidden>
-            <Users size={18} />
-          </span>
-          <div className="min-w-0">
-            <div className="font-medium text-ink-900">{a.user_display || 'Staff account'}</div>
-            <div className="text-xs text-ink-500">Assigned {formatDate(a.created_at)}</div>
-          </div>
-        </div>
-      ),
-    },
-    { key: 'tenant', header: 'Tenant', cell: (a) => tenantCell(a.tenant) },
-    { key: 'services', header: 'Services', cell: (a) => <ServiceChips services={a.services} /> },
-    {
-      key: 'status',
-      header: 'Status',
-      cell: (a) => <StatusBadge status={a.is_active ? 'active' : 'inactive'} size="sm" dot />,
-    },
+    { key: 'officer', header: 'Account officer', primary: true, cell: (row) => row.user_display || 'Account officer' },
+    { key: 'tenant', header: 'Tenant', cell: (row) => <Link className="dashboard-data-link" to={`/platform/tenants/${row.tenant}`}>{tenantName(row.tenant)}</Link> },
+    { key: 'primary', header: 'Contact', cell: (row) => row.is_primary ? 'Primary officer' : 'Account officer' },
+    { key: 'status', header: 'Status', cell: (row) => row.is_active ? 'Active' : 'Paused' },
   ];
-  const invitationColumns: Column<StaffInvitation>[] = [
-    {
-      key: 'email',
-      header: 'Invitee',
-      primary: true,
-      cell: (i) => (
-        <div className="min-w-0">
-          <div className="staff-email font-medium text-ink-900">{i.email}</div>
-          <div className="text-xs text-ink-500">sent {formatRelative(i.created_at)}</div>
-        </div>
-      ),
-    },
-    { key: 'tenant', header: 'Tenant', cell: (i) => tenantCell(i.tenant) },
-    {
-      key: 'services',
-      header: 'Services',
-      hideBelow: 'lg',
-      cell: (i) => <ServiceChips services={i.services} max={3} />,
-    },
-    {
-      key: 'status',
-      header: 'Status',
-      cell: (i) => (
-        <span className="inline-flex items-center gap-1.5">
-          <StatusBadge status={invitationDisplayStatus(i, now)} size="sm" dot />
-        </span>
-      ),
-    },
-    {
-      key: 'expires',
-      header: 'Expires',
-      hideBelow: 'md',
-      cell: (i) => (
-        <time
-          dateTime={i.expires_at}
-          title={formatDateTime(i.expires_at)}
-          className={i.status === 'pending' ? 'text-ink-600' : 'text-ink-400'}
-        >
-          {formatRelative(i.expires_at)}
-        </time>
-      ),
-    },
-  ];
+  return <div className="staff-access min-w-0 space-y-6">
+    <header className="staff-access-header"><div><p className="staff-access-eyebrow">Platform administration</p><h1>Account officers</h1>
+      <p className="staff-access-subtitle">Create a support account, wait for activation, then assign tenants.</p></div>
+      <div className="staff-access-actions"><Button variant="secondary" onClick={() => setAssigning(true)}>Assign tenant</Button>
+        <Button leadingIcon={<Plus size={16} />} onClick={() => setCreating(true)}>Create account officer</Button></div></header>
+    <section className="staff-access-panel space-y-3 p-5" aria-label="Account officer change requests">
+      <h2 className="text-lg font-semibold">Officer change requests</h2>
+      {requests.isPending ? <p>Loading requests…</p> : requests.isError ? <Button variant="secondary" onClick={() => void requests.refetch()}>Retry requests</Button> :
+        requests.data?.filter((row) => row.status === 'pending').length ? requests.data.filter((row) => row.status === 'pending').map((row) => <OfficerRequestRow key={row.id} row={row} />) :
+        <p className="text-sm text-ink-500">No requests awaiting review.</p>}
+    </section>
+    <section className="staff-access-panel p-5 space-y-4" aria-label="Staff directory">
+      <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-lg font-semibold">Staff directory</h2>
+        <Button variant="secondary" size="sm" onClick={() => void active.refetch()} leadingIcon={<RefreshCw size={16} />}>Refresh</Button></div>
+      <Tabs items={[...VIEWS]} value={view} onChange={(next) => { setView(next); setPage(1); }} ariaLabel="Staff views" />
+      {view === 'officers' ? <div className="staff-access-filters">
+        <FormField label="Search officers"><Input value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} placeholder="Username or email" /></FormField>
+        <FormField label="Status"><select className="rounded-control border border-border bg-surface p-2" value={status} onChange={(e) => { setStatus(e.target.value); setPage(1); }}>
+          <option value="">All statuses</option><option value="ready">Ready</option><option value="pending">Pending</option><option value="suspended">Suspended</option></select></FormField>
+      </div> : <div className="staff-access-filters"><TenantSelect value={tenant} onChange={(value) => { setTenant(value); setPage(1); }} /></div>}
+      {view === 'officers' ? <DataTable caption="Account officers" columns={officerColumns} rows={officers.data?.results}
+        rowKey={(row) => row.id} loading={officers.isPending} error={officers.error} onRetry={() => void officers.refetch()}
+        rowActions={(row) => row.status === 'active' ? <Button size="sm" variant="ghost" onClick={() => setSuspending(row)}>Suspend</Button> :
+          <Button size="sm" variant="ghost" onClick={() => setResending(row)}>Resend setup</Button>}
+        empty={<EmptyState icon={<Users />} title="No account officers found" action={<Button onClick={() => setCreating(true)}>Create account officer</Button>} />} /> :
+        <DataTable caption="Tenant assignments" columns={assignmentColumns} rows={assignments.data?.results} rowKey={(row) => row.id}
+          loading={assignments.isPending} error={assignments.error} onRetry={() => void assignments.refetch()}
+          rowActions={(row) => <span className="flex gap-2"><Button size="sm" variant="ghost" onClick={() => setEditing(row)}>Edit</Button>
+            <Button size="sm" variant="ghost" onClick={() => setRevoking(row)}>Revoke</Button></span>}
+          empty={<EmptyState icon={<ShieldOff />} title="No tenant assignments found" action={<Button onClick={() => setAssigning(true)}>Assign tenant</Button>} />} />}
+      {(active.data?.count ?? 0) > 0 && <Pagination count={active.data!.count} page={page} totalPages={active.data!.total_pages}
+        pageSize={pageSize} onPageChange={setPage} onPageSizeChange={(size) => { setPageSize(size); setPage(1); }} itemLabel={view} />}
+    </section>
+    <InviteDialog open={creating} onClose={() => setCreating(false)} />
+    <NewAssignmentDialog open={assigning} onClose={() => setAssigning(false)} defaultTenant={tenant ? Number(tenant) : undefined} />
+    <EditGrantsDialog assignment={editing} onClose={() => setEditing(null)} />
+    <ResendDialog account={resending} onClose={() => setResending(null)} />
+    <ConfirmDialog open={suspending !== null} onClose={() => setSuspending(null)} tone="danger" title={`Suspend ${suspending?.username || 'this officer'}?`}
+      description="The officer loses access to every assigned tenant immediately. Their assignments and history remain."
+      confirmLabel="Suspend officer" onConfirm={async () => { if (suspending) { await suspend.mutateAsync(suspending.id); toast.success('Officer suspended'); } }} />
+    <ConfirmDialog open={revoking !== null} onClose={() => setRevoking(null)} tone="danger" title="Revoke tenant assignment?"
+      description="This officer will lose access to the selected tenant. Other assignments remain."
+      confirmLabel="Revoke" onConfirm={async () => { if (revoking) { await revoke.mutateAsync(revoking.id); toast.success('Assignment revoked'); } }} />
+  </div>;
+}
 
-  return (
-    <div className="staff-access min-w-0 space-y-6">
-      <header className="staff-access-header">
-        <div>
-          <p className="staff-access-eyebrow">
-            <ShieldCheck size={15} aria-hidden /> Platform administration
-          </p>
-          <h1>Staff access</h1>
-          <p className="staff-access-subtitle">
-            Give your support team the right access to each tenant.
-          </p>
-        </div>
-        <div className="staff-access-actions">
-          <Button
-            variant="secondary"
-            leadingIcon={<UserPlus className="h-4 w-4" aria-hidden />}
-            onClick={() => setAssigning(true)}
-          >
-            New assignment
-          </Button>
-          <Button
-            leadingIcon={<Mail className="h-4 w-4" aria-hidden />}
-            onClick={() => setInviting(true)}
-          >
-            Invite staff
-          </Button>
-        </div>
-      </header>
-      <section className="staff-access-guide" aria-label="How staff access works">
-        <div>
-          <span className="staff-guide-icon">
-            <Mail size={19} aria-hidden />
-          </span>
-          <div>
-            <h2>Invite a new colleague</h2>
-            <p>
-              Invitation links are shown once. Copy and share the link yourself; the system does not
-              email it.
-            </p>
-          </div>
-        </div>
-        <div>
-          <span className="staff-guide-icon">
-            <UserPlus size={19} aria-hidden />
-          </span>
-          <div>
-            <h2>Assign an existing account</h2>
-            <p>Choose a tenant and the services that a dedicated staff account can access.</p>
-          </div>
-        </div>
-        <div>
-          <span className="staff-guide-icon">
-            <ShieldCheck size={19} aria-hidden />
-          </span>
-          <div>
-            <h2>Stay in control</h2>
-            <p>
-              Edit service grants, pause an assignment or revoke access when support work is
-              complete.
-            </p>
-          </div>
-        </div>
-      </section>
-      <section className="staff-access-panel" aria-labelledby="staff-directory-heading">
-        <div className="staff-directory-header">
-          <div>
-            <h2 id="staff-directory-heading">
-              {view === 'assignments' ? 'Tenant access directory' : 'Staff invitations'}
-            </h2>
-            <p>
-              {view === 'assignments'
-                ? 'Each assignment connects one staff account to one tenant.'
-                : 'Track invitation status and revoke links that are no longer needed.'}
-            </p>
-          </div>
-          <Button
-            variant="secondary"
-            size="sm"
-            disabled={active.isFetching}
-            onClick={() => void active.refetch()}
-            leadingIcon={
-              <RefreshCw className={active.isFetching ? 'animate-spin' : ''} aria-hidden />
-            }
-          >
-            Refresh {view}
-          </Button>
-        </div>
-        <Tabs
-          items={VIEWS}
-          value={view}
-          onChange={setView}
-          ariaLabel="Staff views"
-          className="mb-4"
-        />
-        <FilterBar
-          className="mb-5"
-          filters={
-            <div className="staff-access-filters">
-              <TenantSelect
-                value={list.state.filters.tenant ?? ''}
-                onChange={(v) => list.setFilter('tenant', v || undefined)}
-              />
-              {view === 'assignments' ? (
-                <Select
-                  aria-label="Active"
-                  size="sm"
-                  value={list.state.filters.is_active ?? ''}
-                  onChange={(e) => list.setFilter('is_active', e.target.value || undefined)}
-                  options={[
-                    { value: '', label: 'Active or paused' },
-                    { value: 'true', label: 'Active only' },
-                    { value: 'false', label: 'Paused only' },
-                  ]}
-                />
-              ) : (
-                <Select
-                  aria-label="Status"
-                  size="sm"
-                  value={list.state.filters.status ?? ''}
-                  onChange={(e) => list.setFilter('status', e.target.value || undefined)}
-                  options={[
-                    { value: '', label: 'All statuses' },
-                    { value: 'pending', label: 'Pending' },
-                    { value: 'accepted', label: 'Accepted' },
-                    { value: 'revoked', label: 'Revoked' },
-                  ]}
-                />
-              )}
-            </div>
-          }
-          activeCount={list.activeFilterCount}
-          onClear={list.clearFilters}
-        />
-        <p className="staff-result-count" role="status">
-          {active.isPending
-            ? 'Loading records…'
-            : active.isError
-              ? 'Records could not be refreshed. Retry below.'
-              : `Matching ${view}: ${active.data?.count ?? 0}`}
-        </p>
-        {view === 'assignments' ? (
-          <DataTable
-            caption="Staff assignments"
-            columns={assignmentColumns}
-            rows={assignments.data?.results}
-            rowKey={(a) => a.id}
-            loading={assignments.isPending}
-            refreshing={assignments.isFetching && !assignments.isPending}
-            error={assignments.error}
-            onRetry={() => void assignments.refetch()}
-            rowActions={(a) => (
-              <span className="inline-flex gap-1">
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  aria-label={`Edit grants for user ${a.user}`}
-                  title="Edit grants"
-                  onClick={() => setEditing(a)}
-                  leadingIcon={<Pencil className="h-4 w-4" aria-hidden />}
-                />
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  aria-label={`Revoke assignment for user ${a.user}`}
-                  title="Revoke assignment"
-                  onClick={() => setRevokingAssignment(a)}
-                  leadingIcon={<Trash2 className="h-4 w-4" aria-hidden />}
-                />
-              </span>
-            )}
-            empty={
-              <EmptyState
-                icon={<ShieldOff className="h-6 w-6" aria-hidden />}
-                title={
-                  list.activeFilterCount > 0 ? 'No assignments match' : 'No staff assignments yet'
-                }
-                description={
-                  list.activeFilterCount > 0
-                    ? undefined
-                    : 'Invite a staff member, or grant an existing staff account access to a tenant.'
-                }
-                action={
-                  list.activeFilterCount > 0 ? (
-                    <Button variant="secondary" onClick={list.clearFilters}>
-                      Clear filters
-                    </Button>
-                  ) : (
-                    <Button onClick={() => setInviting(true)}>Invite staff</Button>
-                  )
-                }
-              />
-            }
-          />
-        ) : (
-          <DataTable
-            caption="Staff invitations"
-            columns={invitationColumns}
-            rows={invitations.data?.results}
-            rowKey={(i) => i.id}
-            loading={invitations.isPending}
-            refreshing={invitations.isFetching && !invitations.isPending}
-            error={invitations.error}
-            onRetry={() => void invitations.refetch()}
-            rowActions={(i) =>
-              i.status === 'pending' ? (
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  aria-label={`Revoke invitation for ${i.email}`}
-                  title="Revoke invitation"
-                  onClick={() => setRevokingInvite(i)}
-                  leadingIcon={<Ban className="h-4 w-4" aria-hidden />}
-                />
-              ) : null
-            }
-            empty={
-              <EmptyState
-                icon={<Mail className="h-6 w-6" aria-hidden />}
-                title={list.activeFilterCount > 0 ? 'No invitations match' : 'No invitations yet'}
-                action={
-                  list.activeFilterCount > 0 ? (
-                    <Button variant="secondary" onClick={list.clearFilters}>
-                      Clear filters
-                    </Button>
-                  ) : (
-                    <Button onClick={() => setInviting(true)}>Invite staff</Button>
-                  )
-                }
-              />
-            }
-          />
-        )}
-        {active.data && active.data.count > 0 && (
-          <Pagination
-            count={active.data.count}
-            page={list.state.page}
-            totalPages={active.data.total_pages}
-            pageSize={list.state.page_size}
-            onPageChange={list.setPage}
-            onPageSizeChange={list.setPageSize}
-            itemLabel={view}
-          />
-        )}
-      </section>
+function ResendDialog({ account, onClose }: { account: StaffAccount | null; onClose: () => void }) {
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const resend = useResendStaffSetup();
+  const toast = useToast();
+  async function submit(event: FormEvent) {
+    event.preventDefault(); if (!account) return; setError('');
+    try { const result = await resend.mutateAsync({ id: account.id, temporary_password: password });
+      toast.success(result.delivery_status === 'accepted' ? 'New setup email accepted by provider' : 'Email delivery failed; check settings and retry');
+      setPassword(''); onClose();
+    } catch (cause) { setError(errorMessage(cause)); }
+  }
+  return <Dialog open={account !== null} onClose={onClose} title={`Resend setup to ${account?.username || 'officer'}`}
+    description="A new temporary password and link replace the previous setup credentials.">
+    <form onSubmit={(e) => void submit(e)} className="space-y-4">{error && <Alert tone="danger">{error}</Alert>}
+      <FormField label="New temporary password" required><Input type="password" autoComplete="new-password" required minLength={8}
+        value={password} onChange={(e) => setPassword(e.target.value)} /></FormField>
+      <Button type="submit" loading={resend.isPending}>Send new setup email</Button></form>
+  </Dialog>;
+}
 
-      <InviteDialog open={inviting} onClose={() => setInviting(false)} defaultTenant={tenantId} />
-      <NewAssignmentDialog
-        open={assigning}
-        onClose={() => setAssigning(false)}
-        defaultTenant={tenantId}
-      />
-      <EditGrantsDialog assignment={editing} onClose={() => setEditing(null)} />
-      <ConfirmDialog
-        open={revokingAssignment !== null}
-        onClose={() => setRevokingAssignment(null)}
-        tone="danger"
-        title={`Revoke access for ${revokingAssignment?.user_display || 'this staff account'}?`}
-        description={`They immediately lose access to ${revokingAssignment ? tenantName(revokingAssignment.tenant) : 'this tenant'}. To pause instead, edit the grants and switch it off.`}
-        confirmLabel="Revoke"
-        onConfirm={async () => {
-          if (!revokingAssignment) return;
-          await revokeAssignment.mutateAsync(revokingAssignment.id);
-          toast.success('Assignment revoked');
-        }}
-      />
-      <ConfirmDialog
-        open={revokingInvite !== null}
-        onClose={() => setRevokingInvite(null)}
-        tone="danger"
-        title={`Revoke invitation for ${revokingInvite?.email ?? ''}?`}
-        description="The link stops working immediately. Create a new invitation if they still need access."
-        confirmLabel="Revoke invitation"
-        onConfirm={async () => {
-          if (!revokingInvite) return;
-          await revokeInvitation.mutateAsync(revokingInvite.id);
-          toast.success('Invitation revoked');
-        }}
-      />
-    </div>
-  );
+function OfficerRequestRow({ row }: { row: { id: number; tenant: number; tenant_name: string; reason: string } }) {
+  const client = useQueryClient();
+  const toast = useToast();
+  const assignments = useAssignments({ tenant: row.tenant, page_size: 100 });
+  const [assignment, setAssignment] = useState('');
+  const [error, setError] = useState('');
+  const review = useMutation({ mutationFn: ({ status, id }: { status: 'approved' | 'declined'; id?: number }) =>
+    platformApi.reviewOfficerChange(row.id, status, id),
+    onSuccess: () => { void client.invalidateQueries({ queryKey: ['platform', 'officer-change-requests'] }); toast.success('Request reviewed'); },
+    onError: (cause) => setError(errorMessage(cause)),
+  });
+  return <div className="rounded-control border border-border p-4 space-y-2">
+    <p className="font-medium">{row.tenant_name}</p><p className="text-sm">{row.reason}</p>
+    <label className="block text-sm" htmlFor={`officer-request-${row.id}`}>New primary officer</label>
+    <select id={`officer-request-${row.id}`} className="rounded-control border border-border bg-surface p-2" value={assignment} onChange={(event) => setAssignment(event.target.value)}>
+      <option value="">Choose an assigned officer</option>
+      {assignments.data?.results.filter((item) => item.is_active).map((item) =>
+        <option key={item.id} value={item.id}>{item.user_display || 'Account officer'}</option>)}
+    </select>
+    {error && <p role="alert" className="text-red-700">{error}</p>}
+    <div className="flex gap-2"><Button size="sm" disabled={!assignment} loading={review.isPending} onClick={() => review.mutate({ status: 'approved', id: Number(assignment) })}>Approve change</Button>
+      <Button size="sm" variant="secondary" loading={review.isPending} onClick={() => review.mutate({ status: 'declined' })}>Decline</Button></div>
+  </div>;
 }
