@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import type { ReportRow, TenantReport } from './api';
+import type { ReportRow } from './api';
 import { niceTicks } from '@/components/charts';
-import { percentChange, previousRange, reportCsv, weekdayPattern } from './reportMath';
+import { percentChange, previousRange, weekdayPattern } from './reportMath';
 
 function day(start: string, activated: number, complete = true): ReportRow {
   return {
@@ -52,12 +52,5 @@ describe('report maths', () => {
     expect(pattern?.bestDay).toBe('Saturday');
     expect(pattern?.averages[0]).toBe(1000);
     expect(weekdayPattern(rows.slice(0, 10))).toBeNull();
-  });
-
-  it('exports naira values and leaves unavailable cells blank', () => {
-    const csv = reportCsv({ rows: [day('2026-10-02', 12345)] } as TenantReport);
-    const [header, line] = csv.split('\r\n');
-    expect(header).toContain('Activated value (NGN)');
-    expect(line).toBe('2026-10-02,2026-10-02,Complete,123.45,0.00,,,,');
   });
 });

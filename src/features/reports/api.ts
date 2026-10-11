@@ -55,3 +55,8 @@ export interface TenantReport {
 export function fetchReport(params: ReportParams) {
   return http.get<TenantReport>('/reports/', { ...params });
 }
+
+/** The same report rendered by the server as a PDF document. */
+export function fetchReportPdf(params: ReportParams) {
+  return http.blob('/reports/pdf/', { ...params });
+}

@@ -1,18 +1,20 @@
 import { useState, type FormEvent, type ReactNode } from 'react';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router';
-import { Download, RefreshCw } from 'lucide-react';
+import { FileDown, RefreshCw } from 'lucide-react';
 import { usePrincipal } from '@/app/auth/useAuth';
-import { Alert } from '@/components/feedback';
+import { Alert, useToast } from '@/components/feedback';
 import { KpiDelta } from '@/components/layout';
 import { Button, Card, CardHeader, SegmentedControl, Skeleton } from '@/components/ui';
 import { formatKobo } from '@/lib/formatting/money';
 import { formatDateTime } from '@/lib/formatting/dates';
 import { formatNumber } from '@/lib/formatting/units';
 import { downloadBlob } from '@/lib/utilities/download';
+import { errorMessage } from '@/services/api/errors';
 import { cn } from '@/lib/utilities/cn';
 import {
   fetchReport,
+  fetchReportPdf,
   type GroupBy,
   type Period,
   type ReportParams,
@@ -34,7 +36,6 @@ import {
   periodLabel,
   periodState,
   previousRange,
-  reportCsv,
   weekdayPattern,
 } from './reportMath';
 
@@ -605,10 +606,20 @@ export default function ReportsPage() {
     retry: false,
   });
 
-  function exportCsv() {
+  const [exporting, setExporting] = useState(false);
+  const toast = useToast();
+
+  async function exportPdf() {
     if (!report) return;
-    const blob = new Blob([reportCsv(report)], { type: 'text/csv;charset=utf-8' });
-    downloadBlob(blob, `report-${report.from_date}-to-${report.to_date}-${report.group_by}.csv`);
+    setExporting(true);
+    try {
+      const blob = await fetchReportPdf(params);
+      downloadBlob(blob, `report-${report.from_date}-to-${report.to_date}-${report.group_by}.pdf`);
+    } catch (error) {
+      toast.error('The PDF could not be created', errorMessage(error));
+    } finally {
+      setExporting(false);
+    }
   }
 
   return (
@@ -622,9 +633,15 @@ export default function ReportsPage() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="secondary" size="sm" onClick={exportCsv} disabled={!report}>
-            <Download aria-hidden className="size-4" />
-            Export CSV
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => void exportPdf()}
+            disabled={!report || exporting}
+            loading={exporting}
+            leadingIcon={<FileDown aria-hidden className="size-4" />}
+          >
+            {exporting ? 'Preparing PDF…' : 'Export PDF'}
           </Button>
           <Button
             variant="secondary"

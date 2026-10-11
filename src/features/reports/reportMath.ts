@@ -1,4 +1,4 @@
-import type { CollectionsByChannel, GroupBy, ReportRow, TenantReport } from './api';
+import type { CollectionsByChannel, GroupBy, ReportRow } from './api';
 
 const DAY_MS = 86_400_000;
 
@@ -106,31 +106,3 @@ export const CHANNELS: { key: keyof CollectionsByChannel; label: string }[] = [
   { key: 'agent_wallet', label: 'Agent wallet sales' },
   { key: 'credit_repayments', label: 'Credit repayments' },
 ];
-
-function naira(kobo: number) {
-  return (kobo / 100).toFixed(2);
-}
-
-export function reportCsv(report: TenantReport) {
-  const header = [
-    'Period start',
-    'Period end (exclusive)',
-    'Status',
-    'Activated value (NGN)',
-    'Collections (NGN)',
-    ...CHANNELS.map((channel) => `${channel.label} (NGN)`),
-    'Active vouchers',
-  ];
-  const lines = report.rows.map((row) => [
-    row.start,
-    row.end_exclusive,
-    periodState(row),
-    naira(row.activated_value),
-    naira(row.collections),
-    ...CHANNELS.map((channel) =>
-      row.collections_by_channel ? naira(row.collections_by_channel[channel.key]) : '',
-    ),
-    row.active_vouchers === null ? '' : String(row.active_vouchers),
-  ]);
-  return [header, ...lines].map((line) => line.join(',')).join('\r\n');
-}

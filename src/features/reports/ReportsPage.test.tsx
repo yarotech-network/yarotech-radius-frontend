@@ -1,5 +1,5 @@
 import { http, HttpResponse } from 'msw';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { server } from '@/test/server';
@@ -83,6 +83,36 @@ describe('Tenant reports', () => {
     const table = screen.getByRole('table', { name: 'Report figures by period' });
     expect(within(table).getAllByRole('row')).toHaveLength(3);
     expect(within(table).getByText('Online payments')).toBeInTheDocument();
+  });
+
+  it('exports the current report as a PDF from the server', async () => {
+    const pdfRequests: URLSearchParams[] = [];
+    server.use(
+      http.get(`${API}/reports/`, () => HttpResponse.json(report)),
+      http.get(`${API}/reports/pdf/`, ({ request }) => {
+        pdfRequests.push(new URL(request.url).searchParams);
+        return new HttpResponse('%PDF-1.4 test', {
+          headers: { 'Content-Type': 'application/pdf' },
+        });
+      }),
+    );
+    const createObjectURL = vi.fn(() => 'blob:report');
+    Object.assign(URL, { createObjectURL, revokeObjectURL: vi.fn() });
+    const downloads: string[] = [];
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (
+      this: HTMLAnchorElement,
+    ) {
+      downloads.push(this.download);
+    });
+    renderPage(<ReportsPage />, { role: 'owner', path: '/reports' });
+    const button = await screen.findByRole('button', { name: 'Export PDF' });
+    await waitFor(() => expect(button).toBeEnabled());
+    await userEvent.click(button);
+    await waitFor(() => expect(downloads).toEqual(['report-2026-09-04-to-2026-10-03-day.pdf']));
+    expect(pdfRequests[0]?.get('period')).toBe('last_30_days');
+    expect(pdfRequests[0]?.get('group_by')).toBe('day');
+    expect(screen.queryByRole('button', { name: /Export CSV/ })).not.toBeInTheDocument();
+    click.mockRestore();
   });
 
   it('sends custom dates and grouping as query parameters', async () => {
